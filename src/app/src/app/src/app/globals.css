@@ -1,0 +1,45 @@
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #fffaf1;
+  color: #302018;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+}
+
+button:hover {
+  opacity: 0.88;
+}
+
+::selection {
+  background: #d8b17a;
+  color: #183d2b;
+}
+
+@media (max-width: 600px) {
+  nav {
+    font-size: 14px;
+  }
+}
