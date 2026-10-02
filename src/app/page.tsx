@@ -3,9 +3,9 @@
 
 import { useState } from "react";
 
-let WHATSAPP_NUMBER: string = "";
-let BUSINESS_EMAIL: string = "";
-let BUSINESS_PHONE: string = "";  
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
+const BUSINESS_EMAIL = process.env.NEXT_PUBLIC_BUSINESS_EMAIL || "";
+const BUSINESS_PHONE = process.env.NEXT_PUBLIC_BUSINESS_PHONE || ""; 
 const products = [
   { id: 1, name: "Multani Sohan Halwa", price: 1200, emoji: "🍯", category: "Traditional Sweets" },
   { id: 2, name: "Premium Barfi", price: 900, emoji: "🍬", category: "Traditional Sweets" },
