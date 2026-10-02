@@ -3,10 +3,9 @@
 
 import { useState } from "react";
 
-const WHATSAPP_NUMBER = ""; // Business number: country code ke sath, + ke baghair
-const BUSINESS_EMAIL = ""; // Apna business email yahan add karna
-const BUSINESS_PHONE = ""; // Misal: +923001234567
-
+let WHATSAPP_NUMBER: string = "";
+let BUSINESS_EMAIL: string = "";
+let BUSINESS_PHONE: string = "";  
 const products = [
   { id: 1, name: "Multani Sohan Halwa", price: 1200, emoji: "🍯", category: "Traditional Sweets" },
   { id: 2, name: "Premium Barfi", price: 900, emoji: "🍬", category: "Traditional Sweets" },
