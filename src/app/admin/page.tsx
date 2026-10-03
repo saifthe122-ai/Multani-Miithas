@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 const menu = [
   "Dashboard",
@@ -19,9 +20,24 @@ const menu = [
 ];
 
 const demoOrders = [
-  { id: "MM-1001", customer: "Customer One", total: "Rs. 2,400", status: "Pending" },
-  { id: "MM-1002", customer: "Customer Two", total: "Rs. 3,200", status: "Processing" },
-  { id: "MM-1003", customer: "Customer Three", total: "Rs. 1,800", status: "Delivered" },
+  {
+    id: "MM-1001",
+    customer: "Customer One",
+    total: "Rs. 2,400",
+    status: "Pending",
+  },
+  {
+    id: "MM-1002",
+    customer: "Customer Two",
+    total: "Rs. 3,200",
+    status: "Processing",
+  },
+  {
+    id: "MM-1003",
+    customer: "Customer Three",
+    total: "Rs. 1,800",
+    status: "Delivered",
+  },
 ];
 
 export default function AdminPage() {
@@ -40,7 +56,11 @@ export default function AdminPage() {
           {menu.map((item) => (
             <button
               key={item}
-              onClick={() => setActive(item)}
+              type="button"
+              onClick={() => {
+                setActive(item);
+                setSearch("");
+              }}
               className={`rounded-lg px-3 py-3 text-left text-sm transition ${
                 active === item
                   ? "bg-amber-500 font-semibold text-slate-950"
@@ -54,7 +74,7 @@ export default function AdminPage() {
 
         <div className="mt-8 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">
           <p className="font-semibold text-amber-300">Setup Status</p>
-          <p className="mt-2">Dashboard interface</p>
+          <p className="mt-2">Dashboard interface: Ready</p>
           <p>Database: Not connected</p>
           <p>Secure login: Not connected</p>
         </div>
@@ -63,41 +83,62 @@ export default function AdminPage() {
       <section className="min-w-0 flex-1 p-4 md:p-8">
         <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm text-slate-500">Multani Mithas / Admin</p>
+            <p className="text-sm text-slate-500">
+              Multani Mithas / Admin
+            </p>
             <h2 className="mt-1 text-3xl font-bold">{active}</h2>
             <p className="mt-2 text-sm text-slate-500">
               Manage your sweets, bakery and business operations.
             </p>
           </div>
-          <a
+
+          <Link
             href="/"
             className="inline-block rounded-lg border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold hover:bg-slate-50"
           >
             View Website ↗
-          </a>
+          </Link>
         </header>
 
         {active === "Dashboard" ? (
           <>
             <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <strong>Development preview:</strong> The figures and sample orders
-              below are demonstration data, not live business records.
+              <strong>Development preview:</strong> The figures and sample
+              orders below are demonstration data, not live business records.
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                ["Total Orders", "0", "Connect order database"],
-                ["Products", "0", "Connect product database"],
-                ["Customers", "0", "Customer records pending"],
-                ["Revenue", "Rs. 0", "Real accounting not connected"],
-              ].map(([title, value, note]) => (
+                {
+                  title: "Total Orders",
+                  value: "0",
+                  note: "Connect order database",
+                },
+                {
+                  title: "Products",
+                  value: "0",
+                  note: "Connect product database",
+                },
+                {
+                  title: "Customers",
+                  value: "0",
+                  note: "Customer records pending",
+                },
+                {
+                  title: "Revenue",
+                  value: "Rs. 0",
+                  note: "Real accounting not connected",
+                },
+              ].map((item) => (
                 <article
-                  key={title}
+                  key={item.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
-                  <p className="text-sm text-slate-500">{title}</p>
-                  <p className="mt-3 text-2xl font-bold">{value}</p>
-                  <p className="mt-2 text-xs text-slate-500">{note}</p>
+                  <p className="text-sm text-slate-500">{item.title}</p>
+                  <p className="mt-3 text-2xl font-bold">{item.value}</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {item.note}
+                  </p>
                 </article>
               ))}
             </div>
@@ -106,13 +147,16 @@ export default function AdminPage() {
               <article className="rounded-2xl border border-slate-200 bg-white p-5 xl:col-span-2">
                 <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <h3 className="text-lg font-bold">Recent Orders</h3>
+
                   <button
+                    type="button"
                     onClick={() => setActive("Orders")}
                     className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
                   >
                     Manage Orders
                   </button>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
@@ -123,10 +167,16 @@ export default function AdminPage() {
                         <th className="pb-3">Status</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {demoOrders.map((order) => (
-                        <tr key={order.id} className="border-b last:border-0">
-                          <td className="py-4 pr-4 font-medium">{order.id}</td>
+                        <tr
+                          key={order.id}
+                          className="border-b last:border-0"
+                        >
+                          <td className="py-4 pr-4 font-medium">
+                            {order.id}
+                          </td>
                           <td className="py-4 pr-4">{order.customer}</td>
                           <td className="py-4 pr-4">{order.total}</td>
                           <td className="py-4">
@@ -139,6 +189,7 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+
                 <p className="mt-4 text-xs text-slate-500">
                   Sample records only. No actual orders are stored here.
                 </p>
@@ -146,6 +197,7 @@ export default function AdminPage() {
 
               <article className="rounded-2xl border border-slate-200 bg-white p-5">
                 <h3 className="mb-4 text-lg font-bold">Business Modules</h3>
+
                 <div className="space-y-3">
                   {[
                     ["Products & Stock", "Products"],
@@ -156,6 +208,7 @@ export default function AdminPage() {
                   ].map(([label, target]) => (
                     <button
                       key={target}
+                      type="button"
                       onClick={() => setActive(target)}
                       className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:bg-slate-50"
                     >
@@ -172,7 +225,9 @@ export default function AdminPage() {
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
               Module created
             </span>
+
             <h3 className="mt-5 text-xl font-bold">{active}</h3>
+
             <p className="mt-3 leading-7 text-slate-600">
               This module has its own navigation entry. Its live features,
               data forms, permissions and database operations still need
@@ -180,16 +235,22 @@ export default function AdminPage() {
             </p>
 
             <div className="mt-6 max-w-xl">
-              <label htmlFor="module-search" className="mb-2 block text-sm font-medium">
+              <label
+                htmlFor="module-search"
+                className="mb-2 block text-sm font-medium"
+              >
                 Search within this module
               </label>
+
               <input
                 id="module-search"
+                type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={`Search ${active.toLowerCase()}...`}
                 className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-amber-500"
               />
+
               {search && (
                 <p className="mt-2 text-sm text-slate-500">
                   Search input is ready; database search is not connected.
@@ -198,7 +259,11 @@ export default function AdminPage() {
             </div>
 
             <button
-              onClick={() => setActive("Dashboard")}
+              type="button"
+              onClick={() => {
+                setActive("Dashboard");
+                setSearch("");
+              }}
               className="mt-6 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
             >
               ← Back to Dashboard
@@ -209,8 +274,8 @@ export default function AdminPage() {
         <footer className="mt-8 border-t border-slate-200 pt-5 text-xs leading-6 text-slate-500">
           Multani Mithas Business Management System
           <br />
-          Secure authentication, real records and server-side permissions must
-          be configured before production use.
+          Secure authentication, real records and server-side permissions
+          must be configured before production use.
         </footer>
       </section>
     </main>
