@@ -27,7 +27,7 @@ const menuGroups = [
       { icon: "📣", label: "Marketing", href: "/admin/marketing" },
       { icon: "🎟", label: "Coupons", href: "/admin/coupons" },
       { icon: "🔗", label: "Referrals", href: "/admin/referrals" },
-      { icon: "📱", label: "Social Media", href: "/admin/social" },
+    { icon: "📱", label: "Social Media", href: "/admin/social-media" },
       { icon: "📊", label: "Analytics", href: "/admin/analytics" },
     ],
   },
