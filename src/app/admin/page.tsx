@@ -34,9 +34,10 @@ const menuGroups = [
   {
     title: "FINANCE",
     items: [
-      { icon: "💳", label: "Payments", href: "/admin/payments" },
-      { icon: "🧾", label: "Accounting", href: "/admin/accounting" },
-      { icon: "📈", label: "Reports", href: "/admin/reports" },
+     { icon: "💳", label: "Payments", href: "/admin/payments" },
+{ icon: "🧾", label: "Invoices", href: "/admin/invoices" },
+{ icon: "🧾", label: "Accounting", href: "/admin/accounting" },
+{ icon: "📈", label: "Reports", href: "/admin/reports" },
     ],
   },
   {
