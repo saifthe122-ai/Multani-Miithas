@@ -64,12 +64,14 @@ export default function FeedbackComplaintsDashboard() {
   const [selected, setSelected] = useState<Complaint | null>(null);
 
   const filteredComplaints = complaints.filter((complaint) => {
-    const searchText = search.toLowerCase();
-
     const matchesSearch =
-      complaint.customer.toLowerCase().includes(searchText) ||
-      complaint.order.toLowerCase().includes(searchText) ||
-      complaint.id.toLowerCase().includes(searchText);
+      complaint.customer
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      complaint.order
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      complaint.id.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus =
       statusFilter === "All" ||
@@ -121,7 +123,6 @@ export default function FeedbackComplaintsDashboard() {
       }}
     >
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-
         <Link
           href="/admin"
           style={{
@@ -135,7 +136,6 @@ export default function FeedbackComplaintsDashboard() {
           ← Back to Admin Dashboard
         </Link>
 
-        {/* Header */}
         <header
           style={{
             background:
@@ -156,8 +156,8 @@ export default function FeedbackComplaintsDashboard() {
               opacity: 0.9,
             }}
           >
-            Manage customer complaints, feedback, priorities
-            and support responses.
+            Manage customer complaints, feedback, priorities and
+            support responses.
           </p>
         </header>
 
@@ -212,7 +212,7 @@ export default function FeedbackComplaintsDashboard() {
           ))}
         </section>
 
-        {/* Management buttons */}
+        {/* Operations */}
         <section style={cardStyle}>
           <h2 style={{ marginTop: 0 }}>
             Complaint Management
@@ -495,7 +495,7 @@ export default function FeedbackComplaintsDashboard() {
           </p>
         </section>
 
-        {/* Details Modal */}
+        {/* Details modal */}
         {selected && (
           <div
             style={{
