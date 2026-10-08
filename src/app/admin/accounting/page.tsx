@@ -195,39 +195,45 @@ export default function AccountingDashboard() {
     },
   ];
 
-  const operations = [
-    {
-      title: "Sales Ledger",
-      icon: "🛒",
-      description: "Track all sales and order revenue.",
-    },
-    {
-      title: "Expense Ledger",
-      icon: "💸",
-      description: "Manage business expenses and costs.",
-    },
-    {
-      title: "Refunds",
-      icon: "↩️",
-      description: "Track refunds and financial adjustments.",
-    },
-    {
-      title: "Bank & Cash",
-      icon: "🏦",
-      description: "Monitor cash and bank movements.",
-    },
-    {
-      title: "Inventory Cost",
-      icon: "📦",
-      description: "Track product and raw-material costs.",
-    },
-    {
-      title: "Profit & Loss",
-      icon: "📈",
-      description: "Understand business profitability.",
-    },
-  ];
-
+ 
+const operations = [
+  {
+    title: "Sales Ledger",
+    icon: "🛒",
+    description: "Track all sales and order revenue.",
+    href: "/admin/accounting/sales",
+  },
+  {
+    title: "Expense Ledger",
+    icon: "💸",
+    description: "Manage business expenses and costs.",
+    href: "/admin/accounting/expenses",
+  },
+  {
+    title: "Refunds",
+    icon: "↩️",
+    description: "Track refunds and financial adjustments.",
+    href: "/admin/accounting/refunds",
+  },
+  {
+    title: "Bank & Cash",
+    icon: "🏦",
+    description: "Monitor cash and bank movements.",
+    href: "/admin/accounting/bank-cash",
+  },
+  {
+    title: "Inventory Cost",
+    icon: "📦",
+    description: "Track product and raw-material costs.",
+    href: "/admin/accounting/inventory-cost",
+  },
+  {
+    title: "Profit & Loss",
+    icon: "📈",
+    description: "Understand business profitability.",
+    href: "/admin/accounting/profit-loss",
+  },
+];
   return (
     <main
       style={{
