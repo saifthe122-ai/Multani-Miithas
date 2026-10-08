@@ -1,10 +1,10 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
 type TransactionType = "Sale" | "Expense" | "Refund";
-
 type TransactionStatus = "Completed" | "Pending";
 
 type Transaction = {
@@ -81,8 +81,46 @@ const initialTransactions: Transaction[] = [
   },
 ];
 
-const money = (value: number) =>
-  `Rs. ${value.toLocaleString("en-PK")}`;
+const money = (value: number) => `Rs. ${value.toLocaleString("en-PK")}`;
+
+const operations = [
+  {
+    title: "Sales Ledger",
+    icon: "🛒",
+    description: "Track all sales and order revenue.",
+    href: "/admin/accounting/sales",
+  },
+  {
+    title: "Expense Ledger",
+    icon: "💸",
+    description: "Manage business expenses and costs.",
+    href: "/admin/accounting/expenses",
+  },
+  {
+    title: "Refunds",
+    icon: "↩️",
+    description: "Track refunds and financial adjustments.",
+    href: "/admin/accounting/refunds",
+  },
+  {
+    title: "Bank & Cash",
+    icon: "🏦",
+    description: "Monitor cash and bank movements.",
+    href: "/admin/accounting/bank-cash",
+  },
+  {
+    title: "Inventory Cost",
+    icon: "📦",
+    description: "Track product and raw-material costs.",
+    href: "/admin/accounting/inventory-cost",
+  },
+  {
+    title: "Profit & Loss",
+    icon: "📈",
+    description: "Understand business profitability.",
+    href: "/admin/accounting/profit-loss",
+  },
+];
 
 export default function AccountingDashboard() {
   const [transactions, setTransactions] =
@@ -124,11 +162,13 @@ export default function AccountingDashboard() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((item) => {
+      const term = search.toLowerCase();
+
       const matchesSearch =
-        item.id.toLowerCase().includes(search.toLowerCase()) ||
-        item.reference.toLowerCase().includes(search.toLowerCase()) ||
-        item.description.toLowerCase().includes(search.toLowerCase()) ||
-        item.method.toLowerCase().includes(search.toLowerCase());
+        item.id.toLowerCase().includes(term) ||
+        item.reference.toLowerCase().includes(term) ||
+        item.description.toLowerCase().includes(term) ||
+        item.method.toLowerCase().includes(term);
 
       const matchesType =
         typeFilter === "All" || item.type === typeFilter;
@@ -143,9 +183,7 @@ export default function AccountingDashboard() {
   const markCompleted = (id: string) => {
     setTransactions((current) =>
       current.map((item) =>
-        item.id === id
-          ? { ...item, status: "Completed" }
-          : item
+        item.id === id ? { ...item, status: "Completed" } : item
       )
     );
   };
@@ -195,45 +233,14 @@ export default function AccountingDashboard() {
     },
   ];
 
- 
-const operations = [
-  {
-    title: "Sales Ledger",
-    icon: "🛒",
-    description: "Track all sales and order revenue.",
-    href: "/admin/accounting/sales",
-  },
-  {
-    title: "Expense Ledger",
-    icon: "💸",
-    description: "Manage business expenses and costs.",
-    href: "/admin/accounting/expenses",
-  },
-  {
-    title: "Refunds",
-    icon: "↩️",
-    description: "Track refunds and financial adjustments.",
-    href: "/admin/accounting/refunds",
-  },
-  {
-    title: "Bank & Cash",
-    icon: "🏦",
-    description: "Monitor cash and bank movements.",
-    href: "/admin/accounting/bank-cash",
-  },
-  {
-    title: "Inventory Cost",
-    icon: "📦",
-    description: "Track product and raw-material costs.",
-    href: "/admin/accounting/inventory-cost",
-  },
-  {
-    title: "Profit & Loss",
-    icon: "📈",
-    description: "Understand business profitability.",
-    href: "/admin/accounting/profit-loss",
-  },
-];
+  const cardStyle = {
+    background: "#fff",
+    borderRadius: "16px",
+    padding: "22px",
+    border: "1px solid #e8ecf2",
+    boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
+  } as const;
+
   return (
     <main
       style={{
@@ -247,7 +254,7 @@ const operations = [
     >
       <div style={{ maxWidth: "1450px", margin: "0 auto" }}>
         {/* HEADER */}
-        <div
+        <header
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -304,7 +311,7 @@ const operations = [
           >
             ← Admin Dashboard
           </Link>
-        </div>
+        </header>
 
         {/* DEMO NOTICE */}
         <div
@@ -320,7 +327,6 @@ const operations = [
           }}
         >
           <div style={{ fontSize: "22px" }}>⚠️</div>
-
           <div>
             <div
               style={{
@@ -331,7 +337,6 @@ const operations = [
             >
               Accounting data is currently in demo mode
             </div>
-
             <div
               style={{
                 color: "#7c2d12",
@@ -339,9 +344,10 @@ const operations = [
                 lineHeight: 1.6,
               }}
             >
-              These figures are sample records. Later the accounting
-              system will automatically receive verified orders,
-              payments, refunds, purchases, expenses and inventory costs.
+              These are sample records. Database integration is not yet
+              connected. Actual orders, payments, refunds, purchases and
+              inventory costs must be connected before these figures are
+              used for business decisions.
             </div>
           </div>
         </div>
@@ -350,8 +356,7 @@ const operations = [
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(200px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
             gap: "16px",
             marginBottom: "28px",
           }}
@@ -403,12 +408,7 @@ const operations = [
                 {card.value}
               </div>
 
-              <div
-                style={{
-                  fontSize: "12px",
-                  color: "#98a2b3",
-                }}
-              >
+              <div style={{ fontSize: "12px", color: "#98a2b3" }}>
                 {card.note}
               </div>
             </div>
@@ -419,27 +419,13 @@ const operations = [
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
             gap: "18px",
             marginBottom: "28px",
           }}
         >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              padding: "22px",
-              border: "1px solid #e8ecf2",
-              boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
-            }}
-          >
-            <h2
-              style={{
-                margin: "0 0 18px",
-                fontSize: "18px",
-              }}
-            >
+          <section style={cardStyle}>
+            <h2 style={{ margin: "0 0 18px", fontSize: "18px" }}>
               Revenue Overview
             </h2>
 
@@ -455,7 +441,6 @@ const operations = [
                 <span>Gross Sales</span>
                 <strong>{money(totals.sales)}</strong>
               </div>
-
               <div
                 style={{
                   height: "9px",
@@ -487,7 +472,6 @@ const operations = [
                 <span>Refunds</span>
                 <strong>{money(totals.refunds)}</strong>
               </div>
-
               <div
                 style={{
                   height: "9px",
@@ -506,23 +490,10 @@ const operations = [
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              padding: "22px",
-              border: "1px solid #e8ecf2",
-              boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
-            }}
-          >
-            <h2
-              style={{
-                margin: "0 0 18px",
-                fontSize: "18px",
-              }}
-            >
+          <section style={cardStyle}>
+            <h2 style={{ margin: "0 0 18px", fontSize: "18px" }}>
               Expense Overview
             </h2>
 
@@ -532,6 +503,7 @@ const operations = [
                 justifyContent: "space-between",
                 padding: "12px 0",
                 borderBottom: "1px solid #edf0f4",
+                gap: "10px",
               }}
             >
               <span>Business Expenses</span>
@@ -543,30 +515,23 @@ const operations = [
                 display: "flex",
                 justifyContent: "space-between",
                 padding: "12px 0",
+                gap: "10px",
               }}
             >
               <span>Estimated Profit</span>
-              <strong style={{ color: "#15803d" }}>
+              <strong
+                style={{
+                  color:
+                    totals.estimatedProfit >= 0 ? "#15803d" : "#dc2626",
+                }}
+              >
                 {money(totals.estimatedProfit)}
               </strong>
             </div>
-          </div>
+          </section>
 
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "16px",
-              padding: "22px",
-              border: "1px solid #e8ecf2",
-              boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
-            }}
-          >
-            <h2
-              style={{
-                margin: "0 0 18px",
-                fontSize: "18px",
-              }}
-            >
+          <section style={cardStyle}>
+            <h2 style={{ margin: "0 0 18px", fontSize: "18px" }}>
               Financial Health
             </h2>
 
@@ -575,9 +540,7 @@ const operations = [
                 fontSize: "30px",
                 fontWeight: 800,
                 color:
-                  totals.estimatedProfit >= 0
-                    ? "#15803d"
-                    : "#dc2626",
+                  totals.estimatedProfit >= 0 ? "#15803d" : "#dc2626",
               }}
             >
               {totals.estimatedProfit >= 0
@@ -593,33 +556,23 @@ const operations = [
                 lineHeight: 1.6,
               }}
             >
-              Current demo calculation compares net revenue against
-              recorded expenses.
+              Demo estimate based on sample sales, refunds and expenses.
+              It is not a final accounting profit calculation.
             </p>
-          </div>
+          </section>
         </div>
 
-        {/* ACCOUNTING OPERATIONS */}
+        {/* ACCOUNTING OPERATIONS — CLICKABLE LINKS */}
         <section
           style={{
-            background: "#fff",
-            borderRadius: "16px",
-            padding: "24px",
-            border: "1px solid #e8ecf2",
-            boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
+            ...cardStyle,
             marginBottom: "28px",
           }}
         >
           <div style={{ marginBottom: "20px" }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "21px",
-              }}
-            >
+            <h2 style={{ margin: 0, fontSize: "21px" }}>
               Accounting Operations
             </h2>
-
             <p
               style={{
                 margin: "7px 0 0",
@@ -627,37 +580,37 @@ const operations = [
                 fontSize: "14px",
               }}
             >
-              Core financial areas for the Multani Mithas business.
+              Open a financial module by clicking its card.
             </p>
           </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "14px",
             }}
           >
             {operations.map((operation) => (
-              <button
+              <Link
                 key={operation.title}
-                type="button"
+                href={operation.href}
                 style={{
+                  display: "block",
                   textAlign: "left",
-                  background: "#f8fafc",
+                  background: "#ffffff",
                   border: "1px solid #e5e7eb",
                   borderRadius: "13px",
-                  padding: "17px",
+                  padding: "20px",
                   cursor: "pointer",
+                  color: "#172033",
+                  textDecoration: "none",
+                  boxShadow: "0 3px 12px rgba(15,23,42,0.05)",
+                  transition:
+                    "border-color 150ms ease, box-shadow 150ms ease",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: "25px",
-                    marginBottom: "10px",
-                  }}
-                >
+                <div style={{ fontSize: "25px", marginBottom: "10px" }}>
                   {operation.icon}
                 </div>
 
@@ -675,23 +628,30 @@ const operations = [
                     color: "#667085",
                     fontSize: "13px",
                     lineHeight: 1.5,
+                    marginBottom: "14px",
                   }}
                 >
                   {operation.description}
                 </div>
-              </button>
+
+                <div
+                  style={{
+                    color: "#2563eb",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Open Dashboard →
+                </div>
+              </Link>
             ))}
           </div>
         </section>
 
-        {/* TRANSACTIONS */}
+        {/* FINANCIAL TRANSACTIONS */}
         <section
           style={{
-            background: "#fff",
-            borderRadius: "16px",
-            padding: "24px",
-            border: "1px solid #e8ecf2",
-            boxShadow: "0 5px 20px rgba(15,23,42,0.05)",
+            ...cardStyle,
             marginBottom: "28px",
           }}
         >
@@ -706,15 +666,9 @@ const operations = [
             }}
           >
             <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: "21px",
-                }}
-              >
+              <h2 style={{ margin: 0, fontSize: "21px" }}>
                 Financial Transactions
               </h2>
-
               <p
                 style={{
                   margin: "7px 0 0",
@@ -722,7 +676,7 @@ const operations = [
                   fontSize: "14px",
                 }}
               >
-                Sales, expenses and refunds recorded in the system.
+                Search and filter the sample sales, expenses and refunds.
               </p>
             </div>
 
@@ -743,8 +697,7 @@ const operations = [
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "minmax(220px, 1fr) 180px 180px",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
               gap: "12px",
               marginBottom: "20px",
             }}
@@ -752,7 +705,8 @@ const operations = [
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search transaction, order, description..."
+              placeholder="Search transaction or order..."
+              aria-label="Search transactions"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
@@ -767,6 +721,7 @@ const operations = [
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
+              aria-label="Filter transaction type"
               style={{
                 padding: "12px 14px",
                 border: "1px solid #d9dee7",
@@ -784,6 +739,7 @@ const operations = [
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter transaction status"
               style={{
                 padding: "12px 14px",
                 border: "1px solid #d9dee7",
@@ -814,12 +770,7 @@ const operations = [
               }}
             >
               <thead>
-                <tr
-                  style={{
-                    background: "#f8fafc",
-                    textAlign: "left",
-                  }}
-                >
+                <tr style={{ background: "#f8fafc", textAlign: "left" }}>
                   {[
                     "Transaction",
                     "Reference",
@@ -906,14 +857,14 @@ const operations = [
                             item.type === "Sale"
                               ? "#dcfce7"
                               : item.type === "Expense"
-                              ? "#ffedd5"
-                              : "#fee2e2",
+                                ? "#ffedd5"
+                                : "#fee2e2",
                           color:
                             item.type === "Sale"
                               ? "#166534"
                               : item.type === "Expense"
-                              ? "#9a3412"
-                              : "#991b1b",
+                                ? "#9a3412"
+                                : "#991b1b",
                         }}
                       >
                         {item.type}
@@ -992,10 +943,7 @@ const operations = [
                         </button>
                       ) : (
                         <span
-                          style={{
-                            fontSize: "12px",
-                            color: "#98a2b3",
-                          }}
+                          style={{ fontSize: "12px", color: "#98a2b3" }}
                         >
                           Recorded
                         </span>
@@ -1021,9 +969,20 @@ const operations = [
               </tbody>
             </table>
           </div>
+
+          <p
+            style={{
+              margin: "14px 0 0",
+              color: "#98a2b3",
+              fontSize: "12px",
+            }}
+          >
+            Demo note: marking an entry Complete only changes local screen
+            state. It does not record a real payment or update a database.
+          </p>
         </section>
 
-        {/* FUTURE ARCHITECTURE */}
+        {/* FUTURE ACCOUNTING ARCHITECTURE */}
         <section
           style={{
             background: "#111827",
@@ -1033,12 +992,7 @@ const operations = [
             marginBottom: "20px",
           }}
         >
-          <h2
-            style={{
-              margin: "0 0 10px",
-              fontSize: "20px",
-            }}
-          >
+          <h2 style={{ margin: "0 0 10px", fontSize: "20px" }}>
             🔐 Accounting Architecture
           </h2>
 
@@ -1050,15 +1004,14 @@ const operations = [
               lineHeight: 1.7,
             }}
           >
-            This module is prepared for connection with the rest of the
-            Multani Mithas business system.
+            Planned integration points for the Multani Mithas business
+            system. These connections still need to be implemented.
           </p>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "12px",
             }}
           >
@@ -1088,7 +1041,7 @@ const operations = [
           </div>
         </section>
 
-        <div
+        <footer
           style={{
             textAlign: "center",
             color: "#98a2b3",
@@ -1097,7 +1050,7 @@ const operations = [
           }}
         >
           Multani Mithas • Accounting Management System
-        </div>
+        </footer>
       </div>
     </main>
   );
