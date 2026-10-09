@@ -428,4 +428,3 @@ const cellStyle = {
   padding: "14px 12px",
   borderBottom: "1px solid #e5e7eb",
 } as const;
-```
