@@ -11,7 +11,9 @@ const allowedSources = [
   "whatsapp",
   "direct",
   "other",
-];
+] as const;
+
+type TrafficSource = (typeof allowedSources)[number];
 
 export async function GET() {
   return NextResponse.json({
@@ -20,6 +22,7 @@ export async function GET() {
     sources: allowedSources,
     analyticsEnabled: false,
     databaseConnected: false,
+    trackingMode: "testing",
   });
 }
 
@@ -30,26 +33,79 @@ export async function POST(request: Request) {
     if (
       !body ||
       typeof body !== "object" ||
-      Array.isArray(body) ||
-      typeof body.source !== "string" ||
-      !allowedSources.includes(body.source.toLowerCase())
+      Array.isArray(body)
     ) {
       return NextResponse.json(
-        { success: false, message: "A valid traffic source is required" },
+        {
+          success: false,
+          message: "Invalid tracking request",
+        },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Traffic source received for testing",
-      recorded: false,
-      analyticsEnabled: false,
-      databaseConnected: false,
-    }, { status: 202 });
+    const source =
+      typeof body.source === "string"
+        ? body.source.trim().toLowerCase()
+        : "";
+
+    if (
+      !allowedSources.includes(source as TrafficSource)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "A valid traffic source is required",
+          allowedSources,
+        },
+        { status: 400 }
+      );
+    }
+
+    const campaign =
+      typeof body.campaign === "string"
+        ? body.campaign.trim()
+        : "";
+
+    const page =
+      typeof body.page === "string"
+        ? body.page.trim()
+        : "";
+
+    if (campaign.length > 150 || page.length > 500) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Campaign or page value is too long",
+        },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Traffic source received in testing mode",
+        trackingEvent: {
+          source,
+          campaign: campaign || null,
+          page: page || null,
+          receivedAt: new Date().toISOString(),
+        },
+        recorded: false,
+        analyticsEnabled: false,
+        databaseConnected: false,
+        note:
+          "This event is not stored. Persistent analytics require a database or analytics provider.",
+      },
+      { status: 202 }
+    );
   } catch {
     return NextResponse.json(
-      { success: false, message: "Invalid JSON data" },
+      {
+        success: false,
+        message: "Invalid JSON data",
+      },
       { status: 400 }
     );
   }
