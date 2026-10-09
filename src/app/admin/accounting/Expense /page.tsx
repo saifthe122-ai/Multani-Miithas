@@ -108,7 +108,7 @@ if (amountInput === null || amountInput.trim() === "") return;
 const amount = Number(amountInput);
 
 if (!Number.isFinite(amount) || amount <= 0) {
-  setMessage("Ghalat amount. Meharbani karke positive number likhein.");
+  setMessage("Ghalat amount. Positive number likhein.");
   return;
 }
 
@@ -139,7 +139,11 @@ status: expense.status === "Paid" ? "Pending" : "Paid",
 : expense
 )
 );
+
+```
 setMessage("Expense status update ho gaya hai.");
+```
+
 }
 
 const cardStyle = {
@@ -148,6 +152,7 @@ border: "1px solid #e2e8f0",
 borderRadius: 14,
 padding: 18,
 minWidth: 0,
+boxShadow: "0 3px 12px rgba(15,23,42,0.04)",
 } as const;
 
 const buttonStyle = {
@@ -243,8 +248,8 @@ fontWeight: 700,
         color: "#9a3412",
       }}
     >
-      Demo mode: yahan entries filhaal temporary hain. Page refresh karne
-      par naye records reset ho jayenge. Abhi database connected nahi hai.
+      Demo mode: naye records filhaal temporary hain. Page refresh karne
+      par reset ho jayenge. Database abhi connected nahi hai.
     </div>
 
     <section
@@ -320,7 +325,7 @@ fontWeight: 700,
             padding: 11,
             border: "1px solid #cbd5e1",
             borderRadius: 9,
-            background: "#fff",
+            background: "#ffffff",
           }}
         >
           <option value="All">All statuses</option>
@@ -378,7 +383,13 @@ fontWeight: 700,
                 <td style={{ padding: 13, borderBottom: "1px solid #e2e8f0" }}>
                   {expense.category}
                 </td>
-                <td style={{ padding: 13, borderBottom: "1px solid #e2e8f0", fontWeight: 700 }}>
+                <td
+                  style={{
+                    padding: 13,
+                    borderBottom: "1px solid #e2e8f0",
+                    fontWeight: 700,
+                  }}
+                >
                   {formatPKR(expense.amount)}
                 </td>
                 <td style={{ padding: 13, borderBottom: "1px solid #e2e8f0" }}>
@@ -387,8 +398,10 @@ fontWeight: 700,
                       display: "inline-block",
                       borderRadius: 20,
                       padding: "5px 9px",
-                      background: expense.status === "Paid" ? "#dcfce7" : "#ffedd5",
-                      color: expense.status === "Paid" ? "#166534" : "#9a3412",
+                      background:
+                        expense.status === "Paid" ? "#dcfce7" : "#ffedd5",
+                      color:
+                        expense.status === "Paid" ? "#166534" : "#9a3412",
                       fontSize: 12,
                       fontWeight: 700,
                     }}
@@ -417,7 +430,11 @@ fontWeight: 700,
               <tr>
                 <td
                   colSpan={7}
-                  style={{ padding: 30, textAlign: "center", color: "#64748b" }}
+                  style={{
+                    padding: 30,
+                    textAlign: "center",
+                    color: "#64748b",
+                  }}
                 >
                   Koi matching expense nahi mila.
                 </td>
