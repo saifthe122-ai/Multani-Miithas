@@ -820,6 +820,7 @@ export default function Home() {
 
           <h2>From the Heart of Multan</h2>
 
+        
           <p>
             Multani Mithas is more than sweets. It is a celebration
             of tradition, family, hospitality and the cultural
@@ -827,7 +828,7 @@ export default function Home() {
           </p>
 
           <p>
-            Inspired by Multan's iconic blue tilework, historic
+            Inspired by Multan&apos;s iconic blue tilework, historic
             architecture and the warmth of the Saraiki Wasib,
             we bring a taste of heritage to every special moment.
           </p>
