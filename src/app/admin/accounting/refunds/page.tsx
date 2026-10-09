@@ -65,7 +65,7 @@ const [message, setMessage] = useState("");
 const filteredRefunds = useMemo(() => {
 const query = search.trim().toLowerCase();
 
-```
+
 return refunds.filter((refund) => {
   const matchesSearch = [
     refund.reference,
@@ -76,7 +76,7 @@ return refunds.filter((refund) => {
 
   return matchesSearch && (filter === "All" || refund.status === filter);
 });
-```
+
 
 }, [refunds, search, filter]);
 
@@ -124,7 +124,7 @@ const refund: Refund = {
 
 setRefunds((current) => [refund, ...current]);
 setMessage("Refund request add ho gayi. Demo record hai.");
-```
+
 
 }
 
@@ -416,7 +416,7 @@ style={{ color: "#8b2f12", textDecoration: "none", fontWeight: 700 }}
     </p>
   </div>
 </main>
-```
+
 
 );
 }
