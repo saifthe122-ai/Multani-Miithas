@@ -94,7 +94,7 @@ function addRefund() {
 const customer = window.prompt("Customer ka naam likhein:");
 if (!customer?.trim()) return;
 
-```
+
 const orderReference = window.prompt("Order reference likhein:");
 if (!orderReference?.trim()) return;
 
