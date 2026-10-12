@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 
-const menuGroups = [
-  {
-    title: "MAIN",
-    items: [
-      { icon: "▦", label: "Dashboard", href: "/admin" },
-      { icon: "▣", label: "Products", href: "/admin/products" },
-      { icon: "🛍", label: "Orders", href: "/admin/orders" },
-      { icon: "♙", label: "Customers", href: "/admin/customers" },
-    ],
-  },
+const menuGroups = [ 
+{
+  title: "MAIN",
+  items: [
+    { icon: "▦", label: "Dashboard", href: "/admin" },
+    { icon: "▣", label: "Products", href: "/admin/products" },
+    { icon: "🛍", label: "Orders", href: "/admin/orders" },
+    { icon: "🎨", label: "Website Design & Media", href: "/admin/website-design" },
+    { icon: "♙", label: "Customers", href: "/admin/customers" },
+  ],
+},
   {
     title: "OPERATIONS",
     items: [
