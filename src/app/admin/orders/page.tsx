@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -199,6 +200,87 @@ export default function OrdersDashboard() {
     );
   }
 
+  // Export currently displayed orders to an Excel-compatible CSV file.
+  function exportOrdersToCSV() {
+    if (filteredOrders.length === 0) {
+      alert("Export karne ke liye koi orders nahi hain.");
+      return;
+    }
+
+    const headers = [
+      "Order ID",
+      "Customer",
+      "Phone",
+      "Email",
+      "Products",
+      "Quantity",
+      "Amount PKR",
+      "Payment Method",
+      "Payment Status",
+      "Order Status",
+      "Delivery Address",
+      "Delivery Date",
+      "Delivery Time",
+      "Rider",
+      "Priority",
+      "Created At",
+    ];
+
+    const csvCell = (value: string | number) => {
+      let cell = String(value ?? "");
+
+      // Reduce the risk of Excel interpreting customer text as a formula.
+      if (/^[=+\-@\t\r]/.test(cell)) {
+        cell = "'" + cell;
+      }
+
+      return `"${cell.replace(/"/g, '""')}"`;
+    };
+
+    const rows = filteredOrders.map((order) => [
+      order.id,
+      order.customer,
+      order.phone,
+      order.email,
+      order.items,
+      order.quantity,
+      order.amount,
+      order.paymentMethod,
+      order.paymentStatus,
+      order.status,
+      order.address,
+      order.deliveryDate,
+      order.deliveryTime,
+      order.rider,
+      order.priority,
+      order.createdAt,
+    ]);
+
+    const csv = [
+      headers.map(csvCell).join(","),
+      ...rows.map((row) => row.map(csvCell).join(",")),
+    ].join("\r\n");
+
+    const blob = new Blob(["\uFEFF", csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `multani-mithas-orders-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    // Delay cleanup to avoid revoking the URL before the download starts.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <main style={styles.page}>
       {/* HEADER */}
@@ -225,12 +307,33 @@ export default function OrdersDashboard() {
           </button>
 
           <button
+            style={styles.exportButton}
+            onClick={exportOrdersToCSV}
+          >
+            ↓ Export CSV
+          </button>
+
+          <button
             style={styles.primaryButton}
-            onClick={() => alert("New order form will be connected to the customer checkout/API.")}
+            onClick={() =>
+              alert(
+                "New order form will be connected to the customer checkout/API."
+              )
+            }
           >
             + New Order
           </button>
         </div>
+      </section>
+
+      {/* DEMO DATA NOTICE */}
+      <section style={styles.dataNotice}>
+        <strong>Important: Demo orders</strong>
+        <p style={{ margin: "5px 0 0", lineHeight: 1.6 }}>
+          This dashboard currently uses sample orders in this page. CSV export
+          downloads the orders currently shown here. New customer orders are
+          not automatically saved to this dashboard yet.
+        </p>
       </section>
 
       {/* ALERT */}
@@ -283,9 +386,8 @@ export default function OrdersDashboard() {
             <div style={styles.insight}>
               <strong>Payment Check</strong>
               <span>
-                {
-                  orders.filter((o) => o.paymentStatus === "Pending").length
-                } payment(s) still need verification.
+                {orders.filter((o) => o.paymentStatus === "Pending").length}{" "}
+                payment(s) still need verification.
               </span>
             </div>
 
@@ -298,7 +400,8 @@ export default function OrdersDashboard() {
                       o.status === "Confirmed" &&
                       o.rider === "Not Assigned"
                   ).length
-                } confirmed order(s) have no rider assigned.
+                }{" "}
+                confirmed order(s) have no rider assigned.
               </span>
             </div>
           </div>
@@ -519,7 +622,10 @@ export default function OrdersDashboard() {
             <div style={styles.detailGrid}>
               <Detail label="Customer" value={selectedOrder.customer} />
               <Detail label="Phone" value={selectedOrder.phone} />
-              <Detail label="Email" value={selectedOrder.email || "Not provided"} />
+              <Detail
+                label="Email"
+                value={selectedOrder.email || "Not provided"}
+              />
               <Detail label="Products" value={selectedOrder.items} />
               <Detail
                 label="Quantity"
@@ -715,6 +821,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
     gap: 20,
     marginBottom: 24,
+    flexWrap: "wrap",
   },
 
   backLink: {
@@ -739,6 +846,7 @@ const styles: Record<string, React.CSSProperties> = {
   headerActions: {
     display: "flex",
     gap: 10,
+    flexWrap: "wrap",
   },
 
   refreshButton: {
@@ -750,6 +858,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
   },
 
+  exportButton: {
+    border: "1px solid #b8860b",
+    background: "#fff8e7",
+    color: "#7c5700",
+    borderRadius: 10,
+    padding: "11px 16px",
+    cursor: "pointer",
+    fontWeight: 800,
+  },
+
   primaryButton: {
     border: "none",
     background: "#15803d",
@@ -758,6 +876,16 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "11px 17px",
     cursor: "pointer",
     fontWeight: 700,
+  },
+
+  dataNotice: {
+    background: "#fff8e7",
+    border: "1px solid #f2d58a",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+    color: "#795800",
+    fontSize: 13,
   },
 
   alert: {
@@ -970,7 +1098,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   bottomGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))",
     gap: 20,
   },
 
@@ -1052,7 +1180,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   detailGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(2,1fr)",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
     gap: 12,
   },
 
@@ -1073,6 +1201,7 @@ const styles: Record<string, React.CSSProperties> = {
   detailValue: {
     fontWeight: 700,
     lineHeight: 1.4,
+    overflowWrap: "anywhere",
   },
 
   modalSection: {
