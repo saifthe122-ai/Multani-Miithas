@@ -1,0 +1,168 @@
+
+import { put, del } from "@vercel/blob";
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
+
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+];
+
+function isAuthorized(request: Request) {
+  const expected = process.env.ADMIN_MEDIA_PASSWORD;
+  const supplied = request.headers.get("x-admin-media-password");
+
+  return Boolean(expected && supplied && supplied === expected);
+}
+
+export async function POST(request: Request) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    const oldUrl = formData.get("oldUrl");
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: "Please select an image or video." },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Use JPG, PNG, WEBP, GIF, MP4 or WEBM." },
+        { status: 400 }
+      );
+    }
+
+    if (file.size === 0 || file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File size must be between 1 byte and 4 MB." },
+        { status: 400 }
+      );
+    }
+
+    const extension =
+      file.type === "image/jpeg" ? "jpg" :
+      file.type === "image/png" ? "png" :
+      file.type === "image/webp" ? "webp" :
+      file.type === "image/gif" ? "gif" :
+      file.type === "video/mp4" ? "mp4" : "webm";
+
+    const blob = await put(
+      `multani-mithas/media/${crypto.randomUUID()}.${extension}`,
+      file,
+      {
+        access: "public",
+        addRandomSuffix: true,
+        contentType: file.type,
+      }
+    );
+
+    // Only delete an old file belonging to this store.
+    // Upload first so the old file remains if upload fails.
+    if (typeof oldUrl === "string" && oldUrl) {
+      const storeId = process.env.BLOB_STORE_ID;
+      let isOurBlob = false;
+
+      try {
+        const old = new URL(oldUrl);
+        isOurBlob =
+          old.protocol === "https:" &&
+          old.hostname.endsWith(".public.blob.vercel-storage.com") &&
+          old.pathname.startsWith("/multani-mithas/media/");
+      } catch {
+        isOurBlob = false;
+      }
+
+      if (!isOurBlob || !storeId) {
+        await del(blob.url);
+        return NextResponse.json(
+          { error: "Old media URL is not valid for replacement." },
+          { status: 400 }
+        );
+      }
+
+      try {
+        await del(oldUrl);
+      } catch {
+        // Keep the new upload and report that old media may remain.
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          pathname: blob.pathname,
+          warning: "New file uploaded, but old file could not be removed.",
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      url: blob.url,
+      pathname: blob.pathname,
+      type: file.type.startsWith("video/") ? "video" : "image",
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Upload failed. Check Vercel configuration." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const url = body?.url;
+
+    if (typeof url !== "string" || !url) {
+      return NextResponse.json(
+        { error: "Media URL is required." },
+        { status: 400 }
+      );
+    }
+
+    const parsed = new URL(url);
+
+    if (
+      parsed.protocol !== "https:" ||
+      !parsed.hostname.endsWith(".public.blob.vercel-storage.com") ||
+      !parsed.pathname.startsWith("/multani-mithas/media/")
+    ) {
+      return NextResponse.json(
+        { error: "This media URL is not allowed." },
+        { status: 400 }
+      );
+    }
+
+    await del(url);
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Delete failed. Check the media URL and storage." },
+      { status: 500 }
+    );
+  }
+}
