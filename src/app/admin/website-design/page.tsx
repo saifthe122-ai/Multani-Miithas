@@ -37,28 +37,69 @@ export default function WebsiteDesignPage() {
   const [backgroundColor, setBackgroundColor] = useState("#fff8f0");
   const [notice, setNotice] = useState("");
 
-  function uploadFiles(files: FileList | null) {
-    if (!files) return;
+ 
+async function uploadFiles(files: FileList | null) {
+  if (!files || files.length === 0) return;
 
-    const accepted = Array.from(files).filter(
-      (file) =>
-        file.type.startsWith("image/") ||
-        file.type.startsWith("video/")
-    );
-
-    const newItems = accepted.map((file) => ({
-      name: file.name,
-      url: URL.createObjectURL(file),
-      type: file.type.startsWith("video/") ? "video" as const : "image" as const,
-    }));
-
-    setMedia((old) => [...old, ...newItems]);
-    setNotice(
-      newItems.length
-        ? `${newItems.length} file(s) added to the preview.`
-        : "Choose an image or video file."
-    );
+  const password = window.prompt("Enter admin media password");
+  if (!password) {
+    setNotice("Upload cancelled.");
+    return;
   }
+
+  const accepted = Array.from(files).filter(
+    (file) =>
+      file.type.startsWith("image/") ||
+      file.type.startsWith("video/")
+  );
+
+  if (accepted.length === 0) {
+    setNotice("Choose an image or video file.");
+    return;
+  }
+
+  let successCount = 0;
+
+  for (const file of accepted) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/admin/media-upload", {
+        method: "POST",
+        headers: {
+          "x-admin-media-password": password,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setNotice(result.error || `Upload failed: ${file.name}`);
+        continue;
+      }
+
+      setMedia((old) => [
+        ...old,
+        {
+          name: file.name,
+          url: result.url,
+          type: result.type as "image" | "video",
+        },
+      ]);
+
+      successCount++;
+    } catch {
+      setNotice(`Upload failed: ${file.name}`);
+    }
+  }
+
+  setNotice(
+    `${successCount} of ${accepted.length} file(s) uploaded to storage.`
+  );
+}
+
 
   function saveDraft() {
     const settings = {
