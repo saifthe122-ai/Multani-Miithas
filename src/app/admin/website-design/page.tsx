@@ -353,11 +353,11 @@ export default function WebsiteDesignPage() {
             <div style={panelStyle}>
               <h2 style={{ marginTop: 0 }}>Media Library Preview</h2>
 
-              <p style={{ color: "#75676b", lineHeight: 1.6 }}>
-                Uploaded files are stored in Vercel Blob. This preview list
-                currently exists in this page's session and is not yet
-                automatically reloaded from storage.
-              </p>
+             <p style={{ color: "#75676b", lineHeight: 1.6 }}>
+  Uploaded files are stored in Vercel Blob. This preview list
+  currently exists in this page&apos;s session and is not yet
+  automatically reloaded from storage.
+</p>
 
               {media.length === 0 ? (
                 <p style={{ color: "#75676b" }}>
