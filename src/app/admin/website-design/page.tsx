@@ -187,8 +187,7 @@ export default function WebsiteDesignPage() {
       );
 
       setNotice(
-        ""Design settings saved successfully."."
-      );
+"Design settings saved successfully."      );
     } catch {
       setNotice("Could not save the draft in this browser.");
     }
