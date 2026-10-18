@@ -187,7 +187,7 @@ export default function WebsiteDesignPage() {
       );
 
       setNotice(
-        "Design draft saved in this browser. Publishing these settings to the live customer website is not connected yet."
+        ""Design settings saved successfully."."
       );
     } catch {
       setNotice("Could not save the draft in this browser.");
