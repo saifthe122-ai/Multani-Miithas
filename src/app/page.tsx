@@ -1,6 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
+
+type PublishedMedia = {
+  name?: string;
+  url?: string;
+  type?: string;
+};
+
+type PublishedProductSetting = {
+  name?: string;
+  enabled?: boolean;
+  background?: string;
+};
+
+type PublishedSettings = {
+  media?: PublishedMedia[];
+  products?: PublishedProductSetting[];
+  heroTitle?: string;
+  heroSubtitle?: string;
+  backgroundColor?: string;
+  brandColor?: string;
+};
 const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
 const BUSINESS_EMAIL =
@@ -99,7 +121,7 @@ const goldButton = {
 export default function Home() {
   const [cart, setCart] = useState<Record<number, number>>({});
   const [message, setMessage] = useState("");
-  const [publishedSettings, setPublishedSettings] = useState<any>(null);
+  const [publishedSettings, setPublishedSettings] = useState<PublishedSettings | null>(null);
 
   useEffect(() => {
     fetch("/api/site-media", { cache: "no-store" })
@@ -131,7 +153,7 @@ export default function Home() {
     type: "image" | "video",
     fallback: string
   ) => {
-    const match = publishedMedia.find((item: any) => {
+    const match = publishedMedia.find((item) => {
       if (!item.url || !item.name) return false;
 
       // Accept both simple types ("image" / "video") and MIME types
@@ -169,7 +191,7 @@ export default function Home() {
   const brandColor = publishedSettings?.brandColor || "#D8AC55";
   const getProductSetting = (product: (typeof products)[number]) =>
     Array.isArray(publishedSettings?.products)
-      ? publishedSettings.products.find((item: any) => normalizeMediaName(String(item.name || "")) === normalizeMediaName(product.name))
+      ? publishedSettings.products.find((item) => normalizeMediaName(String(item.name || "")) === normalizeMediaName(product.name))
       : null;
 
   const isProductEnabled = (product: (typeof products)[number]) => {
@@ -272,11 +294,11 @@ export default function Home() {
       style={{
         background: backgroundColor,
         color: "#243537",
-        ["--mm-brand-color" as any]: brandColor,
+        "--mm-brand-color": brandColor,
         fontFamily: "Georgia, 'Times New Roman', serif",
         lineHeight: 1.7,
         overflow: "hidden",
-      }}
+      } as CSSProperties}
     >
       <style>{`
         * { box-sizing: border-box; }
