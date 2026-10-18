@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
 const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
 const BUSINESS_EMAIL =
@@ -12,7 +11,7 @@ const BUSINESS_PHONE =
 const products = [
   {
     id: 1,
-    name: "Multani Sohan Halwa",
+name: "Multani Sohan Halwa",
     price: 1200,
     category: "Traditional Sweets",
     image:
@@ -85,7 +84,7 @@ const sectionStyle = {
 };
 
 const goldButton = {
-  background: "#D8AC55",
+  background: "var(--mm-brand-color, #D8AC55)",
   color: "#172E30",
   padding: "13px 23px",
   border: "1px solid #E8C77F",
@@ -100,6 +99,86 @@ const goldButton = {
 export default function Home() {
   const [cart, setCart] = useState<Record<number, number>>({});
   const [message, setMessage] = useState("");
+  const [publishedSettings, setPublishedSettings] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/site-media", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Media settings load nahi huin");
+        }
+        return response.json();
+      })
+      .then((result) => {
+        if (result.success && result.settings) {
+          setPublishedSettings(result.settings);
+        }
+      })
+      .catch((error) => {
+        console.error("Published media load error:", error);
+      });
+  }, []);
+
+  const publishedMedia = Array.isArray(publishedSettings?.media)
+    ? publishedSettings.media
+    : [];
+
+  const normalizeMediaName = (value: string) =>
+    value.toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  const findPublishedMedia = (
+    keywords: string[],
+    type: "image" | "video",
+    fallback: string
+  ) => {
+    const match = publishedMedia.find((item: any) => {
+      if (!item.url || !item.name) return false;
+
+      // Accept both simple types ("image" / "video") and MIME types
+      // ("image/jpeg" / "video/mp4") from the media manager.
+      const savedType = String(item.type || "").toLowerCase();
+      const typeMatches =
+        type === "image"
+          ? savedType === "image" || savedType.startsWith("image/")
+          : savedType === "video" || savedType.startsWith("video/");
+
+      if (!typeMatches) return false;
+
+      const name = normalizeMediaName(String(item.name));
+      return keywords.some((keyword) => {
+        const normalizedKeyword = normalizeMediaName(keyword);
+        return normalizedKeyword.length > 0 && name.includes(normalizedKeyword);
+      });
+    });
+    return match?.url || fallback;
+  };
+
+  const getProductImage = (product: (typeof products)[number]) =>
+    findPublishedMedia([product.name], "image", product.image);
+
+  const heroImage = findPublishedMedia(["hero", "banner"], "image", "/images/multan-hero.jpg");
+  const heritageImage = findPublishedMedia(["shrine", "heritage", "story"], "image", "/images/multan-shrine-story.jpg");
+  const giftBannerImage = findPublishedMedia(["gift banner", "gift hamper", "hamper"], "image", "/images/multan-gift-hamper.jpg");
+  const promoVideo = findPublishedMedia(["promo", "brand film", "homepage video", "multani mithas"], "video", "/videos/multani-mithas-promo.mp4");
+  const promoVideoType = /\.webm(?:$|[?#])/i.test(promoVideo)
+    ? "video/webm"
+    : "video/mp4";
+  const heroTitle = publishedSettings?.heroTitle || "Multan Ki Mithas,";
+  const heroSubtitle = publishedSettings?.heroSubtitle || "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan.";
+  const backgroundColor = publishedSettings?.backgroundColor || "#F3E8D4";
+  const brandColor = publishedSettings?.brandColor || "#D8AC55";
+  const getProductSetting = (product: (typeof products)[number]) =>
+    Array.isArray(publishedSettings?.products)
+      ? publishedSettings.products.find((item: any) => normalizeMediaName(String(item.name || "")) === normalizeMediaName(product.name))
+      : null;
+
+  const isProductEnabled = (product: (typeof products)[number]) => {
+    const configured = getProductSetting(product);
+    return configured ? configured.enabled !== false : true;
+  };
+
+  const getProductBackground = (product: (typeof products)[number]) =>
+    getProductSetting(product)?.background || "#FFF8EA";
 
   const addToCart = (id: number) => {
     setCart((old) => ({
@@ -171,11 +250,11 @@ export default function Home() {
   const contactEmail = BUSINESS_EMAIL.trim();
 
   const regularProducts = products.filter(
-    (product) => product.category !== "Gift Boxes"
+    (product) => product.category !== "Gift Boxes" && isProductEnabled(product)
   );
 
   const giftProducts = products.filter(
-    (product) => product.category === "Gift Boxes"
+    (product) => product.category === "Gift Boxes" && isProductEnabled(product)
   );
 
   const categories = [
@@ -191,8 +270,9 @@ export default function Home() {
   return (
     <main
       style={{
-        background: "#F3E8D4",
+        background: backgroundColor,
         color: "#243537",
+        ["--mm-brand-color" as any]: brandColor,
         fontFamily: "Georgia, 'Times New Roman', serif",
         lineHeight: 1.7,
         overflow: "hidden",
@@ -254,7 +334,7 @@ export default function Home() {
 
         .mm-cart-link {
           color: #092F32 !important;
-          background: #D8AC55;
+          background: var(--mm-brand-color, #D8AC55);
           padding: 9px 14px;
           border-radius: 2px;
           font-weight: bold;
@@ -662,21 +742,27 @@ export default function Home() {
       </header>
 
       {/* CINEMATIC MULTAN HERO */}
-      <section id="home" className="mm-hero">
+      <section
+        id="home"
+        className="mm-hero"
+        style={{
+          backgroundImage: `linear-gradient(90deg, rgba(5,25,27,.92) 0%, rgba(5,25,27,.72) 43%, rgba(5,25,27,.12) 100%), url("${heroImage}")`,
+        }}
+      >
         <div className="mm-hero-content">
           <p className="mm-eyebrow">
             Authentic Multani Sweets
           </p>
 
           <h1>
-            Multan Ki Mithas,
-            <span className="mm-hero-script"> Dil Se</span>
+            {heroTitle}
+            {!String(heroTitle).toLowerCase().includes("dil se") && (
+              <span className="mm-hero-script"> Dil Se</span>
+            )}
           </h1>
 
           <p className="mm-hero-description">
-            Saraiki Wasib ki riwayat, har mithai ke saath.
-            Discover the timeless taste and sweet heritage of
-            Multan, Pakistan.
+            {heroSubtitle}
           </p>
 
           <a href="#products" style={goldButton}>
@@ -757,10 +843,14 @@ export default function Home() {
           }}
         >
           {regularProducts.map((product) => (
-            <article key={product.id} className="mm-card">
+            <article
+              key={product.id}
+              className="mm-card"
+              style={{ background: getProductBackground(product) }}
+            >
               <img
                 className="mm-product-image"
-                src={product.image}
+                src={getProductImage(product)}
                 alt={product.name}
                 loading="lazy"
               />
@@ -798,7 +888,7 @@ export default function Home() {
       >
         <div>
           <img
-            src="/images/multan-shrine-story.jpg"
+            src={heritageImage}
             alt="Multan heritage and traditional architecture"
             className="mm-heritage-image"
             loading="lazy"
@@ -867,15 +957,15 @@ export default function Home() {
         >
           {[
             {
-              image: products[0].image,
+              image: getProductImage(products[0]),
               title: "Our Traditional Sweets",
             },
             {
-              image: products[4].image,
+              image: getProductImage(products[4]),
               title: "Gifts for Loved Ones",
             },
             {
-              image: products[7].image,
+              image: getProductImage(products[7]),
               title: "Celebration Treats",
             },
           ].map((item) => (
@@ -944,11 +1034,11 @@ export default function Home() {
             controls
             playsInline
             preload="metadata"
-            poster="/images/multan-shrine-story.jpg"
+            poster={heritageImage}
           >
             <source
-              src="/videos/multani-mithas-promo.mp4"
-              type="video/mp4"
+              src={promoVideo}
+              type={promoVideoType}
             />
             Your browser does not support video playback.
           </video>
@@ -1001,7 +1091,12 @@ export default function Home() {
           background: "#FFF8EA",
         }}
       >
-        <div className="mm-gift-banner">
+        <div
+          className="mm-gift-banner"
+          style={{
+            backgroundImage: `linear-gradient(90deg, rgba(5,25,27,.92), rgba(5,25,27,.25)), url("${giftBannerImage}")`,
+          }}
+        >
           <div>
             <p className="mm-eyebrow">Special Collection</p>
             <h2>Gifts Filled with Tradition</h2>
@@ -1039,10 +1134,14 @@ export default function Home() {
           }}
         >
           {giftProducts.map((product) => (
-            <article key={product.id} className="mm-card">
+            <article
+              key={product.id}
+              className="mm-card"
+              style={{ background: getProductBackground(product) }}
+            >
               <img
                 className="mm-product-image"
-                src={product.image}
+                src={getProductImage(product)}
                 alt={product.name}
                 loading="lazy"
               />
