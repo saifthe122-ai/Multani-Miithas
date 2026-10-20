@@ -9,13 +9,14 @@
     "start": "next start",
     "lint": "eslint ."
   },
- "dependencies": {
-  "@vercel/blob": "^2.0.0",
-  "next": "^15.5.0",
-  "react": "^19.1.0",
-  "react-dom": "^19.1.0",
-  "lucide-react": "^0.468.0"
-},
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@vercel/blob": "^2.0.0",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "lucide-react": "^0.468.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
