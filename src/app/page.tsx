@@ -233,6 +233,9 @@ export default function Home() {
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [savedOrderNumber, setSavedOrderNumber] = useState("");
 
+  // Cart popup: closed by default; opens when customer clicks Cart.
+  const [cartOpen, setCartOpen] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -302,9 +305,11 @@ export default function Home() {
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-             status: (String(item.status ?? "").toLowerCase() === "inactive"
-  ? "Inactive"
-  : "Active") as "Active" | "Inactive",
+              status:
+                String(item.status ?? "").toLowerCase() ===
+                "inactive"
+                  ? "Inactive"
+                  : "Active",
             };
           })
           .filter(
@@ -688,6 +693,11 @@ export default function Home() {
           background: var(--mm-brand-color, #D8AC55);
           padding: 9px 14px;
           font-weight: bold;
+          border: 1px solid #E8C77F;
+          border-radius: 2px;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 13px;
         }
 
         .mm-hero {
@@ -702,9 +712,7 @@ export default function Home() {
           border-bottom: 4px solid #C89A43;
         }
 
-        .mm-hero-content {
-          max-width: 610px;
-        }
+        .mm-hero-content { max-width: 610px; }
 
         .mm-eyebrow {
           color: #B88A38;
@@ -795,16 +803,8 @@ export default function Home() {
         }
 
         .mm-category:hover { background: #1A6263; }
-
-        .mm-category-symbol {
-          color: #E3BD70;
-          font-size: 27px;
-        }
-
-        .mm-category-name {
-          font-size: 12px;
-          font-weight: bold;
-        }
+        .mm-category-symbol { color: #E3BD70; font-size: 27px; }
+        .mm-category-name { font-size: 12px; font-weight: bold; }
 
         .mm-card {
           background: #FFF8EA;
@@ -982,7 +982,7 @@ export default function Home() {
           bottom: 20px;
           left: 50%;
           transform: translateX(-50%);
-          z-index: 1000;
+          z-index: 3000;
           background: #092F32;
           color: #FFF5DF;
           border: 1px solid #D8AC55;
@@ -990,6 +990,33 @@ export default function Home() {
           width: max-content;
           max-width: 90%;
           box-shadow: 0 5px 20px rgba(0,0,0,.2);
+        }
+
+        .mm-cart-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 2000;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          background: rgba(4, 24, 26, .82);
+          padding: 24px 14px;
+        }
+
+        .mm-cart-panel {
+          max-width: 850px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 25px;
+          background: #F3E8D4;
+          border: 2px solid #D8AC55;
+          box-shadow: 0 15px 50px rgba(0,0,0,.35);
+          border-radius: 4px;
+        }
+
+        .mm-cart-close-row {
+          display: flex;
+          justify-content: flex-end;
+          margin-bottom: 8px;
         }
 
         @media (max-width: 1000px) {
@@ -1012,6 +1039,8 @@ export default function Home() {
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
+          .mm-cart-overlay { padding: 10px; }
+          .mm-cart-panel { padding: 16px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1037,9 +1066,14 @@ export default function Home() {
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
           <a href="#contact">Contact</a>
-          <a href="#cart" className="mm-cart-link">
+          <button
+            type="button"
+            className="mm-cart-link"
+            onClick={() => setCartOpen(true)}
+            aria-label={`Open shopping cart, ${cartCount} items`}
+          >
             Cart ({cartCount})
-          </a>
+          </button>
         </nav>
       </header>
 
@@ -1132,6 +1166,7 @@ export default function Home() {
                 {product.weight && <p>{product.weight}</p>}
                 <p className="mm-price">{money(product.price)}</p>
                 <button
+                  type="button"
                   className="mm-gold-button"
                   onClick={() => addToCart(product.id)}
                 >
@@ -1192,15 +1227,21 @@ export default function Home() {
         >
           {[
             {
-              image: products[0] ? getProductImage(products[0]) : defaultProducts[0].image,
+              image: products[0]
+                ? getProductImage(products[0])
+                : defaultProducts[0].image,
               title: "Our Traditional Sweets",
             },
             {
-              image: products[4] ? getProductImage(products[4]) : defaultProducts[4].image,
+              image: products[4]
+                ? getProductImage(products[4])
+                : defaultProducts[4].image,
               title: "Gifts for Loved Ones",
             },
             {
-              image: products[7] ? getProductImage(products[7]) : defaultProducts[7].image,
+              image: products[7]
+                ? getProductImage(products[7])
+                : defaultProducts[7].image,
               title: "Celebration Treats",
             },
           ].map((item) => (
@@ -1335,6 +1376,7 @@ export default function Home() {
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-price">{money(product.price)}</p>
                 <button
+                  type="button"
                   className="mm-gold-button"
                   onClick={() => addToCart(product.id)}
                 >
@@ -1346,199 +1388,239 @@ export default function Home() {
         </div>
       </section>
 
-      <section
-        id="cart"
-        style={{ ...sectionStyle, background: "#F3E8D4" }}
-      >
-        <div className="mm-ornament">❖ ✦ ❖</div>
-        <h2 className="mm-section-heading">Your Shopping Cart</h2>
-        <p className="mm-section-intro">
-          Review your selection and enter delivery details to place
-          an order.
-        </p>
+      {/* Cart and checkout popup */}
+      {cartOpen && (
+        <div
+          className="mm-cart-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mm-cart-heading"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setCartOpen(false);
+            }
+          }}
+        >
+          <section className="mm-cart-panel">
+            <div className="mm-cart-close-row">
+              <button
+                type="button"
+                className="mm-gold-button"
+                onClick={() => setCartOpen(false)}
+                aria-label="Close shopping cart"
+              >
+                Close ✕
+              </button>
+            </div>
 
-        {cartCount === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: 30,
-              border: "1px solid #D8C59F",
-              background: "#FFF8EA",
-              maxWidth: 650,
-              margin: "auto",
-            }}
-          >
-            {savedOrderNumber ? (
-              <div role="status">
-                <h3>Order submitted successfully!</h3>
-                <p>Your order number is:</p>
-                <strong style={{ overflowWrap: "anywhere" }}>
-                  {savedOrderNumber}
-                </strong>
-                <p>Payment status: Pending verification</p>
-                <p>Order status: Pending confirmation</p>
-                <p>
-                  Business delivery charges and payment details will
-                  be confirmed before the order is accepted.
-                </p>
-              </div>
-            ) : (
-              <>
-                Your cart is empty. Explore our collection and choose
-                your favourite sweets.
-              </>
-            )}
-          </div>
-        ) : (
-          <div
-            style={{
-              maxWidth: 800,
-              margin: "auto",
-              padding: 25,
-              background: "#FFF8EA",
-              border: "1px solid #D8C59F",
-            }}
-          >
-            {products
-              .filter((product) => cart[product.id])
-              .map((product) => (
-                <div
-                  key={product.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    padding: "15px 0",
-                    borderBottom: "1px solid #D8C59F",
-                  }}
-                >
-                  <div>
-                    <strong>{product.name}</strong>
-                    <div>
-                      {money(product.price)} × {cart[product.id]}
-                    </div>
-                  </div>
-                  <div>
-                    <strong>
-                      {money(product.price * cart[product.id])}
-                    </strong>
-                    <button
-                      onClick={() => removeFromCart(product.id)}
-                      style={{
-                        padding: "7px 10px",
-                        marginLeft: 8,
-                        cursor: "pointer",
-                        border: "1px solid #C8B48C",
-                        background: "#F3E8D4",
-                      }}
-                    >
-                      − Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-            <h3 style={{ textAlign: "right", color: "#123F42" }}>
-              Subtotal: {money(total)}
-            </h3>
-
-            <p style={{ fontSize: 14 }}>
-              Delivery charges are not included. Final delivery cost
-              and payment arrangements must be confirmed by the business.
+            <div className="mm-ornament">❖ ✦ ❖</div>
+            <h2
+              id="mm-cart-heading"
+              className="mm-section-heading"
+            >
+              Your Shopping Cart
+            </h2>
+            <p className="mm-section-intro">
+              Review your selection and enter delivery details to place
+              an order.
             </p>
 
-            <form
-              onSubmit={placeOrder}
-              style={{ display: "grid", gap: 15, marginTop: 25 }}
-            >
-              <h3>Delivery & Checkout Details</h3>
-
-              <label>
-                Customer Name
-                <input
-                  className="mm-input"
-                  value={customerName}
-                  onChange={(event) => setCustomerName(event.target.value)}
-                  maxLength={120}
-                  required
-                  autoComplete="name"
-                  placeholder="Apna poora naam"
-                />
-              </label>
-
-              <label>
-                Phone Number
-                <input
-                  className="mm-input"
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(event) => setCustomerPhone(event.target.value)}
-                  maxLength={30}
-                  required
-                  autoComplete="tel"
-                  placeholder="+92..."
-                />
-              </label>
-
-              <label>
-                Full Delivery Address (city, country, postal code)
-                <textarea
-                  className="mm-input"
-                  value={deliveryAddress}
-                  onChange={(event) => setDeliveryAddress(event.target.value)}
-                  maxLength={500}
-                  required
-                  rows={3}
-                  autoComplete="street-address"
-                  placeholder="House, street, city, country"
-                />
-              </label>
-
-              <label>
-                Payment Method
-                <select
-                  className="mm-input"
-                  value={paymentMethod}
-                  onChange={(event) =>
-                    setPaymentMethod(
-                      event.target.value as (typeof paymentMethods)[number]
-                    )
-                  }
-                  required
-                >
-                  <option value="Cash on Delivery">
-                    Cash on Delivery (COD)
-                  </option>
-                  <option value="JazzCash">JazzCash</option>
-                  <option value="Easypaisa">Easypaisa</option>
-                  <option value="Raast ID">Raast ID</option>
-                  <option value="Payoneer">Payoneer</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-              </label>
-
-              <p style={{ fontSize: 14 }}>
-                Online payment is not processed automatically. Payment
-                verification and delivery charges will be confirmed
-                by the business.
-              </p>
-
-              <button
-                type="submit"
-                className="mm-gold-button"
-                disabled={submittingOrder}
-                style={{ width: "100%" }}
+            {cartCount === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 30,
+                  border: "1px solid #D8C59F",
+                  background: "#FFF8EA",
+                  maxWidth: 650,
+                  margin: "auto",
+                }}
               >
-                {submittingOrder
-                  ? "Saving Order..."
-                  : "Place Order & Save"}
-              </button>
-            </form>
-          </div>
-        )}
-      </section>
+                {savedOrderNumber ? (
+                  <div role="status">
+                    <h3>Order submitted successfully!</h3>
+                    <p>Your order number is:</p>
+                    <strong style={{ overflowWrap: "anywhere" }}>
+                      {savedOrderNumber}
+                    </strong>
+                    <p>Payment status: Pending verification</p>
+                    <p>Order status: Pending confirmation</p>
+                    <p>
+                      Business delivery charges and payment details will
+                      be confirmed before the order is accepted.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    Your cart is empty. Explore our collection and choose
+                    your favourite sweets.
+                    <p>
+                      <button
+                        type="button"
+                        className="mm-gold-button"
+                        onClick={() => setCartOpen(false)}
+                      >
+                        Continue Shopping
+                      </button>
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  maxWidth: 800,
+                  margin: "auto",
+                  padding: 25,
+                  background: "#FFF8EA",
+                  border: "1px solid #D8C59F",
+                }}
+              >
+                {products
+                  .filter((product) => cart[product.id])
+                  .map((product) => (
+                    <div
+                      key={product.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        padding: "15px 0",
+                        borderBottom: "1px solid #D8C59F",
+                      }}
+                    >
+                      <div>
+                        <strong>{product.name}</strong>
+                        <div>
+                          {money(product.price)} × {cart[product.id]}
+                        </div>
+                      </div>
+                      <div>
+                        <strong>
+                          {money(product.price * cart[product.id])}
+                        </strong>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(product.id)}
+                          style={{
+                            padding: "7px 10px",
+                            marginLeft: 8,
+                            cursor: "pointer",
+                            border: "1px solid #C8B48C",
+                            background: "#F3E8D4",
+                          }}
+                        >
+                          − Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                <h3 style={{ textAlign: "right", color: "#123F42" }}>
+                  Subtotal: {money(total)}
+                </h3>
+
+                <p style={{ fontSize: 14 }}>
+                  Delivery charges are not included. Final delivery cost
+                  and payment arrangements must be confirmed by the business.
+                </p>
+
+                <form
+                  onSubmit={placeOrder}
+                  style={{ display: "grid", gap: 15, marginTop: 25 }}
+                >
+                  <h3>Delivery & Checkout Details</h3>
+
+                  <label>
+                    Customer Name
+                    <input
+                      className="mm-input"
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      maxLength={120}
+                      required
+                      autoComplete="name"
+                      placeholder="Apna poora naam"
+                    />
+                  </label>
+
+                  <label>
+                    Phone Number
+                    <input
+                      className="mm-input"
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(event) => setCustomerPhone(event.target.value)}
+                      maxLength={30}
+                      required
+                      autoComplete="tel"
+                      placeholder="+92..."
+                    />
+                  </label>
+
+                  <label>
+                    Full Delivery Address (city, country, postal code)
+                    <textarea
+                      className="mm-input"
+                      value={deliveryAddress}
+                      onChange={(event) =>
+                        setDeliveryAddress(event.target.value)
+                      }
+                      maxLength={500}
+                      required
+                      rows={3}
+                      autoComplete="street-address"
+                      placeholder="House, street, city, country"
+                    />
+                  </label>
+
+                  <label>
+                    Payment Method
+                    <select
+                      className="mm-input"
+                      value={paymentMethod}
+                      onChange={(event) =>
+                        setPaymentMethod(
+                          event.target.value as (typeof paymentMethods)[number]
+                        )
+                      }
+                      required
+                    >
+                      <option value="Cash on Delivery">
+                        Cash on Delivery (COD)
+                      </option>
+                      <option value="JazzCash">JazzCash</option>
+                      <option value="Easypaisa">Easypaisa</option>
+                      <option value="Raast ID">Raast ID</option>
+                      <option value="Payoneer">Payoneer</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                  </label>
+
+                  <p style={{ fontSize: 14 }}>
+                    Online payment is not processed automatically. Payment
+                    verification and delivery charges will be confirmed
+                    by the business.
+                  </p>
+
+                  <button
+                    type="submit"
+                    className="mm-gold-button"
+                    disabled={submittingOrder}
+                    style={{ width: "100%" }}
+                  >
+                    {submittingOrder
+                      ? "Saving Order..."
+                      : "Place Order & Save"}
+                  </button>
+                </form>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       <section id="delivery" style={{ ...sectionStyle, background: "#FFF8EA" }}>
         <h2 className="mm-section-heading">Delivery Information</h2>
@@ -1702,6 +1784,7 @@ export default function Home() {
         <div className="mm-toast" role="status">
           {message}
           <button
+            type="button"
             onClick={() => setMessage("")}
             aria-label="Dismiss notification"
             style={{
