@@ -1,7 +1,8 @@
+
 "use client";
 
-import { useState, useEffect } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import type { CSSProperties, FormEvent } from "react";
 
 type PublishedMedia = {
   name?: string;
@@ -23,12 +24,6 @@ type PublishedSettings = {
   backgroundColor?: string;
   brandColor?: string;
 };
-const WHATSAPP_NUMBER =
-  process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
-const BUSINESS_EMAIL =
-  process.env.NEXT_PUBLIC_BUSINESS_EMAIL || "";
-const BUSINESS_PHONE =
-  process.env.NEXT_PUBLIC_BUSINESS_PHONE || "";
 
 type Product = {
   id: number;
@@ -47,10 +42,17 @@ type Product = {
   status: "Active" | "Inactive";
 };
 
+const WHATSAPP_NUMBER =
+  process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
+const BUSINESS_EMAIL =
+  process.env.NEXT_PUBLIC_BUSINESS_EMAIL || "";
+const BUSINESS_PHONE =
+  process.env.NEXT_PUBLIC_BUSINESS_PHONE || "";
+
 const defaultProducts: Product[] = [
   {
     id: 1,
-name: "Multani Sohan Halwa",
+    name: "Multani Sohan Halwa",
     price: 1200,
     category: "Traditional Sweets",
     image:
@@ -124,7 +126,7 @@ name: "Multani Sohan Halwa",
     image:
       "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=700&q=85",
     image_url: "",
-    imageIcon: "🍬",
+    imageIcon: "🎁",
     stock: 0,
     discount: 0,
     weight: "",
@@ -141,7 +143,7 @@ name: "Multani Sohan Halwa",
     image:
       "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=85",
     image_url: "",
-    imageIcon: "🍬",
+    imageIcon: "🎁",
     stock: 0,
     discount: 0,
     weight: "",
@@ -175,7 +177,7 @@ name: "Multani Sohan Halwa",
     image:
       "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=700&q=85",
     image_url: "",
-    imageIcon: "🍬",
+    imageIcon: "🎂",
     stock: 0,
     discount: 0,
     weight: "",
@@ -189,12 +191,12 @@ name: "Multani Sohan Halwa",
 const money = (amount: number) =>
   "PKR " + amount.toLocaleString("en-PK");
 
-const sectionStyle = {
-  padding: "76px 6%",
+const sectionStyle: CSSProperties = {
+  padding: "65px 6%",
   scrollMarginTop: 25,
 };
 
-const goldButton = {
+const goldButton: CSSProperties = {
   background: "var(--mm-brand-color, #D8AC55)",
   color: "#172E30",
   padding: "13px 23px",
@@ -204,43 +206,81 @@ const goldButton = {
   fontWeight: 700,
   textDecoration: "none",
   display: "inline-block",
-  letterSpacing: 0.5,
 };
 
+const paymentMethods = [
+  "JazzCash",
+  "Easypaisa",
+  "Raast ID",
+  "Payoneer",
+  "Bank Transfer",
+  "Cash on Delivery",
+] as const;
+
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>(defaultProducts);
+  const [products, setProducts] =
+    useState<Product[]>(defaultProducts);
   const [cart, setCart] = useState<Record<number, number>>({});
   const [message, setMessage] = useState("");
-  const [publishedSettings, setPublishedSettings] = useState<PublishedSettings | null>(null);
+  const [publishedSettings, setPublishedSettings] =
+    useState<PublishedSettings | null>(null);
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] =
+    useState<(typeof paymentMethods)[number]>("Cash on Delivery");
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [savedOrderNumber, setSavedOrderNumber] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     fetch("/api/products", { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error("Database products load nahi huay");
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Products load nahi huay");
+        }
         return response.json();
       })
       .then((result: unknown) => {
-        if (!result || typeof result !== "object") return;
-        const payload = result as { success?: boolean; products?: unknown };
-        if (!payload.success || !Array.isArray(payload.products) || cancelled) return;
+        if (
+          !result ||
+          typeof result !== "object" ||
+          cancelled
+        ) {
+          return;
+        }
+
+        const payload = result as {
+          success?: boolean;
+          products?: unknown;
+        };
+
+        if (
+          !payload.success ||
+          !Array.isArray(payload.products)
+        ) {
+          return;
+        }
 
         const databaseProducts: Product[] = payload.products
-          .filter((item): item is Record<string, unknown> =>
-            Boolean(item) && typeof item === "object" && !Array.isArray(item)
+          .filter(
+            (item): item is Record<string, unknown> =>
+              Boolean(item) &&
+              typeof item === "object" &&
+              !Array.isArray(item)
           )
-          .filter((item) => item.status !== "Inactive")
           .map((item) => {
-            const name = String(item.name ?? "Unnamed Product");
+            const name = String(item.name ?? "Product");
             const savedDefault = defaultProducts.find(
-              (product) => product.name.toLowerCase() === name.toLowerCase()
+              (product) =>
+                product.name.toLowerCase() === name.toLowerCase()
             );
-            const imageUrl = typeof item.image_url === "string" ? item.image_url : "";
-            const imageIcon = typeof item.image === "string" ? item.image : "🍬";
-            const status: Product["status"] = item.status === "Inactive" ? "Inactive" : "Active";
-            const fallbackImage = savedDefault?.image ??
-              "https://images.unsplash.com/photo-1605197161470-5d6e5f7f2f4d?auto=format&fit=crop&w=700&q=85";
+            const imageUrl =
+              typeof item.image_url === "string"
+                ? item.image_url
+                : "";
 
             return {
               id: Number(item.id),
@@ -250,21 +290,37 @@ export default function Home() {
               stock: Number(item.stock ?? 0),
               discount: Number(item.discount ?? 0),
               weight: String(item.weight ?? ""),
-              image: imageUrl || fallbackImage,
+              image:
+                imageUrl ||
+                savedDefault?.image ||
+                defaultProducts[0].image,
               image_url: imageUrl,
-              imageIcon,
+              imageIcon:
+                typeof item.image === "string"
+                  ? item.image
+                  : "🍬",
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-              status,
+              status:
+                item.status === "Inactive"
+                  ? "Inactive"
+                  : "Active",
             };
           })
-          .filter((product) => Number.isFinite(product.id) && product.id > 0);
+          .filter(
+            (product) =>
+              Number.isSafeInteger(product.id) &&
+              product.id > 0 &&
+              Number.isFinite(product.price)
+          );
 
-        if (!cancelled) setProducts(databaseProducts);
+        if (!cancelled && databaseProducts.length > 0) {
+          setProducts(databaseProducts);
+        }
       })
       .catch((error: unknown) => {
-        console.error("Database products load error; using default products:", error);
+        console.error("Products load error:", error);
       });
 
     return () => {
@@ -273,6 +329,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     fetch("/api/site-media", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
@@ -280,22 +338,45 @@ export default function Home() {
         }
         return response.json();
       })
-      .then((result) => {
-        if (result.success && result.settings) {
-          setPublishedSettings(result.settings);
+      .then((result: unknown) => {
+        if (
+          cancelled ||
+          !result ||
+          typeof result !== "object"
+        ) {
+          return;
+        }
+
+        const payload = result as {
+          success?: boolean;
+          settings?: PublishedSettings;
+        };
+
+        if (payload.success && payload.settings) {
+          setPublishedSettings(payload.settings);
         }
       })
-      .catch((error) => {
-        console.error("Published media load error:", error);
+      .catch((error: unknown) => {
+        console.error("Media settings error:", error);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const publishedMedia = Array.isArray(publishedSettings?.media)
+  const publishedMedia = Array.isArray(
+    publishedSettings?.media
+  )
     ? publishedSettings.media
     : [];
 
-  const normalizeMediaName = (value: string) =>
-    value.toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const normalizeName = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
 
   const findPublishedMedia = (
     keywords: string[],
@@ -305,53 +386,86 @@ export default function Home() {
     const match = publishedMedia.find((item) => {
       if (!item.url || !item.name) return false;
 
-      // Accept both simple types ("image" / "video") and MIME types
-      // ("image/jpeg" / "video/mp4") from the media manager.
       const savedType = String(item.type || "").toLowerCase();
       const typeMatches =
         type === "image"
-          ? savedType === "image" || savedType.startsWith("image/")
-          : savedType === "video" || savedType.startsWith("video/");
+          ? savedType === "image" ||
+            savedType.startsWith("image/")
+          : savedType === "video" ||
+            savedType.startsWith("video/");
 
       if (!typeMatches) return false;
 
-      const name = normalizeMediaName(String(item.name));
-      return keywords.some((keyword) => {
-        const normalizedKeyword = normalizeMediaName(keyword);
-        return normalizedKeyword.length > 0 && name.includes(normalizedKeyword);
-      });
+      const name = normalizeName(item.name);
+
+      return keywords.some((keyword) =>
+        name.includes(normalizeName(keyword))
+      );
     });
+
     return match?.url || fallback;
   };
 
-  const getProductImage = (product: Product) =>
-    findPublishedMedia([product.name], "image", product.image_url || product.image);
+  const heroImage = findPublishedMedia(
+    ["hero", "banner"],
+    "image",
+    "/images/multan-hero.jpg"
+  );
 
-  const heroImage = findPublishedMedia(["hero", "banner"], "image", "/images/multan-hero.jpg");
-  const heritageImage = findPublishedMedia(["shrine", "heritage", "story"], "image", "/images/multan-shrine-story.jpg");
-  const giftBannerImage = findPublishedMedia(["gift banner", "gift hamper", "hamper"], "image", "/images/multan-gift-hamper.jpg");
-  const promoVideo = findPublishedMedia(["promo", "brand film", "homepage video", "multani mithas"], "video", "/videos/multani-mithas-promo.mp4");
+  const heritageImage = findPublishedMedia(
+    ["shrine", "heritage", "story"],
+    "image",
+    "/images/multan-shrine-story.jpg"
+  );
+
+  const giftBannerImage = findPublishedMedia(
+    ["gift banner", "gift hamper", "hamper"],
+    "image",
+    "/images/multan-gift-hamper.jpg"
+  );
+
+  const promoVideo = findPublishedMedia(
+    ["promo", "brand film", "homepage video", "multani mithas"],
+    "video",
+    "/videos/multani-mithas-promo.mp4"
+  );
+
   const promoVideoType = /\.webm(?:$|[?#])/i.test(promoVideo)
     ? "video/webm"
     : "video/mp4";
-  const heroTitle = publishedSettings?.heroTitle || "Multan Ki Mithas,";
-  const heroSubtitle = publishedSettings?.heroSubtitle || "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan.";
-  const backgroundColor = publishedSettings?.backgroundColor || "#F3E8D4";
-  const brandColor = publishedSettings?.brandColor || "#D8AC55";
-  const getProductSetting = (product: Product) =>
-    Array.isArray(publishedSettings?.products)
-      ? publishedSettings.products.find((item) => normalizeMediaName(String(item.name || "")) === normalizeMediaName(product.name))
-      : null;
 
-  const isProductEnabled = (product: Product) => {
-    const configured = getProductSetting(product);
-    return configured ? configured.enabled !== false : true;
-  };
+  const heroTitle =
+    publishedSettings?.heroTitle || "Multan Ki Mithas,";
+  const heroSubtitle =
+    publishedSettings?.heroSubtitle ||
+    "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan.";
+  const backgroundColor =
+    publishedSettings?.backgroundColor || "#F3E8D4";
+  const brandColor =
+    publishedSettings?.brandColor || "#D8AC55";
+
+  const getProductSetting = (product: Product) =>
+    publishedSettings?.products?.find(
+      (item) =>
+        normalizeName(String(item.name || "")) ===
+        normalizeName(product.name)
+    );
+
+  const isProductEnabled = (product: Product) =>
+    getProductSetting(product)?.enabled !== false;
 
   const getProductBackground = (product: Product) =>
     getProductSetting(product)?.background || "#FFF8EA";
 
+  const getProductImage = (product: Product) =>
+    findPublishedMedia(
+      [product.name],
+      "image",
+      product.image_url || product.image
+    );
+
   const addToCart = (id: number) => {
+    setSavedOrderNumber("");
     setCart((old) => ({
       ...old,
       [id]: (old[id] || 0) + 1,
@@ -360,6 +474,7 @@ export default function Home() {
   };
 
   const removeFromCart = (id: number) => {
+    setSavedOrderNumber("");
     setCart((old) => {
       const next = { ...old };
       if (next[id] > 1) next[id]--;
@@ -370,7 +485,7 @@ export default function Home() {
   };
 
   const cartCount = Object.values(cart).reduce(
-    (sum, qty) => sum + qty,
+    (sum, quantity) => sum + quantity,
     0
   );
 
@@ -380,79 +495,146 @@ export default function Home() {
     0
   );
 
-  const orderLines = products
-    .filter((product) => cart[product.id])
-    .map(
-      (product) =>
-        `${product.name} x ${cart[product.id]} = ${money(
-          product.price * cart[product.id]
-        )}`
-    )
-    .join("\n");
+  const regularProducts = products.filter(
+    (product) =>
+      product.category !== "Gift Boxes" &&
+      isProductEnabled(product)
+  );
 
-  const sendOrder = () => {
-    if (!cartCount) {
+  const giftProducts = products.filter(
+    (product) =>
+      product.category === "Gift Boxes" &&
+      isProductEnabled(product)
+  );
+
+  const placeOrder = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (submittingOrder) return;
+
+    if (cartCount === 0) {
       setMessage("Pehle cart mein product add karein.");
       return;
     }
 
-    const order =
-      `Assalam-o-Alaikum Multani Mithas!\n\nMera order:\n` +
-      `${orderLines}\n\nSubtotal: ${money(total)}` +
-      `\nDelivery charges abhi confirm karne hain.` +
-      `\n\nMera naam:\nDelivery country:\nCity / postal code:` +
-      `\nFull address:\n\nPlease order aur delivery confirm karein.`;
-
-    if (!WHATSAPP_NUMBER.trim()) {
-      setMessage("WhatsApp number configure karna abhi baqi hai.");
+    if (
+      !customerName.trim() ||
+      !customerPhone.trim() ||
+      !deliveryAddress.trim()
+    ) {
+      setMessage("Naam, phone aur address enter karein.");
       return;
     }
 
-    window.open(
-      `https://wa.me/${WHATSAPP_NUMBER.replace(
-        /\D/g,
-        ""
-      )}?text=${encodeURIComponent(order)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    if (
+      !/^[0-9+\-()\s]{7,30}$/.test(customerPhone.trim())
+    ) {
+      setMessage("Valid phone number enter karein.");
+      return;
+    }
+
+    const items = products
+      .filter((product) => (cart[product.id] || 0) > 0)
+      .map((product) => ({
+        productId: String(product.id),
+        quantity: cart[product.id],
+      }));
+
+    if (items.length === 0) {
+      setMessage("Cart mein valid products nahi hain.");
+      return;
+    }
+
+    setSubmittingOrder(true);
+    setSavedOrderNumber("");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          phone: customerPhone.trim(),
+          address: deliveryAddress.trim(),
+          paymentMethod,
+          items,
+        }),
+      });
+
+      const result: unknown = await response.json();
+
+      if (!result || typeof result !== "object") {
+        throw new Error("Server se valid response nahi mila.");
+      }
+
+      const data = result as {
+        success?: boolean;
+        message?: string;
+        order?: {
+          orderNumber?: string;
+        };
+      };
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Order save nahi ho saka."
+        );
+      }
+
+      const orderNumber = data.order?.orderNumber || "";
+
+      setSavedOrderNumber(orderNumber);
+      setCart({});
+      setCustomerName("");
+      setCustomerPhone("");
+      setDeliveryAddress("");
+      setMessage(
+        orderNumber
+          ? `Order ${orderNumber} successfully save ho gaya.`
+          : "Order successfully save ho gaya."
+      );
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Order save nahi ho saka. Dobara try karein."
+      );
+    } finally {
+      setSubmittingOrder(false);
+    }
   };
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  const regularProducts = products.filter(
-    (product) => product.category !== "Gift Boxes" && isProductEnabled(product)
-  );
-
-  const giftProducts = products.filter(
-    (product) => product.category === "Gift Boxes" && isProductEnabled(product)
-  );
-
   const categories = [
-    { name: "Sohan Halwa", symbol: "✦", target: "#products" },
-    { name: "Barfi", symbol: "❖", target: "#products" },
-    { name: "Gulab Jamun", symbol: "✧", target: "#products" },
-    { name: "Ladoo", symbol: "❋", target: "#products" },
-    { name: "Patisa", symbol: "✦", target: "#products" },
-    { name: "Cakes & Bakery", symbol: "❖", target: "#products" },
-    { name: "Gift Boxes", symbol: "✧", target: "#gifts" },
+    { name: "Sohan Halwa", symbol: "✦" },
+    { name: "Barfi", symbol: "❖" },
+    { name: "Gulab Jamun", symbol: "✧" },
+    { name: "Ladoo", symbol: "❋" },
+    { name: "Patisa", symbol: "✦" },
+    { name: "Cakes & Bakery", symbol: "❖" },
+    { name: "Gift Boxes", symbol: "✧" },
   ];
 
   return (
     <main
-      style={{
-        background: backgroundColor,
-        color: "#243537",
-        "--mm-brand-color": brandColor,
-        fontFamily: "Georgia, 'Times New Roman', serif",
-        lineHeight: 1.7,
-        overflow: "hidden",
-      } as CSSProperties}
+      style={
+        {
+          background: backgroundColor,
+          color: "#243537",
+          "--mm-brand-color": brandColor,
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          lineHeight: 1.7,
+          overflow: "hidden",
+        } as CSSProperties
+      }
     >
       <style>{`
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
-
         body { margin: 0; }
 
         .mm-topbar {
@@ -491,14 +673,13 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 20px;
+          gap: 18px;
         }
 
         .mm-nav a {
           color: #F3E8D4;
           text-decoration: none;
           font-size: 13px;
-          transition: color .2s ease;
         }
 
         .mm-nav a:hover { color: #E4BD69; }
@@ -507,44 +688,34 @@ export default function Home() {
           color: #092F32 !important;
           background: var(--mm-brand-color, #D8AC55);
           padding: 9px 14px;
-          border-radius: 2px;
           font-weight: bold;
         }
 
         .mm-hero {
-          position: relative;
           min-height: 540px;
           display: flex;
           align-items: center;
           padding: 65px 8%;
           color: #FFF4E0;
           background-color: #123638;
-          background-image:
-            linear-gradient(
-              90deg,
-              rgba(5,25,27,.92) 0%,
-              rgba(5,25,27,.72) 43%,
-              rgba(5,25,27,.12) 100%
-            ),
-            url('/images/multan-hero.jpg');
           background-size: cover;
           background-position: center;
           border-bottom: 4px solid #C89A43;
         }
 
         .mm-hero-content {
-          position: relative;
-          z-index: 1;
           max-width: 610px;
         }
 
         .mm-eyebrow {
-          color: #E6BD6C;
-          letter-spacing: 4px;
+          color: #B88A38;
+          letter-spacing: 3px;
           font-size: 12px;
           font-weight: bold;
           text-transform: uppercase;
         }
+
+        .mm-hero .mm-eyebrow { color: #E6BD6C; }
 
         .mm-hero h1 {
           color: #FFF1D7;
@@ -552,7 +723,6 @@ export default function Home() {
           line-height: 1.08;
           margin: 17px 0;
           font-weight: normal;
-          text-shadow: 0 3px 22px rgba(0,0,0,.3);
         }
 
         .mm-hero-script {
@@ -620,22 +790,16 @@ export default function Home() {
           text-align: center;
           text-decoration: none;
           color: #F6E9D0;
-          background:
-            linear-gradient(145deg, #145154, #082F32);
+          background: linear-gradient(145deg, #145154, #082F32);
           border: 1px solid #C69A4A;
           padding: 14px 7px;
-          transition: transform .2s ease, background .2s ease;
         }
 
-        .mm-category:hover {
-          transform: translateY(-4px);
-          background: #1A6263;
-        }
+        .mm-category:hover { background: #1A6263; }
 
         .mm-category-symbol {
           color: #E3BD70;
           font-size: 27px;
-          line-height: 1.2;
         }
 
         .mm-category-name {
@@ -648,13 +812,10 @@ export default function Home() {
           border: 1px solid #D8C59F;
           overflow: hidden;
           box-shadow: 0 5px 16px rgba(47,38,22,.07);
-          transition: transform .25s ease, box-shadow .25s ease;
+          transition: transform .2s ease;
         }
 
-        .mm-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 13px 26px rgba(30,41,34,.15);
-        }
+        .mm-card:hover { transform: translateY(-3px); }
 
         .mm-product-image {
           display: block;
@@ -699,20 +860,17 @@ export default function Home() {
           cursor: pointer;
           font-weight: bold;
           font-family: inherit;
-          transition: background .2s ease;
         }
 
         .mm-gold-button:hover { background: #E7C77F; }
+        .mm-gold-button:disabled { cursor: wait; opacity: .65; }
 
         .mm-heritage {
-          position: relative;
           display: grid;
           grid-template-columns: 1fr 1fr;
           align-items: center;
           gap: 45px;
-          background:
-            radial-gradient(ellipse at top left, #1B5251, transparent 50%),
-            #092F32;
+          background: radial-gradient(ellipse at top left, #1B5251, transparent 50%), #092F32;
           color: #F3E8D4;
           border-top: 3px solid #C89A43;
           border-bottom: 3px solid #C89A43;
@@ -753,13 +911,10 @@ export default function Home() {
         }
 
         .mm-benefit {
-          border-right: 1px solid #D6BD8D;
           padding: 8px;
           color: #244547;
           font-size: 13px;
         }
-
-        .mm-benefit:last-child { border-right: 0; }
 
         .mm-benefit-symbol {
           color: #A87929;
@@ -776,10 +931,8 @@ export default function Home() {
           min-height: 300px;
           padding: 35px;
           color: #FFF1D8;
-          background:
-            linear-gradient(90deg, rgba(35,12,18,.2), rgba(45,10,20,.88)),
-            url('/images/multan-gift-hamper.jpg') center / cover,
-            #702F3B;
+          background-size: cover;
+          background-position: center;
           border: 2px solid #C99B4A;
         }
 
@@ -787,7 +940,6 @@ export default function Home() {
           font-size: clamp(30px, 4vw, 45px);
           line-height: 1.2;
           font-weight: normal;
-          margin: 10px 0;
         }
 
         .mm-info-card {
@@ -797,12 +949,20 @@ export default function Home() {
         }
 
         .mm-input {
+          display: block;
           width: 100%;
           padding: 11px;
+          margin-top: 6px;
           border: 1px solid #D8C59F;
           background: #FFFDF7;
           color: #243537;
           font: inherit;
+          border-radius: 2px;
+        }
+
+        .mm-input:focus {
+          outline: 2px solid #D8AC55;
+          outline-offset: 1px;
         }
 
         .mm-footer {
@@ -828,19 +988,14 @@ export default function Home() {
           color: #FFF5DF;
           border: 1px solid #D8AC55;
           padding: 12px 18px;
+          width: max-content;
           max-width: 90%;
           box-shadow: 0 5px 20px rgba(0,0,0,.2);
         }
 
         @media (max-width: 1000px) {
-          .mm-category-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
-
-          .mm-benefits {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-
+          .mm-category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+          .mm-benefits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
           .mm-heritage { gap: 25px; }
         }
 
@@ -849,37 +1004,15 @@ export default function Home() {
           .mm-brand { width: 100%; }
           .mm-nav { gap: 13px; }
           .mm-nav a { font-size: 12px; }
-
-          .mm-hero {
-            min-height: 510px;
-            padding: 60px 7%;
-            background-position: 62% center;
-          }
-
+          .mm-hero { min-height: 510px; padding: 50px 7%; background-position: 62% center; }
           .mm-hero h1 { font-size: 43px; }
           .mm-hero-description { font-size: 16px; }
-
-          .mm-outline-button {
-            margin: 12px 0 0;
-          }
-
-          .mm-category-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
+          .mm-outline-button { margin: 12px 0 0; }
+          .mm-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-product-image { height: 190px; }
-
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .mm-benefit { border-right: 0; border-bottom: 1px solid #D6BD8D; }
-
-          .mm-gift-banner {
-            grid-template-columns: 1fr;
-            padding: 25px;
-            min-height: 350px;
-            background-position: center;
-          }
+          .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -890,7 +1023,6 @@ export default function Home() {
         }
       `}</style>
 
-      {/* HEADER */}
       <header className="mm-topbar">
         <a href="#home" className="mm-brand">
           <h2 className="mm-brand-title">✧ MULTANI MITHAS ✧</h2>
@@ -912,104 +1044,74 @@ export default function Home() {
         </nav>
       </header>
 
-      {/* CINEMATIC MULTAN HERO */}
       <section
         id="home"
         className="mm-hero"
         style={{
-          backgroundImage: `linear-gradient(90deg, rgba(5,25,27,.92) 0%, rgba(5,25,27,.72) 43%, rgba(5,25,27,.12) 100%), url("${heroImage}")`,
+          backgroundImage: `linear-gradient(90deg, rgba(5,25,27,.92), rgba(5,25,27,.25)), url("${heroImage}")`,
         }}
       >
         <div className="mm-hero-content">
-          <p className="mm-eyebrow">
-            Authentic Multani Sweets
-          </p>
-
+          <p className="mm-eyebrow">Authentic Multani Sweets</p>
           <h1>
             {heroTitle}
-            {!String(heroTitle).toLowerCase().includes("dil se") && (
+            {!heroTitle.toLowerCase().includes("dil se") && (
               <span className="mm-hero-script"> Dil Se</span>
             )}
           </h1>
-
-          <p className="mm-hero-description">
-            {heroSubtitle}
-          </p>
-
+          <p className="mm-hero-description">{heroSubtitle}</p>
           <a href="#products" style={goldButton}>
             Shop Our Mithai →
           </a>
-
           <a href="#about" className="mm-outline-button">
             Discover Our Story
           </a>
-
           <p style={{ fontSize: 12, color: "#E6BD6C", marginTop: 25 }}>
             TRADITION · HERITAGE · SWEETNESS
           </p>
         </div>
       </section>
 
-      {/* SIGNATURE COLLECTION */}
       <section
         id="categories"
-        style={{
-          ...sectionStyle,
-          background: "#F3E8D4",
-          paddingTop: 45,
-          paddingBottom: 48,
-        }}
+        style={{ ...sectionStyle, paddingTop: 45, paddingBottom: 48 }}
       >
         <div className="mm-ornament">❖ ✦ ❖</div>
-        <h2 className="mm-section-heading">
-          Our Signature Collection
-        </h2>
+        <h2 className="mm-section-heading">Our Signature Collection</h2>
         <p className="mm-section-intro">
-          Traditional favourites, inspired by the sweet heritage
-          of Multan and the warmth of the Saraiki Wasib.
+          Traditional favourites inspired by the sweet heritage of Multan
+          and the warmth of the Saraiki Wasib.
         </p>
-
         <div className="mm-category-grid">
           {categories.map((category) => (
             <a
               key={category.name}
-              href={category.target}
+              href={category.name === "Gift Boxes" ? "#gifts" : "#products"}
               className="mm-category"
             >
-              <span className="mm-category-symbol">
-                {category.symbol}
-              </span>
-              <span className="mm-category-name">
-                {category.name}
-              </span>
+              <span className="mm-category-symbol">{category.symbol}</span>
+              <span className="mm-category-name">{category.name}</span>
               <span style={{ color: "#E3BD70" }}>↗</span>
             </a>
           ))}
         </div>
       </section>
 
-      {/* PRODUCTS */}
       <section
         id="products"
-        style={{
-          ...sectionStyle,
-          background: "#FFF8EA",
-        }}
+        style={{ ...sectionStyle, background: "#FFF8EA" }}
       >
         <div className="mm-ornament">✦ ❖ ✦</div>
-        <h2 className="mm-section-heading">
-          The Taste of Multan
-        </h2>
+        <h2 className="mm-section-heading">The Taste of Multan</h2>
         <p className="mm-section-intro">
-          Explore our traditional sweets and bakery favourites.
-          Prices are displayed in Pakistani rupees.
+          Explore our traditional sweets and bakery favourites. Prices
+          are displayed in Pakistani rupees.
         </p>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 22,
           }}
         >
@@ -1025,20 +1127,11 @@ export default function Home() {
                 alt={product.name}
                 loading="lazy"
               />
-
               <div className="mm-card-body">
-                <span className="mm-card-category">
-                  {product.category}
-                </span>
-
-                <h3 className="mm-card-title">
-                  {product.name}
-                </h3>
-
-                <p className="mm-price">
-                  {money(product.price)}
-                </p>
-
+                <span className="mm-card-category">{product.category}</span>
+                <h3 className="mm-card-title">{product.name}</h3>
+                {product.weight && <p>{product.weight}</p>}
+                <p className="mm-price">{money(product.price)}</p>
                 <button
                   className="mm-gold-button"
                   onClick={() => addToCart(product.id)}
@@ -1051,7 +1144,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* HERITAGE STORY */}
       <section
         id="about"
         className="mm-heritage"
@@ -1064,65 +1156,38 @@ export default function Home() {
             className="mm-heritage-image"
             loading="lazy"
           />
-
-          <p
-            style={{
-              fontSize: 12,
-              color: "#E6BD6C",
-              textAlign: "center",
-            }}
-          >
+          <p style={{ fontSize: 12, color: "#E6BD6C", textAlign: "center" }}>
             THE HERITAGE OF MULTAN
           </p>
         </div>
-
         <div>
           <p className="mm-eyebrow">Our Heritage</p>
-
           <h2>From the Heart of Multan</h2>
-
-        
           <p>
-            Multani Mithas is more than sweets. It is a celebration
-            of tradition, family, hospitality and the cultural
-            richness of South Punjab.
+            Multani Mithas is more than sweets. It is a celebration of
+            tradition, family, hospitality and the cultural richness
+            of South Punjab.
           </p>
-
           <p>
             Inspired by Multan&apos;s iconic blue tilework, historic
-            architecture and the warmth of the Saraiki Wasib,
-            we bring a taste of heritage to every special moment.
+            architecture and the warmth of the Saraiki Wasib, we bring
+            a taste of heritage to every special moment.
           </p>
-
-          <a href="#video" style={goldButton}>
-            Watch Our Story →
-          </a>
+          <a href="#video" style={goldButton}>Watch Our Story →</a>
         </div>
       </section>
 
-      {/* GALLERY */}
-      <section
-        id="gallery"
-        style={{
-          ...sectionStyle,
-          background: "#F3E8D4",
-        }}
-      >
+      <section id="gallery" style={sectionStyle}>
         <div className="mm-ornament">❖ ✦ ❖</div>
-        <h2 className="mm-section-heading">
-          A Celebration of Sweetness
-        </h2>
-
+        <h2 className="mm-section-heading">A Celebration of Sweetness</h2>
         <p className="mm-section-intro">
-          From everyday treats to unforgettable gifts,
-          discover the moments that bring families together.
+          From everyday treats to unforgettable gifts, discover the
+          moments that bring families together.
         </p>
-
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(230px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
             gap: 20,
           }}
         >
@@ -1148,16 +1213,9 @@ export default function Home() {
                 loading="lazy"
                 style={{ height: 260 }}
               />
-
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{item.title}</h3>
-                <a
-                  href="#products"
-                  style={{
-                    color: "#8B642B",
-                    textDecoration: "none",
-                  }}
-                >
+                <a href="#products" style={{ color: "#8B642B" }}>
                   Explore collection →
                 </a>
               </div>
@@ -1166,39 +1224,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CINEMATIC VIDEO */}
       <section
         id="video"
-        style={{
-          ...sectionStyle,
-          background: "#092F32",
-          color: "#F3E8D4",
-        }}
+        style={{ ...sectionStyle, background: "#092F32", color: "#F3E8D4" }}
       >
         <div className="mm-ornament">✦ ❖ ✦</div>
-
-        <p
-          className="mm-eyebrow"
-          style={{ textAlign: "center" }}
-        >
+        <p className="mm-eyebrow" style={{ textAlign: "center" }}>
           Our Story · Our City · Our Tradition
         </p>
-
-        <h2
-          className="mm-section-heading"
-          style={{ color: "#FFF1D7" }}
-        >
+        <h2 className="mm-section-heading" style={{ color: "#FFF1D7" }}>
           Experience the Magic of Multan
         </h2>
-
-        <p
-          className="mm-section-intro"
-          style={{ color: "#D9D0BE" }}
-        >
-          A visual journey through our heritage, traditional
-          sweets and the city that inspires our story.
+        <p className="mm-section-intro" style={{ color: "#D9D0BE" }}>
+          A visual journey through our heritage, traditional sweets
+          and the city that inspires our story.
         </p>
-
         <div style={{ maxWidth: 950, margin: "auto" }}>
           <video
             className="mm-video"
@@ -1207,27 +1247,15 @@ export default function Home() {
             preload="metadata"
             poster={heritageImage}
           >
-            <source
-              src={promoVideo}
-              type={promoVideoType}
-            />
+            <source src={promoVideo} type={promoVideoType} />
             Your browser does not support video playback.
           </video>
-
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: 13,
-              color: "#D9D0BE",
-              marginTop: 15,
-            }}
-          >
+          <p style={{ textAlign: "center", fontSize: 13 }}>
             Our Multani Mithas brand film.
           </p>
         </div>
       </section>
 
-      {/* BRAND BENEFITS */}
       <section
         style={{
           ...sectionStyle,
@@ -1254,14 +1282,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* GIFT COLLECTION */}
-      <section
-        id="gifts"
-        style={{
-          ...sectionStyle,
-          background: "#FFF8EA",
-        }}
-      >
+      <section id="gifts" style={{ ...sectionStyle, background: "#FFF8EA" }}>
         <div
           className="mm-gift-banner"
           style={{
@@ -1272,8 +1293,8 @@ export default function Home() {
             <p className="mm-eyebrow">Special Collection</p>
             <h2>Gifts Filled with Tradition</h2>
             <p>
-              Share the sweetness of Multan with family,
-              friends and loved ones.
+              Share the sweetness of Multan with family, friends
+              and loved ones.
             </p>
             <a href="#gift-products" style={goldButton}>
               Explore Gift Boxes →
@@ -1281,24 +1302,19 @@ export default function Home() {
           </div>
         </div>
 
-        <h2
-          className="mm-section-heading"
-          style={{ marginTop: 45 }}
-        >
+        <h2 className="mm-section-heading" style={{ marginTop: 45 }}>
           Gift Boxes & Celebrations
         </h2>
-
         <p className="mm-section-intro">
-          Thoughtful gifts for weddings, celebrations,
-          family gatherings and special occasions.
+          Thoughtful gifts for weddings, celebrations, family gatherings
+          and special occasions.
         </p>
 
         <div
           id="gift-products"
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(230px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
             gap: 22,
             maxWidth: 800,
             margin: "auto",
@@ -1316,11 +1332,9 @@ export default function Home() {
                 alt={product.name}
                 loading="lazy"
               />
-
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-price">{money(product.price)}</p>
-
                 <button
                   className="mm-gold-button"
                   onClick={() => addToCart(product.id)}
@@ -1333,22 +1347,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SHOPPING CART */}
       <section
         id="cart"
-        style={{
-          ...sectionStyle,
-          background: "#F3E8D4",
-        }}
+        style={{ ...sectionStyle, background: "#F3E8D4" }}
       >
         <div className="mm-ornament">❖ ✦ ❖</div>
-
-        <h2 className="mm-section-heading">
-          Your Shopping Cart
-        </h2>
-
+        <h2 className="mm-section-heading">Your Shopping Cart</h2>
         <p className="mm-section-intro">
-          Review your selection before sending your order enquiry.
+          Review your selection and enter delivery details to place
+          an order.
         </p>
 
         {cartCount === 0 ? (
@@ -1362,8 +1369,26 @@ export default function Home() {
               margin: "auto",
             }}
           >
-            Your cart is empty. Explore our collection
-            and choose your favourite sweets.
+            {savedOrderNumber ? (
+              <div role="status">
+                <h3>Order submitted successfully!</h3>
+                <p>Your order number is:</p>
+                <strong style={{ overflowWrap: "anywhere" }}>
+                  {savedOrderNumber}
+                </strong>
+                <p>Payment status: Pending verification</p>
+                <p>Order status: Pending confirmation</p>
+                <p>
+                  Business delivery charges and payment details will
+                  be confirmed before the order is accepted.
+                </p>
+              </div>
+            ) : (
+              <>
+                Your cart is empty. Explore our collection and choose
+                your favourite sweets.
+              </>
+            )}
           </div>
         ) : (
           <div
@@ -1396,11 +1421,10 @@ export default function Home() {
                       {money(product.price)} × {cart[product.id]}
                     </div>
                   </div>
-
                   <div>
                     <strong>
                       {money(product.price * cart[product.id])}
-                    </strong>{" "}
+                    </strong>
                     <button
                       onClick={() => removeFromCart(product.id)}
                       style={{
@@ -1422,43 +1446,111 @@ export default function Home() {
             </h3>
 
             <p style={{ fontSize: 14 }}>
-              Delivery charges, destination eligibility and final
-              total must be confirmed before payment.
+              Delivery charges are not included. Final delivery cost
+              and payment arrangements must be confirmed by the business.
             </p>
 
-            <button
-              onClick={sendOrder}
-              className="mm-gold-button"
-              style={{ width: "100%" }}
+            <form
+              onSubmit={placeOrder}
+              style={{ display: "grid", gap: 15, marginTop: 25 }}
             >
-              Continue to WhatsApp Order →
-            </button>
+              <h3>Delivery & Checkout Details</h3>
+
+              <label>
+                Customer Name
+                <input
+                  className="mm-input"
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  maxLength={120}
+                  required
+                  autoComplete="name"
+                  placeholder="Apna poora naam"
+                />
+              </label>
+
+              <label>
+                Phone Number
+                <input
+                  className="mm-input"
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(event) => setCustomerPhone(event.target.value)}
+                  maxLength={30}
+                  required
+                  autoComplete="tel"
+                  placeholder="+92..."
+                />
+              </label>
+
+              <label>
+                Full Delivery Address (city, country, postal code)
+                <textarea
+                  className="mm-input"
+                  value={deliveryAddress}
+                  onChange={(event) => setDeliveryAddress(event.target.value)}
+                  maxLength={500}
+                  required
+                  rows={3}
+                  autoComplete="street-address"
+                  placeholder="House, street, city, country"
+                />
+              </label>
+
+              <label>
+                Payment Method
+                <select
+                  className="mm-input"
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    setPaymentMethod(
+                      event.target.value as (typeof paymentMethods)[number]
+                    )
+                  }
+                  required
+                >
+                  <option value="Cash on Delivery">
+                    Cash on Delivery (COD)
+                  </option>
+                  <option value="JazzCash">JazzCash</option>
+                  <option value="Easypaisa">Easypaisa</option>
+                  <option value="Raast ID">Raast ID</option>
+                  <option value="Payoneer">Payoneer</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+              </label>
+
+              <p style={{ fontSize: 14 }}>
+                Online payment is not processed automatically. Payment
+                verification and delivery charges will be confirmed
+                by the business.
+              </p>
+
+              <button
+                type="submit"
+                className="mm-gold-button"
+                disabled={submittingOrder}
+                style={{ width: "100%" }}
+              >
+                {submittingOrder
+                  ? "Saving Order..."
+                  : "Place Order & Save"}
+              </button>
+            </form>
           </div>
         )}
       </section>
 
-      {/* DELIVERY */}
-      <section
-        id="delivery"
-        style={{
-          ...sectionStyle,
-          background: "#FFF8EA",
-        }}
-      >
-        <h2 className="mm-section-heading">
-          Delivery Information
-        </h2>
-
+      <section id="delivery" style={{ ...sectionStyle, background: "#FFF8EA" }}>
+        <h2 className="mm-section-heading">Delivery Information</h2>
         <p className="mm-section-intro">
-          Contact us to confirm availability and delivery
-          arrangements for your destination.
+          Contact us to confirm availability and delivery arrangements
+          for your destination.
         </p>
-
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(240px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 20,
           }}
         >
@@ -1466,77 +1558,46 @@ export default function Home() {
             <p className="mm-eyebrow">Pakistan</p>
             <h3>Domestic Orders</h3>
             <p>
-              Delivery areas, charges, estimated timing and
-              payment arrangements must be confirmed before
-              an order is accepted.
+              Delivery areas, charges, estimated timing and payment
+              arrangements must be confirmed before an order is accepted.
             </p>
           </article>
-
           <article className="mm-info-card">
             <p className="mm-eyebrow">Worldwide</p>
             <h3>International Enquiries</h3>
             <p>
-              Overseas delivery depends on courier availability,
-              food import rules, product eligibility and shipping
-              costs for the destination.
+              Overseas delivery depends on courier availability, food
+              import rules, product eligibility and shipping costs.
             </p>
           </article>
         </div>
       </section>
 
-      {/* PAYMENTS */}
-      <section
-        id="payments"
-        style={{
-          ...sectionStyle,
-          background: "#E8D6B4",
-        }}
-      >
-        <h2 className="mm-section-heading">
-          Payment Information
-        </h2>
-
-        <p
-          style={{
-            maxWidth: 800,
-            margin: "auto",
-            textAlign: "center",
-          }}
-        >
-          Payment methods will be confirmed directly before
-          your order is accepted. Available local transfer,
-          cash-on-delivery or digital payment options depend
-          on business arrangements. International card payments
-          require an eligible payment provider. Never send
-          card details or passwords through WhatsApp.
+      <section id="payments" style={{ ...sectionStyle, background: "#E8D6B4" }}>
+        <h2 className="mm-section-heading">Payment Information</h2>
+        <p style={{ maxWidth: 800, margin: "auto", textAlign: "center" }}>
+          Available methods include JazzCash, Easypaisa, Raast ID,
+          Payoneer, bank transfer and cash on delivery. Select a method
+          at checkout. The business must confirm transfer details and
+          verify payments manually. Do not send card details or passwords
+          through WhatsApp.
         </p>
       </section>
 
-      {/* CONTACT */}
       <section
         id="contact"
-        style={{
-          ...sectionStyle,
-          background: "#FFF8EA",
-          textAlign: "center",
-        }}
+        style={{ ...sectionStyle, background: "#FFF8EA", textAlign: "center" }}
       >
         <div className="mm-ornament">✦ ❖ ✦</div>
-        <h2 className="mm-section-heading">
-          Contact Multani Mithas
-        </h2>
-
+        <h2 className="mm-section-heading">Contact Multani Mithas</h2>
         <p className="mm-section-intro">
-          Product questions, bulk orders, gift collections
-          and delivery enquiries — we are here to help.
+          Product questions, bulk orders, gift collections and delivery
+          enquiries — we are here to help.
         </p>
 
         {BUSINESS_PHONE ? (
           <p>
-            Phone:{" "}
-            <a href={`tel:${BUSINESS_PHONE}`}>
-              {BUSINESS_PHONE}
-            </a>
+            Phone: <a href={`tel:${BUSINESS_PHONE}`}>{BUSINESS_PHONE}</a>
           </p>
         ) : (
           <p>Business phone number will be added soon.</p>
@@ -1544,10 +1605,7 @@ export default function Home() {
 
         {contactEmail ? (
           <p>
-            Email:{" "}
-            <a href={`mailto:${contactEmail}`}>
-              {contactEmail}
-            </a>
+            Email: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
           </p>
         ) : (
           <p>Business email will be added soon.</p>
@@ -1555,10 +1613,7 @@ export default function Home() {
 
         {WHATSAPP_NUMBER ? (
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER.replace(
-              /\D/g,
-              ""
-            )}?text=${encodeURIComponent(
+            href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
               "Assalam-o-Alaikum Multani Mithas, I have a question about your products and delivery."
             )}`}
             target="_blank"
@@ -1568,61 +1623,40 @@ export default function Home() {
             Contact Us on WhatsApp
           </a>
         ) : (
-          <p>
-            WhatsApp contact will be activated after
-            adding your number.
-          </p>
+          <p>WhatsApp contact will be activated after adding your number.</p>
         )}
       </section>
 
-      {/* POLICIES */}
-      <section
-        id="policies"
-        style={{
-          ...sectionStyle,
-          background: "#F3E8D4",
-        }}
-      >
+      <section id="policies" style={sectionStyle}>
         <h2 className="mm-section-heading">
           Customer Information & Policies
         </h2>
-
         <div style={{ maxWidth: 850, margin: "auto" }}>
           <h3>Orders and cancellations</h3>
           <p>
-            An order is not confirmed until the business confirms
-            product availability, final price, delivery and
-            payment arrangements.
+            An order is not confirmed until the business confirms product
+            availability, final price, delivery and payment arrangements.
           </p>
-
           <h3>Shipping and customs</h3>
           <p>
-            International shipping charges, customs duties,
-            import restrictions and delivery times vary by
-            destination and must be confirmed before acceptance.
+            International shipping charges, customs duties, import
+            restrictions and delivery times vary by destination.
           </p>
-
           <h3>Refunds and product issues</h3>
           <p>
-            Contact the business about damaged, incorrect or
-            missing items. Finalise and publish the refund and
-            return policy before accepting online payments.
+            Contact the business about damaged, incorrect or missing items.
+            Publish a complete refund policy before accepting online payments.
           </p>
-
           <h3>Privacy</h3>
           <p>
-            Only provide the personal information needed to
-            handle an enquiry or order. Publish a complete
-            privacy policy before collecting customer data
-            through a live order system.
+            Only provide the personal information needed to handle an order.
+            Publish a complete privacy policy before collecting customer data.
           </p>
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="mm-footer">
         <div className="mm-ornament">✦ ❖ ✦</div>
-
         <h2
           style={{
             color: "#E6BD6C",
@@ -1633,16 +1667,11 @@ export default function Home() {
         >
           MULTANI MITHAS
         </h2>
-
-        <p style={{ fontStyle: "italic" }}>
-          Multan Ki Mithas, Dil Se.
-        </p>
-
+        <p style={{ fontStyle: "italic" }}>Multan Ki Mithas, Dil Se.</p>
         <p style={{ fontSize: 12, color: "#D9D0BE" }}>
           Inspired by the heritage and traditions of Multan,
           South Punjab, Pakistan.
         </p>
-
         <div
           style={{
             display: "flex",
@@ -1659,7 +1688,6 @@ export default function Home() {
           <a href="#contact">Contact</a>
           <a href="#home">Back to Top ↑</a>
         </div>
-
         <div
           style={{
             borderTop: "1px solid rgba(216,172,85,.4)",
@@ -1667,12 +1695,10 @@ export default function Home() {
             fontSize: 12,
           }}
         >
-          © {new Date().getFullYear()} Multani Mithas.
-          All rights reserved.
+          © {new Date().getFullYear()} Multani Mithas. All rights reserved.
         </div>
       </footer>
 
-      {/* CART NOTIFICATION */}
       {message && (
         <div className="mm-toast" role="status">
           {message}
