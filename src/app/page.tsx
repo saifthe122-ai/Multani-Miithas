@@ -238,6 +238,7 @@ export default function Home() {
             );
             const imageUrl = typeof item.image_url === "string" ? item.image_url : "";
             const imageIcon = typeof item.image === "string" ? item.image : "🍬";
+            const status: Product["status"] = item.status === "Inactive" ? "Inactive" : "Active";
             const fallbackImage = savedDefault?.image ??
               "https://images.unsplash.com/photo-1605197161470-5d6e5f7f2f4d?auto=format&fit=crop&w=700&q=85";
 
@@ -255,7 +256,7 @@ export default function Home() {
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-              status: item.status === "Inactive" ? "Inactive" : "Active",
+              status,
             };
           })
           .filter((product) => Number.isFinite(product.id) && product.id > 0);
