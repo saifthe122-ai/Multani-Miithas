@@ -62,8 +62,8 @@ export default function ProductsPage() {
       }
 
       const databaseProducts: Product[] = (data.products || []).map(
-        (product: any) => ({
-          id: product.id,
+(product: Product) => ({
+            id: product.id,
           name: product.name ?? "",
           category: product.category ?? "Sweets",
           price: Number(product.price ?? 0),
