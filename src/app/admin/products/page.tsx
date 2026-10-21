@@ -13,6 +13,7 @@ type Product = {
   status: "Active" | "Inactive";
   weight: string;
   image: string;
+  image_url: string;
   description: string;
   ingredients: string;
   rating: number;
@@ -27,6 +28,7 @@ const emptyProduct: Omit<Product, "id" | "rating"> = {
   status: "Active",
   weight: "",
   image: "🍬",
+  image_url: "",
   description: "",
   ingredients: "",
 };
@@ -35,6 +37,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -62,8 +65,8 @@ export default function ProductsPage() {
       }
 
       const databaseProducts: Product[] = (data.products || []).map(
-(product: Product) => ({
-            id: product.id,
+        (product: Product) => ({
+          id: product.id,
           name: product.name ?? "",
           category: product.category ?? "Sweets",
           price: Number(product.price ?? 0),
@@ -72,6 +75,7 @@ export default function ProductsPage() {
           status: product.status === "Inactive" ? "Inactive" : "Active",
           weight: product.weight ?? "",
           image: product.image ?? "🍬",
+          image_url: product.image_url ?? "",
           description: product.description ?? "",
           ingredients: product.ingredients ?? "",
           rating: Number(product.rating ?? 5),
@@ -143,11 +147,48 @@ export default function ProductsPage() {
       status: product.status,
       weight: product.weight,
       image: product.image,
+      image_url: product.image_url ?? "",
       description: product.description,
       ingredients: product.ingredients,
     });
 
     setShowForm(true);
+  }
+
+  async function uploadProductImage(file: File | undefined) {
+    if (!file) return;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("JPG, PNG, WEBP ya GIF image select karo.");
+      return;
+    }
+    if (file.size === 0 || file.size > 4 * 1024 * 1024) {
+      alert("Image 4 MB se chhoti honi chahiye.");
+      return;
+    }
+    const password = window.prompt("Enter admin media password");
+    if (!password) return;
+
+    setImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/admin/media-upload", {
+        method: "POST",
+        headers: { "x-admin-media-password": password },
+        body: formData,
+      });
+      const result: { url?: string; error?: string; warning?: string } = await response.json();
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "Product image upload nahi ho saki.");
+      }
+      setForm((current) => ({ ...current, image_url: result.url ?? "" }));
+      alert(result.warning || "Photo upload ho gayi. Ab Add Product / Save Changes dabao.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Image upload fail ho gayi.");
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function saveProduct(event: React.FormEvent) {
@@ -604,22 +645,10 @@ export default function ProductsPage() {
                           gap: 12,
                         }}
                       >
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 12,
-                            background:
-                              "linear-gradient(135deg, #eaf7ee, #f7fbf8)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 28,
-                            boxShadow:
-                              "inset 0 0 0 1px #dcebe1",
-                          }}
-                        >
-                          {product.image}
+                        <div style={{ width: 52, height: 52, borderRadius: 12, overflow: "hidden", background: "linear-gradient(135deg, #eaf7ee, #f7fbf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "inset 0 0 0 1px #dcebe1", flexShrink: 0 }}>
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : product.image}
                         </div>
 
                         <div>
@@ -1026,70 +1055,22 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* IMAGE AREA */}
-              <div
-                style={{
-                  background:
-                    "linear-gradient(135deg, #f7f3ff, #f1f6ff)",
-                  border: "1px solid #dddff0",
-                  borderRadius: 13,
-                  padding: 18,
-                  marginBottom: 18,
-                }}
-              >
-                <h3
-                  style={{
-                    margin: "0 0 6px",
-                    color: "#4b4d82",
-                    fontSize: 15,
-                  }}
-                >
-                  🖼️ Product Images
-                </h3>
-
-                <p
-                  style={{
-                    margin: "0 0 14px",
-                    color: "#777b91",
-                    fontSize: 12,
-                  }}
-                >
-                  Image upload/storage will be connected with the
-                  product API later.
+              {/* PRODUCT IMAGE UPLOAD */}
+              <div style={{ background: "linear-gradient(135deg, #f7f3ff, #f1f6ff)", border: "1px solid #dddff0", borderRadius: 13, padding: 18, marginBottom: 18 }}>
+                <h3 style={{ margin: "0 0 6px", color: "#4b4d82", fontSize: 15 }}>🖼️ Product Photo</h3>
+                <p style={{ margin: "0 0 14px", color: "#777b91", fontSize: 12 }}>
+                  JPG, PNG, WEBP ya GIF — maximum 4 MB. Upload ke baad Add Product / Save Changes zaroor dabao.
                 </p>
-
-                <div
-                  style={{
-                    border: "2px dashed #c8cbe0",
-                    borderRadius: 12,
-                    padding: 24,
-                    textAlign: "center",
-                    background: "rgba(255,255,255,0.7)",
-                  }}
-                >
-                  <div style={{ fontSize: 35 }}>📷</div>
-
-                  <strong
-                    style={{
-                      display: "block",
-                      marginTop: 7,
-                      color: "#4e5472",
-                    }}
-                  >
-                    Product image area ready
-                  </strong>
-
-                  <span
-                    style={{
-                      display: "block",
-                      marginTop: 5,
-                      color: "#85899c",
-                      fontSize: 12,
-                    }}
-                  >
-                    Multiple image upload will be connected next.
-                  </span>
-                </div>
+                {form.image_url ? (
+                  <div style={{ marginBottom: 14 }}>
+                    <img src={form.image_url} alt="Product preview" style={{ display: "block", width: 180, height: 140, objectFit: "cover", borderRadius: 10, border: "1px solid #c8cbe0" }} />
+                    <button type="button" onClick={() => setForm({ ...form, image_url: "" })} style={{ marginTop: 8, padding: "8px 12px", border: "1px solid #c8cbe0", borderRadius: 8, background: "#fff", cursor: "pointer" }}>Remove photo from product</button>
+                  </div>
+                ) : null}
+                <label style={{ display: "inline-block", border: "2px dashed #c8cbe0", borderRadius: 12, padding: 18, background: "rgba(255,255,255,0.7)", cursor: imageUploading ? "wait" : "pointer" }}>
+                  <strong>{imageUploading ? "Uploading image..." : "Choose product photo"}</strong>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={imageUploading} onChange={(event) => { void uploadProductImage(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} style={{ display: "block", marginTop: 10 }} />
+                </label>
               </div>
 
               {/* DETAILS */}
@@ -1220,9 +1201,11 @@ export default function ProductsPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 65 }}>
-                {viewProduct.image}
-              </div>
+              {viewProduct.image_url ? (
+                <img src={viewProduct.image_url} alt={viewProduct.name} style={{ width: 150, height: 120, objectFit: "cover", borderRadius: 12, margin: "0 auto 10px", display: "block" }} />
+              ) : (
+                <div style={{ fontSize: 65 }}>{viewProduct.image}</div>
+              )}
 
               <h2 style={{ margin: "10px 0 5px" }}>
                 {viewProduct.name}
