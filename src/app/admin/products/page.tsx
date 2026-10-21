@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Product = {
-  id: number;
+  id: number | string;
   name: string;
   category: string;
   price: number;
@@ -17,93 +17,6 @@ type Product = {
   ingredients: string;
   rating: number;
 };
-
-const demoProducts: Product[] = [
-  {
-    id: 1,
-    name: "Multani Sohan Halwa",
-    category: "Sweets",
-    price: 1200,
-    discount: 0,
-    stock: 25,
-    status: "Active",
-    weight: "500g",
-    image: "🍯",
-    description: "Traditional premium Multani Sohan Halwa.",
-    ingredients: "Milk, sugar, wheat flour, ghee, nuts",
-    rating: 4.9,
-  },
-  {
-    id: 2,
-    name: "Premium Barfi",
-    category: "Sweets",
-    price: 900,
-    discount: 5,
-    stock: 18,
-    status: "Active",
-    weight: "500g",
-    image: "🍬",
-    description: "Soft and creamy traditional barfi.",
-    ingredients: "Milk, sugar, khoya, nuts",
-    rating: 4.8,
-  },
-  {
-    id: 3,
-    name: "Gulab Jamun",
-    category: "Sweets",
-    price: 700,
-    discount: 0,
-    stock: 0,
-    status: "Active",
-    weight: "1kg",
-    image: "🟤",
-    description: "Fresh traditional gulab jamun.",
-    ingredients: "Milk powder, flour, sugar syrup",
-    rating: 4.7,
-  },
-  {
-    id: 4,
-    name: "Besan Ladoo",
-    category: "Sweets",
-    price: 850,
-    discount: 10,
-    stock: 32,
-    status: "Active",
-    weight: "500g",
-    image: "🟡",
-    description: "Fresh homemade-style besan ladoo.",
-    ingredients: "Gram flour, sugar, ghee, cardamom",
-    rating: 4.8,
-  },
-  {
-    id: 5,
-    name: "Patisa",
-    category: "Sweets",
-    price: 950,
-    discount: 0,
-    stock: 14,
-    status: "Active",
-    weight: "500g",
-    image: "🍰",
-    description: "Traditional flaky and delicious patisa.",
-    ingredients: "Gram flour, sugar, ghee",
-    rating: 4.6,
-  },
-  {
-    id: 6,
-    name: "Premium Gift Box",
-    category: "Gift Boxes",
-    price: 2500,
-    discount: 15,
-    stock: 8,
-    status: "Active",
-    weight: "1kg",
-    image: "🎁",
-    description: "Premium assorted sweets gift box.",
-    ingredients: "Assorted premium sweets",
-    rating: 5,
-  },
-];
 
 const emptyProduct: Omit<Product, "id" | "rating"> = {
   name: "",
@@ -119,19 +32,67 @@ const emptyProduct: Omit<Product, "id" | "rating"> = {
 };
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(demoProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [databaseError, setDatabaseError] = useState("");
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
 
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | string | null>(null);
 
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
 
   const [form, setForm] =
     useState<Omit<Product, "id" | "rating">>(emptyProduct);
+
+  const loadProducts = useCallback(async () => {
+    try {
+      setDatabaseError("");
+
+      const response = await fetch("/api/products", {
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Products load nahi ho sake.");
+      }
+
+      const databaseProducts: Product[] = (data.products || []).map(
+        (product: any) => ({
+          id: product.id,
+          name: product.name ?? "",
+          category: product.category ?? "Sweets",
+          price: Number(product.price ?? 0),
+          discount: Number(product.discount ?? 0),
+          stock: Number(product.stock ?? 0),
+          status: product.status === "Inactive" ? "Inactive" : "Active",
+          weight: product.weight ?? "",
+          image: product.image ?? "🍬",
+          description: product.description ?? "",
+          ingredients: product.ingredients ?? "",
+          rating: Number(product.rating ?? 5),
+        })
+      );
+
+      setProducts(databaseProducts);
+    } catch (error) {
+      setDatabaseError(
+        error instanceof Error
+          ? error.message
+          : "Database connection mein masla hai."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
 
   const categories = useMemo(() => {
     return [
@@ -189,7 +150,7 @@ export default function ProductsPage() {
     setShowForm(true);
   }
 
-  function saveProduct(event: React.FormEvent) {
+  async function saveProduct(event: React.FormEvent) {
     event.preventDefault();
 
     if (!form.name.trim()) {
@@ -197,40 +158,80 @@ export default function ProductsPage() {
       return;
     }
 
-    if (editingId !== null) {
-      setProducts((current) =>
-        current.map((product) =>
-          product.id === editingId
-            ? {
-                ...product,
-                ...form,
-              }
-            : product
-        )
-      );
-    } else {
-      const newProduct: Product = {
-        id: Date.now(),
+    try {
+      const isEditing = editingId !== null;
+
+      const payload = {
         ...form,
-        rating: 5,
+        name: form.name.trim(),
+        rating: isEditing
+          ? products.find((product) => product.id === editingId)?.rating ?? 5
+          : 5,
       };
 
-      setProducts((current) => [newProduct, ...current]);
-    }
+      const response = await fetch("/api/products", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          isEditing ? { ...payload, id: editingId } : payload
+        ),
+      });
 
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyProduct);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Product save nahi ho saka.");
+      }
+
+      await loadProducts();
+
+      setShowForm(false);
+      setEditingId(null);
+      setForm(emptyProduct);
+
+      alert(
+        isEditing
+          ? "Product update ho gaya!"
+          : "Product database mein save ho gaya!"
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Product save karte waqt masla hua."
+      );
+    }
   }
 
-  function removeProduct() {
+  async function removeProduct() {
     if (!deleteProduct) return;
 
-    setProducts((current) =>
-      current.filter((product) => product.id !== deleteProduct.id)
-    );
+    try {
+      const response = await fetch(
+        `/api/products?id=${encodeURIComponent(String(deleteProduct.id))}`,
+        { method: "DELETE" }
+      );
+      const data = await response.json();
 
-    setDeleteProduct(null);
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Product delete nahi ho saka.");
+      }
+
+      setProducts((current) =>
+        current.filter((product) => product.id !== deleteProduct.id)
+      );
+
+      setDeleteProduct(null);
+      alert("Product database se delete ho gaya!");
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Product delete karte waqt masla hua."
+      );
+    }
   }
 
   return (
@@ -348,6 +349,44 @@ export default function ProductsPage() {
           padding: "28px 30px 60px",
         }}
       >
+        {databaseError && (
+          <div
+            style={{
+              background: "#fff0f0",
+              color: "#b32626",
+              padding: 14,
+              borderRadius: 10,
+              marginBottom: 18,
+            }}
+          >
+            Database error: {databaseError}
+            <button
+              onClick={() => {
+                setLoading(true);
+                void loadProducts();
+              }}
+              style={{
+                marginLeft: 12,
+                padding: "6px 10px",
+                borderRadius: 7,
+                border: "1px solid #b32626",
+                background: "#fff",
+                color: "#b32626",
+                cursor: "pointer",
+                fontWeight: 800,
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <p style={{ textAlign: "center", padding: 20 }}>
+            Products database se load ho rahe hain...
+          </p>
+        )}
+
         {/* STAT CARDS */}
         <section
           style={{
