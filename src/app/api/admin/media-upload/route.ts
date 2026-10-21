@@ -1,11 +1,11 @@
-
-import { put, del } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
-
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
+const MEDIA_PREFIX = "multani-mithas/media/";
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -18,16 +18,35 @@ const ALLOWED_TYPES = [
 function isAuthorized(request: Request) {
   const expected = process.env.ADMIN_MEDIA_PASSWORD;
   const supplied = request.headers.get("x-admin-media-password");
-
   return Boolean(expected && supplied && supplied === expected);
+}
+
+// Admin media library: reload stored files after a page refresh.
+export async function GET(request: Request) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const result = await list({ prefix: MEDIA_PREFIX, limit: 1000 });
+    const media = result.blobs.map((blob) => ({
+      url: blob.url,
+      pathname: blob.pathname,
+      uploadedAt: blob.uploadedAt,
+      size: blob.size,
+    }));
+    return NextResponse.json({ success: true, media });
+  } catch {
+    return NextResponse.json(
+      { error: "Could not load media from Vercel Blob." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -41,14 +60,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: "Use JPG, PNG, WEBP, GIF, MP4 or WEBM." },
         { status: 400 }
       );
     }
-
     if (file.size === 0 || file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "File size must be between 1 byte and 4 MB." },
@@ -62,34 +79,36 @@ export async function POST(request: Request) {
       file.type === "image/webp" ? "webp" :
       file.type === "image/gif" ? "gif" :
       file.type === "video/mp4" ? "mp4" : "webm";
-
+    const safeName = file.name
+      .normalize("NFKD")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^[-.]+|[-.]+$/g, "")
+      .slice(-100);
+    const originalName = safeName || `upload.${extension}`;
     const blob = await put(
-      `multani-mithas/media/${crypto.randomUUID()}.${extension}`,
+      `${MEDIA_PREFIX}${crypto.randomUUID()}-${originalName}`,
       file,
       {
         access: "public",
-        addRandomSuffix: true,
+        addRandomSuffix: false,
         contentType: file.type,
       }
     );
 
-    // Only delete an old file belonging to this store.
-    // Upload first so the old file remains if upload fails.
     if (typeof oldUrl === "string" && oldUrl) {
-      const storeId = process.env.BLOB_STORE_ID;
       let isOurBlob = false;
-
       try {
         const old = new URL(oldUrl);
         isOurBlob =
           old.protocol === "https:" &&
           old.hostname.endsWith(".public.blob.vercel-storage.com") &&
-          old.pathname.startsWith("/multani-mithas/media/");
+          old.pathname.startsWith(`/${MEDIA_PREFIX}`);
       } catch {
         isOurBlob = false;
       }
 
-      if (!isOurBlob || !storeId) {
+      if (!isOurBlob || !process.env.BLOB_STORE_ID) {
         await del(blob.url);
         return NextResponse.json(
           { error: "Old media URL is not valid for replacement." },
@@ -100,11 +119,11 @@ export async function POST(request: Request) {
       try {
         await del(oldUrl);
       } catch {
-        // Keep the new upload and report that old media may remain.
         return NextResponse.json({
           success: true,
           url: blob.url,
           pathname: blob.pathname,
+          type: file.type.startsWith("video/") ? "video" : "image",
           warning: "New file uploaded, but old file could not be removed.",
         });
       }
@@ -126,15 +145,15 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   if (!isAuthorized(request)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const body = await request.json();
-    const url = body?.url;
+    const body: unknown = await request.json();
+    const url =
+      body && typeof body === "object" && "url" in body
+        ? (body as { url?: unknown }).url
+        : null;
 
     if (typeof url !== "string" || !url) {
       return NextResponse.json(
@@ -144,11 +163,10 @@ export async function DELETE(request: Request) {
     }
 
     const parsed = new URL(url);
-
     if (
       parsed.protocol !== "https:" ||
       !parsed.hostname.endsWith(".public.blob.vercel-storage.com") ||
-      !parsed.pathname.startsWith("/multani-mithas/media/")
+      !parsed.pathname.startsWith(`/${MEDIA_PREFIX}`)
     ) {
       return NextResponse.json(
         { error: "This media URL is not allowed." },
@@ -157,7 +175,6 @@ export async function DELETE(request: Request) {
     }
 
     await del(url);
-
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
