@@ -302,10 +302,9 @@ export default function Home() {
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-              status:
-                item.status === "Inactive"
-                  ? "Inactive"
-                  : "Active",
+             status: (String(item.status ?? "").toLowerCase() === "inactive"
+  ? "Inactive"
+  : "Active") as "Active" | "Inactive",
             };
           })
           .filter(
