@@ -30,7 +30,24 @@ const BUSINESS_EMAIL =
 const BUSINESS_PHONE =
   process.env.NEXT_PUBLIC_BUSINESS_PHONE || "";
 
-const products = [
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  stock: number;
+  discount: number;
+  weight: string;
+  image: string;
+  image_url: string;
+  imageIcon: string;
+  description: string;
+  ingredients: string;
+  rating: number;
+  status: "Active" | "Inactive";
+};
+
+const defaultProducts: Product[] = [
   {
     id: 1,
 name: "Multani Sohan Halwa",
@@ -38,6 +55,15 @@ name: "Multani Sohan Halwa",
     category: "Traditional Sweets",
     image:
       "https://images.unsplash.com/photo-1605197161470-5d6e5f7f2f4d?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 2,
@@ -46,6 +72,15 @@ name: "Multani Sohan Halwa",
     category: "Traditional Sweets",
     image:
       "https://images.unsplash.com/photo-1601303516534-2b1c2d6f5f8e?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 3,
@@ -54,6 +89,15 @@ name: "Multani Sohan Halwa",
     category: "Traditional Sweets",
     image:
       "https://images.unsplash.com/photo-1666190094762-1e7f1a3e7e3b?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 4,
@@ -62,6 +106,15 @@ name: "Multani Sohan Halwa",
     category: "Traditional Sweets",
     image:
       "https://images.unsplash.com/photo-1606471191009-63994c53433b?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 5,
@@ -70,6 +123,15 @@ name: "Multani Sohan Halwa",
     category: "Gift Boxes",
     image:
       "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 6,
@@ -78,6 +140,15 @@ name: "Multani Sohan Halwa",
     category: "Gift Boxes",
     image:
       "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 7,
@@ -86,6 +157,15 @@ name: "Multani Sohan Halwa",
     category: "Traditional Sweets",
     image:
       "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
   {
     id: 8,
@@ -94,6 +174,15 @@ name: "Multani Sohan Halwa",
     category: "Bakery",
     image:
       "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=700&q=85",
+    image_url: "",
+    imageIcon: "🍬",
+    stock: 0,
+    discount: 0,
+    weight: "",
+    description: "",
+    ingredients: "",
+    rating: 5,
+    status: "Active",
   },
 ];
 
@@ -119,9 +208,68 @@ const goldButton = {
 };
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>(defaultProducts);
   const [cart, setCart] = useState<Record<number, number>>({});
   const [message, setMessage] = useState("");
   const [publishedSettings, setPublishedSettings] = useState<PublishedSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/products", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Database products load nahi huay");
+        return response.json();
+      })
+      .then((result: unknown) => {
+        if (!result || typeof result !== "object") return;
+        const payload = result as { success?: boolean; products?: unknown };
+        if (!payload.success || !Array.isArray(payload.products) || cancelled) return;
+
+        const databaseProducts: Product[] = payload.products
+          .filter((item): item is Record<string, unknown> =>
+            Boolean(item) && typeof item === "object" && !Array.isArray(item)
+          )
+          .filter((item) => item.status !== "Inactive")
+          .map((item) => {
+            const name = String(item.name ?? "Unnamed Product");
+            const savedDefault = defaultProducts.find(
+              (product) => product.name.toLowerCase() === name.toLowerCase()
+            );
+            const imageUrl = typeof item.image_url === "string" ? item.image_url : "";
+            const imageIcon = typeof item.image === "string" ? item.image : "🍬";
+            const fallbackImage = savedDefault?.image ??
+              "https://images.unsplash.com/photo-1605197161470-5d6e5f7f2f4d?auto=format&fit=crop&w=700&q=85";
+
+            return {
+              id: Number(item.id),
+              name,
+              price: Number(item.price ?? 0),
+              category: String(item.category ?? "Sweets"),
+              stock: Number(item.stock ?? 0),
+              discount: Number(item.discount ?? 0),
+              weight: String(item.weight ?? ""),
+              image: imageUrl || fallbackImage,
+              image_url: imageUrl,
+              imageIcon,
+              description: String(item.description ?? ""),
+              ingredients: String(item.ingredients ?? ""),
+              rating: Number(item.rating ?? 5),
+              status: item.status === "Inactive" ? "Inactive" : "Active",
+            };
+          })
+          .filter((product) => Number.isFinite(product.id) && product.id > 0);
+
+        if (!cancelled) setProducts(databaseProducts);
+      })
+      .catch((error: unknown) => {
+        console.error("Database products load error; using default products:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/site-media", { cache: "no-store" })
@@ -175,8 +323,8 @@ export default function Home() {
     return match?.url || fallback;
   };
 
-  const getProductImage = (product: (typeof products)[number]) =>
-    findPublishedMedia([product.name], "image", product.image);
+  const getProductImage = (product: Product) =>
+    findPublishedMedia([product.name], "image", product.image_url || product.image);
 
   const heroImage = findPublishedMedia(["hero", "banner"], "image", "/images/multan-hero.jpg");
   const heritageImage = findPublishedMedia(["shrine", "heritage", "story"], "image", "/images/multan-shrine-story.jpg");
@@ -189,17 +337,17 @@ export default function Home() {
   const heroSubtitle = publishedSettings?.heroSubtitle || "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan.";
   const backgroundColor = publishedSettings?.backgroundColor || "#F3E8D4";
   const brandColor = publishedSettings?.brandColor || "#D8AC55";
-  const getProductSetting = (product: (typeof products)[number]) =>
+  const getProductSetting = (product: Product) =>
     Array.isArray(publishedSettings?.products)
       ? publishedSettings.products.find((item) => normalizeMediaName(String(item.name || "")) === normalizeMediaName(product.name))
       : null;
 
-  const isProductEnabled = (product: (typeof products)[number]) => {
+  const isProductEnabled = (product: Product) => {
     const configured = getProductSetting(product);
     return configured ? configured.enabled !== false : true;
   };
 
-  const getProductBackground = (product: (typeof products)[number]) =>
+  const getProductBackground = (product: Product) =>
     getProductSetting(product)?.background || "#FFF8EA";
 
   const addToCart = (id: number) => {
@@ -979,15 +1127,15 @@ export default function Home() {
         >
           {[
             {
-              image: getProductImage(products[0]),
+              image: products[0] ? getProductImage(products[0]) : defaultProducts[0].image,
               title: "Our Traditional Sweets",
             },
             {
-              image: getProductImage(products[4]),
+              image: products[4] ? getProductImage(products[4]) : defaultProducts[4].image,
               title: "Gifts for Loved Ones",
             },
             {
-              image: getProductImage(products[7]),
+              image: products[7] ? getProductImage(products[7]) : defaultProducts[7].image,
               title: "Celebration Treats",
             },
           ].map((item) => (
