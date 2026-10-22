@@ -468,14 +468,17 @@ export default function Home() {
       product.image_url || product.image
     );
 
+  
   const addToCart = (id: number) => {
     setSavedOrderNumber("");
     setCart((old) => ({
       ...old,
       [id]: (old[id] || 0) + 1,
     }));
-    setMessage("Product cart mein add ho gaya!");
+    setMessage("");
+    setCartOpen(true);
   };
+
 
   const removeFromCart = (id: number) => {
     setSavedOrderNumber("");
@@ -992,15 +995,20 @@ export default function Home() {
           box-shadow: 0 5px 20px rgba(0,0,0,.2);
         }
 
-        .mm-cart-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 2000;
-          overflow-y: auto;
-          overscroll-behavior: contain;
-          background: rgba(4, 24, 26, .82);
-          padding: 24px 14px;
-        }
+        
+.mm-cart-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(4, 24, 26, .88);
+  padding: 24px 14px;
+}
+
 
         .mm-cart-panel {
           max-width: 850px;
