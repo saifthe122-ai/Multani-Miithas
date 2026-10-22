@@ -267,7 +267,7 @@ export default function Home() {
           return;
         }
 
-        const databaseProducts: Product[] = payload.products
+const databaseProducts: Product[] = payload.products
           .filter(
             (item): item is Record<string, unknown> =>
               Boolean(item) &&
@@ -305,11 +305,11 @@ export default function Home() {
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-              status:
-                String(item.status ?? "").toLowerCase() ===
-                "inactive"
-                  ? "Inactive"
-                  : "Active",
+status: (
+  String(item.status ?? "").toLowerCase() === "inactive"
+    ? "Inactive"
+    : "Active"
+) as "Active" | "Inactive",
             };
           })
           .filter(
