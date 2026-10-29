@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type PaymentMethod = {
   id: string;
@@ -97,6 +97,98 @@ export default function PaymentsDashboard() {
   const [payments, setPayments] = useState(initialPayments);
   const [search, setSearch] = useState("");
 
+  useEffect(() => {
+  let cancelled = false;
+
+  async function loadPayments() {
+    try {
+      const response = await fetch("/api/orders", {
+        cache: "no-store",
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          payload.error || "Orders could not be loaded"
+        );
+      }
+
+      const rows = Array.isArray(payload.orders)
+        ? payload.orders
+        : [];
+
+      if (cancelled) return;
+
+      setPayments(
+        rows.map(
+          (order: Record<string, unknown>, index: number) => {
+            const paymentStatus = String(
+              order.payment_status ??
+                order.paymentStatus ??
+                "pending"
+            ).toLowerCase();
+
+            const method = String(
+              order.payment_method ??
+                order.paymentMethod ??
+                "Unknown"
+            );
+
+            const rawAmount =
+              order.total ?? order.total_amount ?? order.amount ?? 0;
+
+            const amount = Number(rawAmount) || 0;
+
+            return {
+              id: String(
+                order.id ?? order.order_number ?? index
+              ),
+              orderId: String(
+                order.order_number ??
+                  order.orderNumber ??
+                  order.id ??
+                  "—"
+              ),
+              customer: String(
+                order.customer_name ??
+                  order.customerName ??
+                  order.customer ??
+                  "Customer"
+              ),
+              amount,
+              method,
+              status:
+                paymentStatus === "paid"
+                  ? "Paid"
+                  : paymentStatus === "failed"
+                  ? "Failed"
+                  : paymentStatus === "cancelled"
+                  ? "Cancelled"
+                  : paymentStatus === "refunded"
+                  ? "Refunded"
+                  : paymentStatus === "partially_refunded"
+                  ? "Partially Refunded"
+                  : "Pending",
+              transactionId: "—",
+              date: String(
+                order.created_at ?? order.createdAt ?? "—"
+              ),
+            };
+          }
+        )
+      );
+    } catch (error) {
+      console.error("Payments loading failed:", error);
+    }
+  }
+
+  loadPayments();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
   const enabledMethods = methods.filter(
     (item) => item.status === "Enabled"
   ).length;
