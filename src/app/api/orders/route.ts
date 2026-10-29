@@ -467,3 +467,72 @@ const validStatuses = [
     );
   }
 }
+
+
+export async function DELETE(request: Request) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json(
+      { success: false, message: "Admin login required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body: unknown = await request.json();
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request body." },
+        { status: 400 }
+      );
+    }
+
+    const orderNumber =
+      typeof (body as Record<string, unknown>).orderNumber === "string"
+        ? ((body as Record<string, unknown>).orderNumber as string).trim()
+        : "";
+
+    if (!orderNumber) {
+      return NextResponse.json(
+        { success: false, message: "Order number required." },
+        { status: 400 }
+      );
+    }
+
+    const result = await sql.transaction([
+      sql`
+        DELETE FROM order_items
+        WHERE order_id = (
+          SELECT id FROM orders WHERE order_number = ${orderNumber}
+        )
+      `,
+      sql`
+        DELETE FROM orders
+        WHERE order_number = ${orderNumber}
+        RETURNING order_number
+      `,
+    ]);
+
+    const deletedOrders = result[1];
+
+    if (!deletedOrders || deletedOrders.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Order nahi mila." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Order permanently delete ho gaya.",
+      orderNumber,
+    });
+  } catch (error) {
+    console.error("Order delete failed:", error);
+
+    return NextResponse.json(
+      { success: false, message: "Order delete nahi ho saka." },
+      { status: 500 }
+    );
+  }
+}
