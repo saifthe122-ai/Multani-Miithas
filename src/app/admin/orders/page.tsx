@@ -35,55 +35,77 @@ type Order = {
 
 function mapOrder(row: Record<string, unknown>): Order {
   const rawStatus = String(row.status ?? "pending").toLowerCase();
+
   const statusMap: Record<string, OrderStatus> = {
     pending: "Pending",
     confirmed: "Confirmed",
     preparing: "Preparing",
+    processing: "Preparing",
+    out_for_delivery: "Out for Delivery",
     "out for delivery": "Out for Delivery",
     delivered: "Delivered",
+    completed: "Delivered",
     cancelled: "Cancelled",
     canceled: "Cancelled",
   };
 
   const method = String(row.payment_method ?? "Not provided");
-  const rawPaymentStatus = String(row.payment_status ?? "pending").toLowerCase();
-  const paymentStatus: PaymentStatus = rawPaymentStatus === "paid"
-    ? "Paid"
-    : ["failed", "cancelled", "canceled", "refunded"].includes(rawPaymentStatus)
-    ? "Failed"
-    : /cash on delivery|\bcod\b/i.test(method)
-    ? "COD"
-    : "Pending";
+  const rawPaymentStatus = String(
+    row.payment_status ?? "pending"
+  ).toLowerCase();
+
+  const paymentStatus: PaymentStatus =
+    rawPaymentStatus === "paid"
+      ? "Paid"
+      : ["failed", "cancelled", "canceled", "refunded"].includes(
+          rawPaymentStatus
+        )
+      ? "Failed"
+      : /cash on delivery|\bcod\b/i.test(method)
+      ? "COD"
+      : "Pending";
 
   const rawItems = Array.isArray(row.items) ? row.items : [];
   const items = rawItems as Array<Record<string, unknown>>;
+
   const quantity = items.reduce(
     (sum, item) => sum + Number(item.quantity ?? 0),
     0
   );
+
   const itemNames = items.map((item) => {
-    const name = String(item.productName ?? item.product_name ?? "Product");
+    const name = String(
+      item.productName ?? item.product_name ?? "Product"
+    );
     const qty = Number(item.quantity ?? 0);
     return `${name} × ${qty}`;
   });
 
-  const created = row.created_at ? new Date(String(row.created_at)) : null;
-  const createdAt = created && !Number.isNaN(created.getTime())
-    ? created.toLocaleString()
-    : "Recently";
+  const created = row.created_at
+    ? new Date(String(row.created_at))
+    : null;
+
+  const createdAt =
+    created && !Number.isNaN(created.getTime())
+      ? created.toLocaleString()
+      : "Recently";
 
   return {
     id: String(row.order_number ?? row.id ?? "Order"),
     customer: String(row.customer_name ?? "Customer"),
     phone: String(row.customer_phone ?? "Not provided"),
     email: String(row.customer_email ?? row.email ?? ""),
-    items: itemNames.length ? itemNames.join(", ") : "No item details",
+    items: itemNames.length
+      ? itemNames.join(", ")
+      : "No item details",
     quantity,
     amount: Number(row.total ?? row.subtotal ?? 0),
     paymentMethod: method,
     paymentStatus,
     status: statusMap[rawStatus] ?? "Pending",
-    address: String(row.delivery_address ?? row.address ?? "Not provided"),
+    address: String(
+      row.delivery_address ?? row.address ?? "Not provided"
+    ),
     deliveryDate: "Not set",
     deliveryTime: "Not set",
     rider: "Not Assigned",
@@ -108,26 +130,54 @@ export default function OrdersDashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(
+    null
+  );
 
   async function loadOrders() {
     setLoading(true);
     setApiError("");
+
     try {
-      const response = await fetch("/api/orders", { cache: "no-store" });
+      const response = await fetch("/api/orders", {
+        cache: "no-store",
+      });
+
       const data = await response.json();
-      if (!response.ok || data.success !== true || !Array.isArray(data.orders)) {
-        throw new Error(data.error || data.message || "Orders load nahi ho sake.");
+
+      if (
+        !response.ok ||
+        data.success !== true ||
+        !Array.isArray(data.orders)
+      ) {
+        throw new Error(
+          data.error ||
+            data.message ||
+            "Orders load nahi ho sake."
+        );
       }
-      const loadedOrders: Order[] = (data.orders as Record<string, unknown>[]).map(
+
+      const loadedOrders: Order[] = (
+        data.orders as Record<string, unknown>[]
+      ).map(
         (row: Record<string, unknown>): Order => mapOrder(row)
       );
+
       setOrders(loadedOrders);
+
       setSelectedOrder((current) =>
-        current ? loadedOrders.find((order) => order.id === current.id) ?? null : null
+        current
+          ? loadedOrders.find(
+              (order) => order.id === current.id
+            ) ?? null
+          : null
       );
     } catch (error) {
-      setApiError(error instanceof Error ? error.message : "Orders load nahi ho sake.");
+      setApiError(
+        error instanceof Error
+          ? error.message
+          : "Orders load nahi ho sake."
+      );
     } finally {
       setLoading(false);
     }
@@ -148,10 +198,12 @@ export default function OrdersDashboard() {
         order.phone.toLowerCase().includes(query);
 
       const matchesStatus =
-        statusFilter === "All" || order.status === statusFilter;
+        statusFilter === "All" ||
+        order.status === statusFilter;
 
       const matchesPayment =
-        paymentFilter === "All" || order.paymentStatus === paymentFilter;
+        paymentFilter === "All" ||
+        order.paymentStatus === paymentFilter;
 
       return matchesSearch && matchesStatus && matchesPayment;
     });
@@ -162,7 +214,9 @@ export default function OrdersDashboard() {
     pending: orders.filter((o) => o.status === "Pending").length,
     confirmed: orders.filter((o) => o.status === "Confirmed").length,
     preparing: orders.filter((o) => o.status === "Preparing").length,
-    delivery: orders.filter((o) => o.status === "Out for Delivery").length,
+    delivery: orders.filter(
+      (o) => o.status === "Out for Delivery"
+    ).length,
     delivered: orders.filter((o) => o.status === "Delivered").length,
     cancelled: orders.filter((o) => o.status === "Cancelled").length,
   };
@@ -172,37 +226,113 @@ export default function OrdersDashboard() {
     .reduce((sum, order) => sum + order.amount, 0);
 
   async function updateStatus(id: string, status: OrderStatus) {
+    const statusMap: Record<OrderStatus, string> = {
+      Pending: "pending",
+      Confirmed: "confirmed",
+      Preparing: "processing",
+      "Out for Delivery": "out_for_delivery",
+      Delivered: "completed",
+      Cancelled: "cancelled",
+    };
+
     try {
       const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber: id, status: status.toLowerCase() }),
+        body: JSON.stringify({
+          orderNumber: id,
+          status: statusMap[status],
+        }),
       });
+
       const data = await response.json();
+
       if (!response.ok || data.success !== true) {
-        throw new Error(data.error || data.message || "Order status save nahi hua.");
+        throw new Error(
+          data.error ||
+            data.message ||
+            "Order status save nahi hua."
+        );
       }
+
       await loadOrders();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Order status save nahi hua.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Order status save nahi hua."
+      );
     }
   }
 
-  async function updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
+  async function updatePaymentStatus(
+    id: string,
+    paymentStatus: PaymentStatus
+  ) {
     if (paymentStatus === "COD") return;
+
     try {
       const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber: id, paymentStatus: paymentStatus.toLowerCase() }),
+        body: JSON.stringify({
+          orderNumber: id,
+          paymentStatus: paymentStatus.toLowerCase(),
+        }),
       });
+
       const data = await response.json();
+
       if (!response.ok || data.success !== true) {
-        throw new Error(data.error || data.message || "Payment status save nahi hua.");
+        throw new Error(
+          data.error ||
+            data.message ||
+            "Payment status save nahi hua."
+        );
       }
+
       await loadOrders();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Payment status save nahi hua.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Payment status save nahi hua."
+      );
+    }
+  }
+
+  async function deleteOrder(orderNumber: string) {
+    const confirmed = window.confirm(
+      `Kya aap order ${orderNumber} ko permanently delete karna chahte hain? Yeh action undo nahi ho sakta.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success !== true) {
+        throw new Error(
+          data.message || "Order delete nahi ho saka."
+        );
+      }
+
+      setSelectedOrder(null);
+      await loadOrders();
+
+      alert("Order delete ho gaya.");
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Order delete nahi ho saka."
+      );
     }
   }
 
@@ -311,8 +441,8 @@ export default function OrdersDashboard() {
           <h1 style={styles.title}>Order Management</h1>
 
           <p style={styles.subtitle}>
-            Manage orders, payments, customers, delivery and order status from
-            one place.
+            Manage orders, payments, customers, delivery and order status
+            from one place.
           </p>
         </div>
 
@@ -346,11 +476,24 @@ export default function OrdersDashboard() {
 
       {/* LIVE ORDERS STATUS */}
       <section style={styles.dataNotice}>
-        <strong>{loading ? "Loading customer orders…" : apiError ? "Orders could not be loaded" : "Live customer orders"}</strong>
+        <strong>
+          {loading
+            ? "Loading customer orders…"
+            : apiError
+            ? "Orders could not be loaded"
+            : "Live customer orders"}
+        </strong>
+
         <p style={{ margin: "5px 0 10px", lineHeight: 1.6 }}>
-          {apiError || "Orders are loaded from the orders API. Payment status changes are saved to the database."}
+          {apiError ||
+            "Orders are loaded from the orders API. Payment status changes are saved to the database."}
         </p>
-        <button style={styles.refreshButton} onClick={() => void loadOrders()} disabled={loading}>
+
+        <button
+          style={styles.refreshButton}
+          onClick={() => void loadOrders()}
+          disabled={loading}
+        >
           {loading ? "Loading…" : "↻ Refresh Orders"}
         </button>
       </section>
@@ -376,7 +519,11 @@ export default function OrdersDashboard() {
         <StatCard title="Pending" value={stats.pending} icon="⏳" />
         <StatCard title="Confirmed" value={stats.confirmed} icon="✓" />
         <StatCard title="Preparing" value={stats.preparing} icon="👨‍🍳" />
-        <StatCard title="Out for Delivery" value={stats.delivery} icon="🚚" />
+        <StatCard
+          title="Out for Delivery"
+          value={stats.delivery}
+          icon="🚚"
+        />
         <StatCard title="Delivered" value={stats.delivered} icon="📦" />
         <StatCard title="Cancelled" value={stats.cancelled} icon="✕" />
         <StatCard
@@ -491,64 +638,82 @@ export default function OrdersDashboard() {
 
             <tbody>
               {loading && (
-                <tr><td colSpan={8} style={styles.empty}>Loading orders…</td></tr>
-              )}
-              {!loading && !apiError && filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td style={styles.td}>
-                    <strong>{order.id}</strong>
-                    <div style={styles.smallText}>{order.createdAt}</div>
-                  </td>
-
-                  <td style={styles.td}>
-                    <strong>{order.customer}</strong>
-                    <div style={styles.smallText}>{order.phone}</div>
-                  </td>
-
-                  <td style={styles.td}>
-                    <div>{order.items}</div>
-                    <div style={styles.smallText}>
-                      Qty: {order.quantity}
-                    </div>
-                  </td>
-
-                  <td style={styles.td}>
-                    <strong>Rs. {order.amount.toLocaleString()}</strong>
-                  </td>
-
-                  <td style={styles.td}>
-                    <div>{order.paymentMethod}</div>
-                    <PaymentBadge status={order.paymentStatus} />
-                  </td>
-
-                  <td style={styles.td}>
-                    <StatusBadge status={order.status} />
-                  </td>
-
-                  <td style={styles.td}>
-                    <span
-                      style={{
-                        color:
-                          order.rider === "Not Assigned"
-                            ? "#dc2626"
-                            : "#166534",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {order.rider}
-                    </span>
-                  </td>
-
-                  <td style={styles.td}>
-                    <button
-                      style={styles.viewButton}
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      View
-                    </button>
+                <tr>
+                  <td colSpan={8} style={styles.empty}>
+                    Loading orders…
                   </td>
                 </tr>
-              ))}
+              )}
+
+              {!loading &&
+                !apiError &&
+                filteredOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td style={styles.td}>
+                      <strong>{order.id}</strong>
+                      <div style={styles.smallText}>{order.createdAt}</div>
+                    </td>
+
+                    <td style={styles.td}>
+                      <strong>{order.customer}</strong>
+                      <div style={styles.smallText}>{order.phone}</div>
+                    </td>
+
+                    <td style={styles.td}>
+                      <div>{order.items}</div>
+                      <div style={styles.smallText}>
+                        Qty: {order.quantity}
+                      </div>
+                    </td>
+
+                    <td style={styles.td}>
+                      <strong>
+                        Rs. {order.amount.toLocaleString()}
+                      </strong>
+                    </td>
+
+                    <td style={styles.td}>
+                      <div>{order.paymentMethod}</div>
+                      <PaymentBadge status={order.paymentStatus} />
+                    </td>
+
+                    <td style={styles.td}>
+                      <StatusBadge status={order.status} />
+                    </td>
+
+                    <td style={styles.td}>
+                      <span
+                        style={{
+                          color:
+                            order.rider === "Not Assigned"
+                              ? "#dc2626"
+                              : "#166534",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {order.rider}
+                      </span>
+                    </td>
+
+                    <td style={styles.td}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          style={styles.viewButton}
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          View
+                        </button>
+
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() => void deleteOrder(order.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
 
               {!loading && !apiError && filteredOrders.length === 0 && (
                 <tr>
@@ -616,7 +781,8 @@ export default function OrdersDashboard() {
           </div>
 
           <p style={styles.workflowNote}>
-Order and payment status are saved through the Orders API. Rider assignment is currently managed on this screen only.
+            Order and payment status are saved through the Orders API. Rider
+            assignment is currently managed on this screen only.
           </p>
         </div>
       </section>
@@ -627,7 +793,9 @@ Order and payment status are saved through the Orders API. Rider assignment is c
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <h2 style={{ margin: 0 }}>Order {selectedOrder.id}</h2>
+                <h2 style={{ margin: 0 }}>
+                  Order {selectedOrder.id}
+                </h2>
                 <p style={styles.muted}>Complete order information</p>
               </div>
 
@@ -679,7 +847,9 @@ Order and payment status are saved through the Orders API. Rider assignment is c
             </div>
 
             <div style={styles.modalSection}>
-              <h3 style={styles.modalSectionTitle}>Change Order Status</h3>
+              <h3 style={styles.modalSectionTitle}>
+                Change Order Status
+              </h3>
 
               <div style={styles.buttonRow}>
                 {(
@@ -708,24 +878,46 @@ Order and payment status are saved through the Orders API. Rider assignment is c
             </div>
 
             <div style={styles.modalSection}>
-              <h3 style={styles.modalSectionTitle}>Update Payment Status</h3>
+              <h3 style={styles.modalSectionTitle}>
+                Update Payment Status
+              </h3>
+
               <select
                 value={selectedOrder.paymentStatus}
-                onChange={(e) => updatePaymentStatus(selectedOrder.id, e.target.value as PaymentStatus)}
+                onChange={(e) =>
+                  updatePaymentStatus(
+                    selectedOrder.id,
+                    e.target.value as PaymentStatus
+                  )
+                }
                 style={styles.fullSelect}
               >
-                <option value="Pending">Pending — not yet verified</option>
-                <option value="Paid">Paid — payment received</option>
+                <option value="Pending">
+                  Pending — not yet verified
+                </option>
+                <option value="Paid">
+                  Paid — payment received
+                </option>
                 <option value="Failed">Failed / Cancelled</option>
-                <option value="COD">COD — cash on delivery (not received yet)</option>
+                <option value="COD">
+                  COD — cash on delivery (not received yet)
+                </option>
               </select>
-              {selectedOrder.paymentMethod.toLowerCase().includes("cash on delivery") && selectedOrder.paymentStatus !== "Paid" && (
-                <p style={styles.workflowNote}>COD order: cash milne ke baad status ko Paid karein.</p>
-              )}
+
+              {selectedOrder.paymentMethod
+                .toLowerCase()
+                .includes("cash on delivery") &&
+                selectedOrder.paymentStatus !== "Paid" && (
+                  <p style={styles.workflowNote}>
+                    COD order: cash milne ke baad status ko Paid karein.
+                  </p>
+                )}
             </div>
 
             <div style={styles.modalSection}>
-              <h3 style={styles.modalSectionTitle}>Assign Delivery Rider</h3>
+              <h3 style={styles.modalSectionTitle}>
+                Assign Delivery Rider
+              </h3>
 
               <select
                 value={selectedOrder.rider}
@@ -741,10 +933,21 @@ Order and payment status are saved through the Orders API. Rider assignment is c
               </select>
             </div>
 
+            <div style={styles.modalSection}>
+              <button
+                style={styles.deleteModalButton}
+                onClick={() => void deleteOrder(selectedOrder.id)}
+              >
+                Delete This Order Permanently
+              </button>
+            </div>
+
             <div style={styles.futureNotice}>
               <strong>Future automation foundation</strong>
               <p>
-                Customer order details and order/payment status are connected to the Orders API. Rider assignment, delivery dates and notifications are still local/manual features.
+                Customer order details and order/payment status are connected
+                to the Orders API. Rider assignment, delivery dates and
+                notifications are still local/manual features.
               </p>
             </div>
           </div>
@@ -1123,6 +1326,27 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     cursor: "pointer",
     fontWeight: 700,
+  },
+
+  deleteButton: {
+    border: "1px solid #dc2626",
+    color: "#dc2626",
+    background: "#fff",
+    padding: "7px 11px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+
+  deleteModalButton: {
+    width: "100%",
+    border: "1px solid #dc2626",
+    color: "#fff",
+    background: "#dc2626",
+    padding: "12px 16px",
+    borderRadius: 9,
+    cursor: "pointer",
+    fontWeight: 800,
   },
 
   empty: {
