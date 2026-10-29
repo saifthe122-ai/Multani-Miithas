@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type OrderStatus =
@@ -33,98 +33,64 @@ type Order = {
   createdAt: string;
 };
 
-const initialOrders: Order[] = [
-  {
-    id: "MM-1008",
-    customer: "Ali Raza",
-    phone: "0300-1234567",
-    email: "ali@example.com",
-    items: "Multani Sohan Halwa, Premium Barfi",
-    quantity: 3,
-    amount: 2850,
-    paymentMethod: "JazzCash",
-    paymentStatus: "Paid",
-    status: "Confirmed",
-    address: "Gulberg, Lahore",
-    deliveryDate: "Today",
-    deliveryTime: "4:00 PM - 6:00 PM",
+function mapOrder(row: Record<string, unknown>): Order {
+  const rawStatus = String(row.status ?? "pending").toLowerCase();
+  const statusMap: Record<string, OrderStatus> = {
+    pending: "Pending",
+    confirmed: "Confirmed",
+    preparing: "Preparing",
+    "out for delivery": "Out for Delivery",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+    canceled: "Cancelled",
+  };
+
+  const method = String(row.payment_method ?? "Not provided");
+  const rawPaymentStatus = String(row.payment_status ?? "pending").toLowerCase();
+  const paymentStatus: PaymentStatus = rawPaymentStatus === "paid"
+    ? "Paid"
+    : ["failed", "cancelled", "canceled", "refunded"].includes(rawPaymentStatus)
+    ? "Failed"
+    : /cash on delivery|\bcod\b/i.test(method)
+    ? "COD"
+    : "Pending";
+
+  const rawItems = Array.isArray(row.items) ? row.items : [];
+  const items = rawItems as Array<Record<string, unknown>>;
+  const quantity = items.reduce(
+    (sum, item) => sum + Number(item.quantity ?? 0),
+    0
+  );
+  const itemNames = items.map((item) => {
+    const name = String(item.productName ?? item.product_name ?? "Product");
+    const qty = Number(item.quantity ?? 0);
+    return `${name} × ${qty}`;
+  });
+
+  const created = row.created_at ? new Date(String(row.created_at)) : null;
+  const createdAt = created && !Number.isNaN(created.getTime())
+    ? created.toLocaleString()
+    : "Recently";
+
+  return {
+    id: String(row.order_number ?? row.id ?? "Order"),
+    customer: String(row.customer_name ?? "Customer"),
+    phone: String(row.customer_phone ?? "Not provided"),
+    email: String(row.customer_email ?? row.email ?? ""),
+    items: itemNames.length ? itemNames.join(", ") : "No item details",
+    quantity,
+    amount: Number(row.total ?? row.subtotal ?? 0),
+    paymentMethod: method,
+    paymentStatus,
+    status: statusMap[rawStatus] ?? "Pending",
+    address: String(row.delivery_address ?? row.address ?? "Not provided"),
+    deliveryDate: "Not set",
+    deliveryTime: "Not set",
     rider: "Not Assigned",
-    priority: "High",
-    createdAt: "09:10 AM",
-  },
-  {
-    id: "MM-1007",
-    customer: "Ahmed Khan",
-    phone: "0312-9876543",
-    email: "ahmed@example.com",
-    items: "Gift Box Premium",
-    quantity: 2,
-    amount: 4200,
-    paymentMethod: "Easypaisa",
-    paymentStatus: "Paid",
-    status: "Preparing",
-    address: "DHA Phase 6, Lahore",
-    deliveryDate: "Today",
-    deliveryTime: "6:00 PM - 8:00 PM",
-    rider: "Ali Delivery",
     priority: "Normal",
-    createdAt: "08:42 AM",
-  },
-  {
-    id: "MM-1006",
-    customer: "Sara Malik",
-    phone: "0321-5551234",
-    email: "sara@example.com",
-    items: "Gulab Jamun, Besan Ladoo",
-    quantity: 4,
-    amount: 2400,
-    paymentMethod: "Cash on Delivery",
-    paymentStatus: "COD",
-    status: "Out for Delivery",
-    address: "Johar Town, Lahore",
-    deliveryDate: "Today",
-    deliveryTime: "2:00 PM - 4:00 PM",
-    rider: "Usman Delivery",
-    priority: "Normal",
-    createdAt: "08:15 AM",
-  },
-  {
-    id: "MM-1005",
-    customer: "Hassan Ali",
-    phone: "0333-1112223",
-    email: "hassan@example.com",
-    items: "Sohan Halwa Family Pack",
-    quantity: 1,
-    amount: 3200,
-    paymentMethod: "Bank Transfer",
-    paymentStatus: "Pending",
-    status: "Pending",
-    address: "Model Town, Lahore",
-    deliveryDate: "Tomorrow",
-    deliveryTime: "11:00 AM - 1:00 PM",
-    rider: "Not Assigned",
-    priority: "High",
-    createdAt: "Yesterday",
-  },
-  {
-    id: "MM-1004",
-    customer: "Fatima Noor",
-    phone: "0345-4445566",
-    email: "fatima@example.com",
-    items: "Premium Barfi",
-    quantity: 2,
-    amount: 1800,
-    paymentMethod: "Raast",
-    paymentStatus: "Paid",
-    status: "Delivered",
-    address: "Bahria Town, Lahore",
-    deliveryDate: "Yesterday",
-    deliveryTime: "5:00 PM",
-    rider: "Ali Delivery",
-    priority: "Normal",
-    createdAt: "Yesterday",
-  },
-];
+    createdAt,
+  };
+}
 
 const statusColors: Record<OrderStatus, string> = {
   Pending: "#f59e0b",
@@ -136,11 +102,38 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 export default function OrdersDashboard() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  async function loadOrders() {
+    setLoading(true);
+    setApiError("");
+    try {
+      const response = await fetch("/api/orders", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || data.success !== true || !Array.isArray(data.orders)) {
+        throw new Error(data.error || data.message || "Orders load nahi ho sake.");
+      }
+      const loadedOrders = data.orders.map((row: Record<string, unknown>) => mapOrder(row));
+      setOrders(loadedOrders);
+      setSelectedOrder((current) =>
+        current ? loadedOrders.find((order) => order.id === current.id) ?? null : null
+      );
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Orders load nahi ho sake.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadOrders();
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const query = search.toLowerCase().trim();
@@ -176,16 +169,39 @@ export default function OrdersDashboard() {
     .filter((o) => o.status !== "Cancelled")
     .reduce((sum, order) => sum + order.amount, 0);
 
-  function updateStatus(id: string, status: OrderStatus) {
-    setOrders((current) =>
-      current.map((order) =>
-        order.id === id ? { ...order, status } : order
-      )
-    );
+  async function updateStatus(id: string, status: OrderStatus) {
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber: id, status: status.toLowerCase() }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success !== true) {
+        throw new Error(data.error || data.message || "Order status save nahi hua.");
+      }
+      await loadOrders();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Order status save nahi hua.");
+    }
+  }
 
-    setSelectedOrder((current) =>
-      current?.id === id ? { ...current, status } : current
-    );
+  async function updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
+    if (paymentStatus === "COD") return;
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber: id, paymentStatus: paymentStatus.toLowerCase() }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success !== true) {
+        throw new Error(data.error || data.message || "Payment status save nahi hua.");
+      }
+      await loadOrders();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Payment status save nahi hua.");
+    }
   }
 
   function assignRider(id: string, rider: string) {
@@ -326,14 +342,15 @@ export default function OrdersDashboard() {
         </div>
       </section>
 
-      {/* DEMO DATA NOTICE */}
+      {/* LIVE ORDERS STATUS */}
       <section style={styles.dataNotice}>
-        <strong>Important: Demo orders</strong>
-        <p style={{ margin: "5px 0 0", lineHeight: 1.6 }}>
-          This dashboard currently uses sample orders in this page. CSV export
-          downloads the orders currently shown here. New customer orders are
-          not automatically saved to this dashboard yet.
+        <strong>{loading ? "Loading customer orders…" : apiError ? "Orders could not be loaded" : "Live customer orders"}</strong>
+        <p style={{ margin: "5px 0 10px", lineHeight: 1.6 }}>
+          {apiError || "Orders are loaded from the orders API. Payment status changes are saved to the database."}
         </p>
+        <button style={styles.refreshButton} onClick={() => void loadOrders()} disabled={loading}>
+          {loading ? "Loading…" : "↻ Refresh Orders"}
+        </button>
       </section>
 
       {/* ALERT */}
@@ -471,7 +488,10 @@ export default function OrdersDashboard() {
             </thead>
 
             <tbody>
-              {filteredOrders.map((order) => (
+              {loading && (
+                <tr><td colSpan={8} style={styles.empty}>Loading orders…</td></tr>
+              )}
+              {!loading && !apiError && filteredOrders.map((order) => (
                 <tr key={order.id}>
                   <td style={styles.td}>
                     <strong>{order.id}</strong>
@@ -528,7 +548,7 @@ export default function OrdersDashboard() {
                 </tr>
               ))}
 
-              {filteredOrders.length === 0 && (
+              {!loading && !apiError && filteredOrders.length === 0 && (
                 <tr>
                   <td colSpan={8} style={styles.empty}>
                     No orders found.
@@ -594,9 +614,7 @@ export default function OrdersDashboard() {
           </div>
 
           <p style={styles.workflowNote}>
-            Later this workflow will connect directly with the customer
-            checkout, payment verification, delivery dashboard and accounting
-            system.
+Order and payment status are saved through the Orders API. Rider assignment is currently managed on this screen only.
           </p>
         </div>
       </section>
@@ -688,6 +706,23 @@ export default function OrdersDashboard() {
             </div>
 
             <div style={styles.modalSection}>
+              <h3 style={styles.modalSectionTitle}>Update Payment Status</h3>
+              <select
+                value={selectedOrder.paymentStatus}
+                onChange={(e) => updatePaymentStatus(selectedOrder.id, e.target.value as PaymentStatus)}
+                style={styles.fullSelect}
+              >
+                <option value="Pending">Pending — not yet verified</option>
+                <option value="Paid">Paid — payment received</option>
+                <option value="Failed">Failed / Cancelled</option>
+                <option value="COD">COD — cash on delivery (not received yet)</option>
+              </select>
+              {selectedOrder.paymentMethod.toLowerCase().includes("cash on delivery") && selectedOrder.paymentStatus !== "Paid" && (
+                <p style={styles.workflowNote}>COD order: cash milne ke baad status ko Paid karein.</p>
+              )}
+            </div>
+
+            <div style={styles.modalSection}>
               <h3 style={styles.modalSectionTitle}>Assign Delivery Rider</h3>
 
               <select
@@ -707,9 +742,7 @@ export default function OrdersDashboard() {
             <div style={styles.futureNotice}>
               <strong>Future automation foundation</strong>
               <p>
-                This order screen is designed to connect later with the real
-                Orders API, customer records, verified payment callbacks,
-                delivery tracking, notifications and accounting records.
+                Customer order details and order/payment status are connected to the Orders API. Rider assignment, delivery dates and notifications are still local/manual features.
               </p>
             </div>
           </div>
