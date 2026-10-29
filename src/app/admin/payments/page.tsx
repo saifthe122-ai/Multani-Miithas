@@ -81,36 +81,7 @@ const initialMethods: PaymentMethod[] = [
 ];
 
 const initialPayments: PaymentRecord[] = [
-  {
-    id: "PAY-001",
-    orderId: "MM-1001",
-    customer: "Ahmed Khan",
-    amount: 4500,
-    method: "Cash on Delivery",
-    status: "Pending",
-    transactionId: "—",
-    date: "Today",
-  },
-  {
-    id: "PAY-002",
-    orderId: "MM-1002",
-    customer: "Sara Ali",
-    amount: 7800,
-    method: "JazzCash",
-    status: "Paid",
-    transactionId: "JC-DEMO-1002",
-    date: "Today",
-  },
-  {
-    id: "PAY-003",
-    orderId: "MM-1003",
-    customer: "Usman Ahmed",
-    amount: 12500,
-    method: "Bank Transfer",
-    status: "Pending",
-    transactionId: "BANK-DEMO-1003",
-    date: "Yesterday",
-  },
+  
 ];
 
 const cardStyle = {
