@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { randomUUID } from "node:crypto";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ type CartItem = {
 };
 
 export async function GET(request: Request) {
-  if (!isAdminRequest(request)) {
+  if (!(await isAdminRequest(request))) {
     return NextResponse.json(
       { success: false, message: "Admin login required" },
       { status: 401 }
@@ -109,8 +110,7 @@ export async function POST(request: Request) {
         : "";
 
     const paymentMethod = PAYMENT_METHODS.find(
-      (method) =>
-        method.toLowerCase() === submittedPayment.toLowerCase()
+      (method) => method.toLowerCase() === submittedPayment.toLowerCase()
     );
 
     if (
@@ -137,8 +137,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!Array.isArray(data.items) || data.items.length === 0 ||
-        data.items.length > 50) {
+    if (
+      !Array.isArray(data.items) ||
+      data.items.length === 0 ||
+      data.items.length > 50
+    ) {
       return NextResponse.json(
         { success: false, message: "Cart mein valid products nahi hain." },
         { status: 400 }
@@ -197,8 +200,6 @@ export async function POST(request: Request) {
       .slice(0, 12)
       .toUpperCase()}`;
 
-    // One SQL statement saves the customer, order and order items together.
-    // Prices and product names come from the database, not the browser.
     const result = await sql`
       WITH requested_items AS MATERIALIZED (
         SELECT
@@ -327,8 +328,8 @@ export async function POST(request: Request) {
     if (
       !saved ||
       saved.order_id == null ||
-      saved.requested_count !== saved.valid_count ||
-      Number(saved.saved_item_count) !== saved.valid_count
+      Number(saved.requested_count) !== Number(saved.valid_count) ||
+      Number(saved.saved_item_count) !== Number(saved.valid_count)
     ) {
       return NextResponse.json(
         {
@@ -362,6 +363,104 @@ export async function POST(request: Request) {
         success: false,
         message: "Order save nahi ho saka. Dobara try karein.",
       },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json(
+      { success: false, message: "Admin login required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body: unknown = await request.json();
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid request body." },
+        { status: 400 }
+      );
+    }
+
+    const data = body as Record<string, unknown>;
+    const orderNumber =
+      typeof data.orderNumber === "string" ? data.orderNumber.trim() : "";
+
+    const hasStatus = typeof data.status === "string";
+    const hasPaymentStatus = typeof data.paymentStatus === "string";
+
+    const status = hasStatus
+      ? (data.status as string).trim().toLowerCase()
+      : "";
+    const paymentStatus = hasPaymentStatus
+      ? (data.paymentStatus as string).trim().toLowerCase()
+      : "";
+
+    const validStatuses = [
+      "pending",
+      "confirmed",
+      "preparing",
+      "out for delivery",
+      "delivered",
+      "cancelled",
+    ];
+
+    const validPaymentStatuses = [
+      "pending",
+      "paid",
+      "failed",
+      "cancelled",
+      "refunded",
+      "partially refunded",
+    ];
+
+    if (
+      !orderNumber ||
+      (!hasStatus && !hasPaymentStatus) ||
+      (hasStatus && !validStatuses.includes(status)) ||
+      (hasPaymentStatus && !validPaymentStatuses.includes(paymentStatus))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Order number ya status valid nahi." },
+        { status: 400 }
+      );
+    }
+
+    const result = await sql`
+      UPDATE orders
+      SET
+        status = CASE
+          WHEN ${hasStatus} THEN ${status}
+          ELSE status
+        END,
+        payment_status = CASE
+          WHEN ${hasPaymentStatus} THEN ${paymentStatus}
+          ELSE payment_status
+        END
+      WHERE order_number = ${orderNumber}
+      RETURNING order_number, status, payment_status
+    `;
+
+    if (result.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Order nahi mila." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      order: result[0],
+    });
+  } catch (error) {
+    console.error("Order status update failed:", error);
+
+    return NextResponse.json(
+      { success: false, message: "Status update nahi ho saka." },
       { status: 500 }
     );
   }
