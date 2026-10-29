@@ -232,16 +232,63 @@ export default function PaymentsDashboard() {
     );
   });
 
-  const updatePaymentStatus = (
-    id: string,
-    status: PaymentRecord["status"]
-  ) => {
+ 
+const updatePaymentStatus = async (
+  id: string,
+  status: PaymentRecord["status"]
+) => {
+  const payment = payments.find((item) => item.id === id);
+
+  if (!payment) {
+    alert("Payment record nahi mila.");
+    return;
+  }
+
+  const paymentStatusMap: Record<string, string> = {
+    Pending: "pending",
+    Paid: "paid",
+    Failed: "failed",
+    Cancelled: "cancelled",
+    Refunded: "refunded",
+    "Partially Refunded": "partially refunded",
+  };
+
+  try {
+    const response = await fetch("/api/orders", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        orderNumber: payment.orderId,
+        paymentStatus: paymentStatusMap[status],
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.success !== true) {
+      throw new Error(
+        result.message || "Payment status save nahi hua."
+      );
+    }
+
     setPayments((current) =>
       current.map((item) =>
         item.id === id ? { ...item, status } : item
       )
     );
-  };
+
+    alert("Payment status database mein save ho gaya.");
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Payment status save nahi hua."
+    );
+  }
+};
+
 
   const money = (value: number) =>
     `Rs. ${value.toLocaleString("en-PK")}`;
