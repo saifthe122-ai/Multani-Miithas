@@ -400,14 +400,16 @@ export async function PATCH(request: Request) {
       ? (data.paymentStatus as string).trim().toLowerCase()
       : "";
 
-    const validStatuses = [
-      "pending",
-      "confirmed",
-      "preparing",
-      "out for delivery",
-      "delivered",
-      "cancelled",
-    ];
+ 
+const validStatuses = [
+  "pending",
+  "confirmed",
+  "processing",
+  "out_for_delivery",
+  "completed",
+  "cancelled",
+];
+
 
     const validPaymentStatuses = [
       "pending",
