@@ -119,7 +119,9 @@ export default function OrdersDashboard() {
       if (!response.ok || data.success !== true || !Array.isArray(data.orders)) {
         throw new Error(data.error || data.message || "Orders load nahi ho sake.");
       }
-      const loadedOrders = data.orders.map((row: Record<string, unknown>) => mapOrder(row));
+      const loadedOrders: Order[] = (data.orders as Record<string, unknown>[]).map(
+        (row: Record<string, unknown>): Order => mapOrder(row)
+      );
       setOrders(loadedOrders);
       setSelectedOrder((current) =>
         current ? loadedOrders.find((order) => order.id === current.id) ?? null : null
