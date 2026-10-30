@@ -19,6 +19,7 @@ type ProductInput = {
   image?: unknown;
   image_url?: unknown;
   description?: unknown;
+  long_description?: unknown;
   ingredients?: unknown;
   rating?: unknown;
   status?: unknown;
@@ -99,9 +100,11 @@ function validateProduct(data: ProductInput) {
 
   for (const field of [
     "description",
+    "long_description",
     "weight",
     "ingredients",
     "image",
+    "image_url",
   ] as const) {
     if (data[field] !== undefined && typeof data[field] !== "string") {
       return `${field} must be text`;
@@ -133,6 +136,7 @@ function formatProduct(row: Record<string, unknown>) {
     image: String(row.image_icon ?? "🍬"),
     image_url: String(row.image_url ?? ""),
     description: String(row.description ?? ""),
+    long_description: String(row.long_description ?? ""),
     ingredients: String(row.ingredients ?? ""),
     rating: Number(row.rating ?? 5),
     status: row.is_active === false ? "Inactive" : "Active",
@@ -144,7 +148,8 @@ function formatProduct(row: Record<string, unknown>) {
 const PRODUCT_COLUMNS = `
   id, name, price, price_type, cost_price, category, stock,
   discount, weight, image_icon, image_url, description,
-  ingredients, rating, is_active, created_at, updated_at
+  long_description, ingredients, rating, is_active,
+  created_at, updated_at
 `;
 
 export async function GET() {
@@ -154,8 +159,8 @@ export async function GET() {
     const rows = await sql`
       SELECT id, name, price, price_type, cost_price,
              category, stock, discount, weight, image_icon,
-             image_url, description, ingredients, rating,
-             is_active, created_at, updated_at
+             image_url, description, long_description,
+             ingredients, rating, is_active, created_at, updated_at
       FROM products
       ORDER BY id DESC
     `;
@@ -218,7 +223,8 @@ export async function POST(request: Request) {
       INSERT INTO products (
         name, price, price_type, cost_price, category,
         stock, discount, weight, image_icon, image_url,
-        description, ingredients, rating, is_active
+        description, long_description, ingredients,
+        rating, is_active
       )
       VALUES (
         ${String(data.name).trim()},
@@ -232,6 +238,7 @@ export async function POST(request: Request) {
         ${typeof data.image === "string" ? data.image : "🍬"},
         ${typeof data.image_url === "string" ? data.image_url : ""},
         ${typeof data.description === "string" ? data.description.trim() : ""},
+        ${typeof data.long_description === "string" ? data.long_description.trim() : ""},
         ${typeof data.ingredients === "string" ? data.ingredients.trim() : ""},
         ${typeof data.rating === "number" ? data.rating : 5},
         ${data.status !== "Inactive"}
@@ -319,15 +326,18 @@ export async function PUT(request: Request) {
         image_icon = ${typeof data.image === "string" ? data.image : "🍬"},
         image_url = ${typeof data.image_url === "string" ? data.image_url : ""},
         description = ${typeof data.description === "string" ? data.description.trim() : ""},
+        long_description = COALESCE(
+          ${typeof data.long_description === "string"
+            ? data.long_description.trim()
+            : null},
+          long_description
+        ),
         ingredients = ${typeof data.ingredients === "string" ? data.ingredients.trim() : ""},
         rating = ${typeof data.rating === "number" ? data.rating : 5},
         is_active = ${data.status !== "Inactive"},
         updated_at = NOW()
       WHERE id = ${String(data.id)}
-      RETURNING id, name, price, price_type, cost_price,
-                category, stock, discount, weight, image_icon,
-                image_url, description, ingredients, rating,
-                is_active, created_at, updated_at
+      RETURNING ${sql.unsafe(PRODUCT_COLUMNS)}
     `;
 
     if (rows.length === 0) {
