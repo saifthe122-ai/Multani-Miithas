@@ -1,16 +1,13 @@
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
+import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+  if (pathname.startsWith("/admin") && pathname !== "/admin-login") {
     if (!isAdminRequest(request)) {
-      const loginUrl = new URL("/admin-login", request.url);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL("/admin-login", request.url));
     }
   }
 
