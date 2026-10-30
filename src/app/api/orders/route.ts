@@ -18,8 +18,11 @@ const PAYMENT_METHODS = [
   "Cash on Delivery",
 ];
 
+const ALLOWED_WEIGHTS = [1, 1.5, 2, 5];
+
 type CartItem = {
   productId: string;
+  weight: number;
   quantity: number;
 };
 
@@ -54,6 +57,7 @@ export async function GET(request: Request) {
                 'productId', oi.product_id,
                 'productName', oi.product_name,
                 'quantity', oi.quantity,
+                'weight', oi.weight,
                 'unitPrice', oi.unit_price,
                 'lineTotal', oi.line_total
               )
@@ -148,7 +152,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const combinedItems = new Map<string, number>();
+    const combinedItems = new Map<
+      string,
+      { productId: string; weight: number; quantity: number }
+    >();
 
     for (const item of data.items) {
       if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -161,6 +168,7 @@ export async function POST(request: Request) {
       const cartItem = item as Record<string, unknown>;
       const productId = String(cartItem.productId ?? "");
       const quantity = cartItem.quantity;
+      const weight = cartItem.weight;
 
       if (
         !/^\d+$/.test(productId) ||
@@ -169,16 +177,23 @@ export async function POST(request: Request) {
         typeof quantity !== "number" ||
         !Number.isSafeInteger(quantity) ||
         quantity < 1 ||
-        quantity > 100
+        quantity > 100 ||
+        typeof weight !== "number" ||
+        !ALLOWED_WEIGHTS.includes(weight)
       ) {
         return NextResponse.json(
-          { success: false, message: "Product ID ya quantity valid nahi." },
+          {
+            success: false,
+            message: "Product ID, weight ya quantity valid nahi.",
+          },
           { status: 400 }
         );
       }
 
       const id = String(Number(productId));
-      const combinedQuantity = (combinedItems.get(id) ?? 0) + quantity;
+      const key = `${id}:${weight}`;
+      const existing = combinedItems.get(key);
+      const combinedQuantity = (existing?.quantity ?? 0) + quantity;
 
       if (combinedQuantity > 100) {
         return NextResponse.json(
@@ -187,13 +202,14 @@ export async function POST(request: Request) {
         );
       }
 
-      combinedItems.set(id, combinedQuantity);
+      combinedItems.set(key, {
+        productId: id,
+        weight,
+        quantity: combinedQuantity,
+      });
     }
 
-    const items: CartItem[] = Array.from(
-      combinedItems,
-      ([productId, quantity]) => ({ productId, quantity })
-    );
+    const items: CartItem[] = Array.from(combinedItems.values());
 
     const orderNumber = `MM-${randomUUID()
       .replace(/-/g, "")
@@ -204,6 +220,7 @@ export async function POST(request: Request) {
       WITH requested_items AS MATERIALIZED (
         SELECT
           (item->>'productId')::bigint AS product_id,
+          (item->>'weight')::numeric AS weight,
           (item->>'quantity')::integer AS quantity
         FROM jsonb_array_elements(${JSON.stringify(items)}::jsonb)
           AS entry(item)
@@ -212,9 +229,10 @@ export async function POST(request: Request) {
         SELECT
           p.id AS product_id,
           p.name AS product_name,
-          p.price AS unit_price,
+          p.price * r.weight AS unit_price,
+          r.weight,
           r.quantity,
-          p.price * r.quantity AS line_total
+          p.price * r.weight * r.quantity AS line_total
         FROM requested_items r
         INNER JOIN products p ON p.id = r.product_id
         WHERE p.is_active = true
@@ -289,6 +307,7 @@ export async function POST(request: Request) {
           product_id,
           product_name,
           quantity,
+          weight,
           unit_price,
           line_total
         )
@@ -297,6 +316,7 @@ export async function POST(request: Request) {
           p.product_id,
           p.product_name,
           p.quantity,
+          p.weight,
           p.unit_price,
           p.line_total
         FROM new_order o
@@ -387,6 +407,7 @@ export async function PATCH(request: Request) {
     }
 
     const data = body as Record<string, unknown>;
+
     const orderNumber =
       typeof data.orderNumber === "string" ? data.orderNumber.trim() : "";
 
@@ -396,20 +417,19 @@ export async function PATCH(request: Request) {
     const status = hasStatus
       ? (data.status as string).trim().toLowerCase()
       : "";
+
     const paymentStatus = hasPaymentStatus
       ? (data.paymentStatus as string).trim().toLowerCase()
       : "";
 
- 
-const validStatuses = [
-  "pending",
-  "confirmed",
-  "processing",
-  "out_for_delivery",
-  "completed",
-  "cancelled",
-];
-
+    const validStatuses = [
+      "pending",
+      "confirmed",
+      "processing",
+      "out_for_delivery",
+      "completed",
+      "cancelled",
+    ];
 
     const validPaymentStatuses = [
       "pending",
@@ -467,7 +487,6 @@ const validStatuses = [
     );
   }
 }
-
 
 export async function DELETE(request: Request) {
   if (!(await isAdminRequest(request))) {
