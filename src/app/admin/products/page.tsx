@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -227,9 +226,6 @@ export default function ProductsPage() {
       return;
     }
 
-    const password = window.prompt("Enter admin media password");
-    if (!password) return;
-
     setImageUploading(true);
 
     try {
@@ -238,7 +234,7 @@ export default function ProductsPage() {
 
       const response = await fetch("/api/admin/media-upload", {
         method: "POST",
-        headers: { "x-admin-media-password": password },
+        credentials: "same-origin",
         body: formData,
       });
 
@@ -451,7 +447,7 @@ export default function ProductsPage() {
           <StatCard
             icon="🏷"
             title="Categories"
-            value={categoryCount}
+                        value={categoryCount}
             text="Product categories"
           />
         </section>
@@ -901,7 +897,7 @@ export default function ProductsPage() {
 
                 <label style={uploadBoxStyle}>
                   <strong>
-                    {imageUploading
+                                        {imageUploading
                       ? "Uploading image..."
                       : "Choose product photo"}
                   </strong>
@@ -1299,7 +1295,6 @@ const statNoteStyle: React.CSSProperties = {
   fontSize: 11,
   marginTop: 4,
 };
-
 const panelStyle: React.CSSProperties = {
   background: colors.white,
   borderRadius: 13,
