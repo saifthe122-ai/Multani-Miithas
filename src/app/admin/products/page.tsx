@@ -1,13 +1,18 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+
+type PriceType = "per_kg" | "fixed";
 
 type Product = {
   id: number | string;
   name: string;
   category: string;
   price: number;
+  cost_price: number;
+  price_type: PriceType;
   discount: number;
   stock: number;
   status: "Active" | "Inactive";
@@ -19,10 +24,14 @@ type Product = {
   rating: number;
 };
 
-const emptyProduct: Omit<Product, "id" | "rating"> = {
+type ProductForm = Omit<Product, "id" | "rating">;
+
+const emptyProduct: ProductForm = {
   name: "",
   category: "Sweets",
   price: 0,
+  cost_price: 0,
+  price_type: "per_kg",
   discount: 0,
   stock: 0,
   status: "Active",
@@ -32,6 +41,19 @@ const emptyProduct: Omit<Product, "id" | "rating"> = {
   description: "",
   ingredients: "",
 };
+
+function money(value: number) {
+  return `Rs. ${Number(value || 0).toLocaleString("en-PK", {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function getProfit(product: Pick<Product, "price" | "cost_price" | "discount">) {
+  const sellingPrice =
+    product.price * (1 - product.discount / 100);
+
+  return sellingPrice - product.cost_price;
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,8 +70,7 @@ export default function ProductsPage() {
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
 
-  const [form, setForm] =
-    useState<Omit<Product, "id" | "rating">>(emptyProduct);
+  const [form, setForm] = useState<ProductForm>(emptyProduct);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -58,18 +79,24 @@ export default function ProductsPage() {
       const response = await fetch("/api/products", {
         cache: "no-store",
       });
+
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "Products load nahi ho sake.");
+        throw new Error(
+          data.message || data.error || "Products load nahi ho sake."
+        );
       }
 
       const databaseProducts: Product[] = (data.products || []).map(
-        (product: Product) => ({
-          id: product.id,
+        (product: Partial<Product>) => ({
+          id: product.id ?? "",
           name: product.name ?? "",
           category: product.category ?? "Sweets",
           price: Number(product.price ?? 0),
+          cost_price: Number(product.cost_price ?? 0),
+          price_type:
+            product.price_type === "fixed" ? "fixed" : "per_kg",
           discount: Number(product.discount ?? 0),
           stock: Number(product.stock ?? 0),
           status: product.status === "Inactive" ? "Inactive" : "Active",
@@ -98,12 +125,13 @@ export default function ProductsPage() {
     void loadProducts();
   }, [loadProducts]);
 
-  const categories = useMemo(() => {
-    return [
+  const categories = useMemo(
+    () => [
       "All",
       ...Array.from(new Set(products.map((product) => product.category))),
-    ];
-  }, [products]);
+    ],
+    [products]
+  );
 
   const filteredProducts = products.filter((product) => {
     const searchMatch =
@@ -111,8 +139,7 @@ export default function ProductsPage() {
       product.category.toLowerCase().includes(search.toLowerCase());
 
     const categoryMatch =
-      categoryFilter === "All" ||
-      product.category === categoryFilter;
+      categoryFilter === "All" || product.category === categoryFilter;
 
     return searchMatch && categoryMatch;
   });
@@ -131,7 +158,7 @@ export default function ProductsPage() {
 
   function openAddProduct() {
     setEditingId(null);
-    setForm(emptyProduct);
+    setForm({ ...emptyProduct });
     setShowForm(true);
   }
 
@@ -142,6 +169,8 @@ export default function ProductsPage() {
       name: product.name,
       category: product.category,
       price: product.price,
+      cost_price: product.cost_price,
+      price_type: product.price_type,
       discount: product.discount,
       stock: product.stock,
       status: product.status,
@@ -157,35 +186,66 @@ export default function ProductsPage() {
 
   async function uploadProductImage(file: File | undefined) {
     if (!file) return;
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+    ];
+
     if (!allowedTypes.includes(file.type)) {
       alert("JPG, PNG, WEBP ya GIF image select karo.");
       return;
     }
+
     if (file.size === 0 || file.size > 4 * 1024 * 1024) {
       alert("Image 4 MB se chhoti honi chahiye.");
       return;
     }
+
     const password = window.prompt("Enter admin media password");
     if (!password) return;
 
     setImageUploading(true);
+
     try {
       const formData = new FormData();
       formData.append("file", file);
+
       const response = await fetch("/api/admin/media-upload", {
         method: "POST",
         headers: { "x-admin-media-password": password },
         body: formData,
       });
-      const result: { url?: string; error?: string; warning?: string } = await response.json();
+
+      const result: {
+        url?: string;
+        error?: string;
+        warning?: string;
+      } = await response.json();
+
       if (!response.ok || !result.url) {
-        throw new Error(result.error || "Product image upload nahi ho saki.");
+        throw new Error(
+          result.error || "Product image upload nahi ho saki."
+        );
       }
-      setForm((current) => ({ ...current, image_url: result.url ?? "" }));
-      alert(result.warning || "Photo upload ho gayi. Ab Add Product / Save Changes dabao.");
+
+      setForm((current) => ({
+        ...current,
+        image_url: result.url ?? "",
+      }));
+
+      alert(
+        result.warning ||
+          "Photo upload ho gayi. Ab Add Product / Save Changes dabao."
+      );
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Image upload fail ho gayi.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Image upload fail ho gayi."
+      );
     } finally {
       setImageUploading(false);
     }
@@ -199,12 +259,24 @@ export default function ProductsPage() {
       return;
     }
 
+    if (form.price < 0 || form.cost_price < 0) {
+      alert("Price aur cost negative nahi ho sakte.");
+      return;
+    }
+
+    if (form.price_type !== "per_kg" && form.price_type !== "fixed") {
+      alert("Product price type select karo.");
+      return;
+    }
+
     try {
       const isEditing = editingId !== null;
 
       const payload = {
         ...form,
         name: form.name.trim(),
+        price: Number(form.price),
+        cost_price: Number(form.cost_price),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
           : 5,
@@ -223,14 +295,16 @@ export default function ProductsPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "Product save nahi ho saka.");
+        throw new Error(
+          data.message || data.error || "Product save nahi ho saka."
+        );
       }
 
       await loadProducts();
 
       setShowForm(false);
       setEditingId(null);
-      setForm(emptyProduct);
+      setForm({ ...emptyProduct });
 
       alert(
         isEditing
@@ -254,10 +328,13 @@ export default function ProductsPage() {
         `/api/products?id=${encodeURIComponent(String(deleteProduct.id))}`,
         { method: "DELETE" }
       );
+
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || "Product delete nahi ho saka.");
+        throw new Error(
+          data.message || data.error || "Product delete nahi ho saka."
+        );
       }
 
       setProducts((current) =>
@@ -275,6 +352,8 @@ export default function ProductsPage() {
     }
   }
 
+  const currentProfit = getProfit(form);
+
   return (
     <main
       style={{
@@ -285,11 +364,9 @@ export default function ProductsPage() {
         fontFamily: "Arial, Helvetica, sans-serif",
       }}
     >
-      {/* HEADER */}
       <header
         style={{
-          background:
-            "linear-gradient(135deg, #0f5b32 0%, #178044 100%)",
+          background: "linear-gradient(135deg, #0f5b32 0%, #178044 100%)",
           color: "#fff",
           padding: "25px 30px",
           boxShadow: "0 5px 20px rgba(16, 86, 47, 0.18)",
@@ -318,34 +395,16 @@ export default function ProductsPage() {
               MULTANI MITHAS • ADMIN
             </div>
 
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 30,
-                fontWeight: 900,
-              }}
-            >
+            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 900 }}>
               🍬 Products Management
             </h1>
 
-            <p
-              style={{
-                margin: "8px 0 0",
-                opacity: 0.82,
-                fontSize: 14,
-              }}
-            >
-              Manage sweets, bakery products, gift boxes and inventory.
+            <p style={{ margin: "8px 0 0", opacity: 0.82, fontSize: 14 }}>
+              Manage products, pricing, costs and inventory.
             </p>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Link
               href="/admin"
               style={{
@@ -362,27 +421,13 @@ export default function ProductsPage() {
               ← Dashboard
             </Link>
 
-            <button
-              onClick={openAddProduct}
-              style={{
-                background: "#fff",
-                color: "#126638",
-                border: 0,
-                padding: "11px 18px",
-                borderRadius: 10,
-                fontWeight: 900,
-                cursor: "pointer",
-                fontSize: 13,
-                boxShadow: "0 5px 15px rgba(0,0,0,0.12)",
-              }}
-            >
+            <button onClick={openAddProduct} style={primaryButtonStyle}>
               ＋ Add Product
             </button>
           </div>
         </div>
       </header>
 
-      {/* CONTENT */}
       <div
         style={{
           maxWidth: 1500,
@@ -406,16 +451,7 @@ export default function ProductsPage() {
                 setLoading(true);
                 void loadProducts();
               }}
-              style={{
-                marginLeft: 12,
-                padding: "6px 10px",
-                borderRadius: 7,
-                border: "1px solid #b32626",
-                background: "#fff",
-                color: "#b32626",
-                cursor: "pointer",
-                fontWeight: 800,
-              }}
+              style={{ marginLeft: 12 }}
             >
               Retry
             </button>
@@ -428,12 +464,10 @@ export default function ProductsPage() {
           </p>
         )}
 
-        {/* STAT CARDS */}
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 17,
             marginBottom: 22,
           }}
@@ -445,7 +479,6 @@ export default function ProductsPage() {
             text="Products in catalog"
             background="linear-gradient(135deg, #ffffff, #eaf7ef)"
           />
-
           <StatCard
             icon="🟢"
             title="Active Products"
@@ -453,7 +486,6 @@ export default function ProductsPage() {
             text="Currently available"
             background="linear-gradient(135deg, #ffffff, #edf9f0)"
           />
-
           <StatCard
             icon="⚠️"
             title="Out of Stock"
@@ -461,7 +493,6 @@ export default function ProductsPage() {
             text="Need stock update"
             background="linear-gradient(135deg, #ffffff, #fff8e8)"
           />
-
           <StatCard
             icon="🏷️"
             title="Categories"
@@ -471,17 +502,7 @@ export default function ProductsPage() {
           />
         </section>
 
-        {/* SEARCH PANEL */}
-        <section
-          style={{
-            background: "#fff",
-            borderRadius: 16,
-            padding: 18,
-            border: "1px solid #dfeae2",
-            boxShadow: "0 8px 30px rgba(23, 74, 44, 0.07)",
-            marginBottom: 20,
-          }}
-        >
+        <section style={panelStyle}>
           <div
             style={{
               display: "flex",
@@ -490,76 +511,34 @@ export default function ProductsPage() {
               alignItems: "center",
             }}
           >
-            <div
-              style={{
-                flex: 1,
-                minWidth: 260,
-                position: "relative",
-              }}
-            >
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="🔍  Search products by name or category..."
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "14px 16px",
-                  border: "1px solid #d6e2da",
-                  borderRadius: 10,
-                  fontSize: 14,
-                  outline: "none",
-                  background: "#fbfdfc",
-                }}
-              />
-            </div>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="🔍 Search products by name or category..."
+              style={{ ...inputStyle, flex: 1, minWidth: 260 }}
+            />
 
             <select
               value={categoryFilter}
-              onChange={(event) =>
-                setCategoryFilter(event.target.value)
-              }
-              style={{
-                padding: "14px 16px",
-                border: "1px solid #d6e2da",
-                borderRadius: 10,
-                background: "#fbfdfc",
-                minWidth: 190,
-                fontSize: 14,
-                fontWeight: 700,
-                color: "#274735",
-              }}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              style={{ ...inputStyle, minWidth: 190 }}
             >
               {categories.map((category) => (
                 <option key={category}>{category}</option>
               ))}
             </select>
 
-            <button
-              onClick={openAddProduct}
-              style={{
-                padding: "14px 19px",
-                border: 0,
-                borderRadius: 10,
-                background: "#e9f7ed",
-                color: "#116535",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={openAddProduct} style={secondaryButtonStyle}>
               ＋ New Product
             </button>
           </div>
         </section>
 
-        {/* PRODUCT TABLE */}
         <section
           style={{
-            background: "#fff",
-            borderRadius: 16,
+            ...panelStyle,
+            padding: 0,
             overflow: "hidden",
-            border: "1px solid #dfeae2",
-            boxShadow: "0 10px 35px rgba(23, 74, 44, 0.08)",
           }}
         >
           <div
@@ -574,238 +553,205 @@ export default function ProductsPage() {
             }}
           >
             <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 20,
-                  fontWeight: 900,
-                }}
-              >
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>
                 Product Catalog
               </h2>
-
-              <p
-                style={{
-                  margin: "5px 0 0",
-                  color: "#738078",
-                  fontSize: 13,
-                }}
-              >
-                Add, edit, view or remove your products.
+              <p style={{ margin: "5px 0 0", color: "#738078", fontSize: 13 }}>
+                Products, selling prices, costs and profit margins.
               </p>
             </div>
 
-            <div
-              style={{
-                background: "#eaf7ee",
-                color: "#126438",
-                borderRadius: 20,
-                padding: "8px 13px",
-                fontSize: 12,
-                fontWeight: 900,
-              }}
-            >
+            <span style={countBadgeStyle}>
               {filteredProducts.length} Products
-            </div>
+            </span>
           </div>
 
           <div style={{ overflowX: "auto" }}>
             <table
               style={{
                 width: "100%",
-                minWidth: 1050,
+                minWidth: 1250,
                 borderCollapse: "collapse",
               }}
             >
               <thead>
-                <tr
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #f1f8f3, #f8fbf9)",
-                  }}
-                >
+                <tr style={{ background: "#f1f8f3" }}>
                   <th style={headerStyle}>Product</th>
                   <th style={headerStyle}>Category</th>
-                  <th style={headerStyle}>Price</th>
+                  <th style={headerStyle}>Price Type</th>
+                  <th style={headerStyle}>Selling Price</th>
+                  <th style={headerStyle}>Cost Price</th>
+                  <th style={headerStyle}>Margin</th>
                   <th style={headerStyle}>Stock</th>
                   <th style={headerStyle}>Status</th>
-                  <th style={headerStyle}>Rating</th>
                   <th style={headerStyle}>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td style={cellStyle}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                        }}
-                      >
-                        <div style={{ width: 52, height: 52, borderRadius: 12, overflow: "hidden", background: "linear-gradient(135deg, #eaf7ee, #f7fbf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "inset 0 0 0 1px #dcebe1", flexShrink: 0 }}>
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          ) : product.image}
-                        </div>
+                {filteredProducts.map((product) => {
+                  const profit = getProfit(product);
 
-                        <div>
-                          <strong
-                            style={{
-                              display: "block",
-                              fontSize: 14,
-                              color: "#20382b",
-                            }}
-                          >
-                            {product.name}
-                          </strong>
-
-                          <span
-                            style={{
-                              display: "block",
-                              marginTop: 4,
-                              color: "#89938d",
-                              fontSize: 12,
-                            }}
-                          >
-                            {product.weight}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td style={cellStyle}>
-                      <span
-                        style={{
-                          background: "#edf6f0",
-                          color: "#286040",
-                          borderRadius: 8,
-                          padding: "7px 10px",
-                          fontSize: 11,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {product.category}
-                      </span>
-                    </td>
-
-                    <td style={cellStyle}>
-                      <strong>
-                        Rs. {product.price.toLocaleString()}
-                      </strong>
-
-                      {product.discount > 0 && (
+                  return (
+                    <tr key={product.id}>
+                      <td style={cellStyle}>
                         <div
                           style={{
-                            color: "#c27a00",
-                            fontSize: 11,
-                            fontWeight: 800,
-                            marginTop: 4,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
                           }}
                         >
-                          {product.discount}% OFF
+                          <div
+                            style={{
+                              width: 52,
+                              height: 52,
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              background: "#eaf7ee",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 28,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            ) : (
+                              product.image
+                            )}
+                          </div>
+
+                          <div>
+                            <strong style={{ display: "block" }}>
+                              {product.name}
+                            </strong>
+                            <span
+                              style={{
+                                display: "block",
+                                marginTop: 4,
+                                color: "#89938d",
+                                fontSize: 12,
+                              }}
+                            >
+                              {product.weight}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </td>
+                      </td>
 
-                    <td style={cellStyle}>
-                      <span
-                        style={{
-                          color:
-                            product.stock === 0
-                              ? "#c62828"
-                              : "#294438",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {product.stock}
-                      </span>
-                    </td>
+                      <td style={cellStyle}>{product.category}</td>
 
-                    <td style={cellStyle}>
-                      <span
-                        style={{
-                          padding: "7px 11px",
-                          borderRadius: 20,
-                          background:
-                            product.status === "Active"
-                              ? "#e4f7ea"
-                              : "#f9eaea",
-                          color:
-                            product.status === "Active"
-                              ? "#17713d"
-                              : "#b32626",
-                          fontSize: 11,
-                          fontWeight: 900,
-                        }}
-                      >
-                        {product.status === "Active"
-                          ? "● Active"
-                          : "● Inactive"}
-                      </span>
-                    </td>
+                      <td style={cellStyle}>
+                        <span style={typeBadgeStyle}>
+                          {product.price_type === "per_kg"
+                            ? "Per KG"
+                            : "Fixed"}
+                        </span>
+                      </td>
 
-                    <td style={cellStyle}>
-                      <span
-                        style={{
-                          color: "#b97900",
-                          fontWeight: 800,
-                        }}
-                      >
-                        ⭐ {product.rating}
-                      </span>
-                    </td>
+                      <td style={cellStyle}>
+                        <strong>{money(product.price)}</strong>
+                        {product.price_type === "per_kg" && (
+                          <span style={smallMutedStyle}> / kg</span>
+                        )}
+                        {product.discount > 0 && (
+                          <div style={discountStyle}>
+                            {product.discount}% OFF
+                          </div>
+                        )}
+                      </td>
 
-                    <td style={cellStyle}>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 6,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <SmallButton
-                          text="View"
-                          onClick={() =>
-                            setViewProduct(product)
-                          }
-                        />
+                      <td style={cellStyle}>
+                        {money(product.cost_price)}
+                        {product.price_type === "per_kg" && (
+                          <span style={smallMutedStyle}> / kg</span>
+                        )}
+                      </td>
 
-                        <SmallButton
-                          text="Edit"
-                          onClick={() =>
-                            openEditProduct(product)
-                          }
-                        />
-
-                        <button
-                          onClick={() =>
-                            setDeleteProduct(product)
-                          }
+                      <td style={cellStyle}>
+                        <strong
                           style={{
-                            border: "1px solid #f0cccc",
-                            background: "#fff7f7",
-                            color: "#b32626",
-                            padding: "7px 9px",
-                            borderRadius: 7,
-                            cursor: "pointer",
-                            fontSize: 11,
-                            fontWeight: 900,
+                            color: profit >= 0 ? "#17713d" : "#c62828",
                           }}
                         >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {money(profit)}
+                        </strong>
+                        {product.price_type === "per_kg" && (
+                          <span style={smallMutedStyle}> / kg</span>
+                        )}
+                      </td>
+
+                      <td style={cellStyle}>
+                        <strong
+                          style={{
+                            color:
+                              product.stock === 0 ? "#c62828" : "#294438",
+                          }}
+                        >
+                          {product.stock}
+                        </strong>
+                      </td>
+
+                      <td style={cellStyle}>
+                        <span
+                          style={{
+                            ...statusBadgeStyle,
+                            background:
+                              product.status === "Active"
+                                ? "#e4f7ea"
+                                : "#f9eaea",
+                            color:
+                              product.status === "Active"
+                                ? "#17713d"
+                                : "#b32626",
+                          }}
+                        >
+                          {product.status}
+                        </span>
+                      </td>
+
+                      <td style={cellStyle}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <SmallButton
+                            text="View"
+                            onClick={() => setViewProduct(product)}
+                          />
+                          <SmallButton
+                            text="Edit"
+                            onClick={() => openEditProduct(product)}
+                          />
+                          <button
+                            onClick={() => setDeleteProduct(product)}
+                            style={deleteButtonStyle}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {filteredProducts.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       style={{
                         padding: 60,
                         textAlign: "center",
@@ -813,24 +759,7 @@ export default function ProductsPage() {
                       }}
                     >
                       <div style={{ fontSize: 40 }}>🔎</div>
-                      <strong
-                        style={{
-                          display: "block",
-                          marginTop: 10,
-                          fontSize: 16,
-                        }}
-                      >
-                        No products found
-                      </strong>
-                      <span
-                        style={{
-                          display: "block",
-                          marginTop: 5,
-                          fontSize: 13,
-                        }}
-                      >
-                        Try another search or category.
-                      </span>
+                      <strong>No products found</strong>
                     </td>
                   </tr>
                 )}
@@ -840,12 +769,11 @@ export default function ProductsPage() {
         </section>
       </div>
 
-      {/* ADD / EDIT MODAL */}
       {showForm && (
         <div style={overlayStyle}>
           <div
             style={{
-              width: "min(780px, 95vw)",
+              width: "min(820px, 95vw)",
               maxHeight: "92vh",
               overflowY: "auto",
               background: "#fff",
@@ -855,8 +783,7 @@ export default function ProductsPage() {
           >
             <div
               style={{
-                background:
-                  "linear-gradient(135deg, #0f5b32, #19934e)",
+                background: "linear-gradient(135deg, #0f5b32, #19934e)",
                 color: "#fff",
                 padding: "23px 25px",
                 display: "flex",
@@ -865,25 +792,11 @@ export default function ProductsPage() {
               }}
             >
               <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.75,
-                    letterSpacing: 1,
-                  }}
-                >
+                <div style={{ fontSize: 12, opacity: 0.75 }}>
                   PRODUCT MANAGEMENT
                 </div>
-
-                <h2
-                  style={{
-                    margin: "5px 0 0",
-                    fontSize: 23,
-                  }}
-                >
-                  {editingId !== null
-                    ? "✏️ Edit Product"
-                    : "✨ Add New Product"}
+                <h2 style={{ margin: "5px 0 0", fontSize: 23 }}>
+                  {editingId !== null ? "✏️ Edit Product" : "✨ Add New Product"}
                 </h2>
               </div>
 
@@ -895,45 +808,16 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            <form
-              onSubmit={saveProduct}
-              style={{ padding: 25 }}
-            >
-              <div
-                style={{
-                  background: "#f4faf6",
-                  border: "1px solid #dcebe1",
-                  borderRadius: 13,
-                  padding: 18,
-                  marginBottom: 18,
-                }}
-              >
-                <h3
-                  style={{
-                    margin: "0 0 16px",
-                    color: "#17683a",
-                    fontSize: 15,
-                  }}
-                >
-                  📋 Basic Information
-                </h3>
+            <form onSubmit={saveProduct} style={{ padding: 25 }}>
+              <section style={formSectionStyle}>
+                <h3 style={sectionHeadingStyle}>📋 Basic Information</h3>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(230px, 1fr))",
-                    gap: 15,
-                  }}
-                >
+                <div style={formGridStyle}>
                   <Field label="Product Name">
                     <input
                       value={form.name}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          name: e.target.value,
-                        })
+                      onChange={(event) =>
+                        setForm({ ...form, name: event.target.value })
                       }
                       placeholder="Multani Sohan Halwa"
                       style={inputStyle}
@@ -944,11 +828,8 @@ export default function ProductsPage() {
                   <Field label="Category">
                     <select
                       value={form.category}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          category: e.target.value,
-                        })
+                      onChange={(event) =>
+                        setForm({ ...form, category: event.target.value })
                       }
                       style={inputStyle}
                     >
@@ -961,18 +842,65 @@ export default function ProductsPage() {
                     </select>
                   </Field>
 
-                  <Field label="Price (Rs.)">
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.price}
-                      onChange={(e) =>
+                  <Field label="Price Type">
+                    <select
+                      value={form.price_type}
+                      onChange={(event) =>
                         setForm({
                           ...form,
-                          price: Number(e.target.value),
+                          price_type: event.target.value as PriceType,
                         })
                       }
                       style={inputStyle}
+                    >
+                      <option value="per_kg">Per KG (weight-based)</option>
+                      <option value="fixed">Fixed Price (box/item)</option>
+                    </select>
+                  </Field>
+
+                  <Field
+                    label={
+                      form.price_type === "per_kg"
+                        ? "Selling Price per KG (Rs.)"
+                        : "Selling Price per Item (Rs.)"
+                    }
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.price}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          price: Number(event.target.value),
+                        })
+                      }
+                      style={inputStyle}
+                      required
+                    />
+                  </Field>
+
+                  <Field
+                    label={
+                      form.price_type === "per_kg"
+                        ? "Production Cost per KG (Rs.)"
+                        : "Production Cost per Item (Rs.)"
+                    }
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.cost_price}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          cost_price: Number(event.target.value),
+                        })
+                      }
+                      style={inputStyle}
+                      required
                     />
                   </Field>
 
@@ -981,11 +909,12 @@ export default function ProductsPage() {
                       type="number"
                       min="0"
                       max="100"
+                      step="0.01"
                       value={form.discount}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
-                          discount: Number(e.target.value),
+                          discount: Number(event.target.value),
                         })
                       }
                       style={inputStyle}
@@ -997,26 +926,23 @@ export default function ProductsPage() {
                       type="number"
                       min="0"
                       value={form.stock}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
-                          stock: Number(e.target.value),
+                          stock: Number(event.target.value),
                         })
                       }
                       style={inputStyle}
                     />
                   </Field>
 
-                  <Field label="Weight / Size">
+                  <Field label="Weight / Size (display)">
                     <input
                       value={form.weight}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          weight: e.target.value,
-                        })
+                      onChange={(event) =>
+                        setForm({ ...form, weight: event.target.value })
                       }
-                      placeholder="500g / 1kg"
+                      placeholder="500g / 1kg / 2kg box"
                       style={inputStyle}
                     />
                   </Field>
@@ -1024,12 +950,10 @@ export default function ProductsPage() {
                   <Field label="Status">
                     <select
                       value={form.status}
-                      onChange={(e) =>
+                      onChange={(event) =>
                         setForm({
                           ...form,
-                          status: e.target.value as
-                            | "Active"
-                            | "Inactive",
+                          status: event.target.value as "Active" | "Inactive",
                         })
                       }
                       style={inputStyle}
@@ -1042,53 +966,163 @@ export default function ProductsPage() {
                   <Field label="Product Icon">
                     <input
                       value={form.image}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          image: e.target.value,
-                        })
+                      onChange={(event) =>
+                        setForm({ ...form, image: event.target.value })
                       }
                       placeholder="🍯"
                       style={inputStyle}
                     />
                   </Field>
                 </div>
-              </div>
 
-              {/* PRODUCT IMAGE UPLOAD */}
-              <div style={{ background: "linear-gradient(135deg, #f7f3ff, #f1f6ff)", border: "1px solid #dddff0", borderRadius: 13, padding: 18, marginBottom: 18 }}>
-                <h3 style={{ margin: "0 0 6px", color: "#4b4d82", fontSize: 15 }}>🖼️ Product Photo</h3>
-                <p style={{ margin: "0 0 14px", color: "#777b91", fontSize: 12 }}>
-                  JPG, PNG, WEBP ya GIF — maximum 4 MB. Upload ke baad Add Product / Save Changes zaroor dabao.
-                </p>
-                {form.image_url ? (
-                  <div style={{ marginBottom: 14 }}>
-                    <img src={form.image_url} alt="Product preview" style={{ display: "block", width: 180, height: 140, objectFit: "cover", borderRadius: 10, border: "1px solid #c8cbe0" }} />
-                    <button type="button" onClick={() => setForm({ ...form, image_url: "" })} style={{ marginTop: 8, padding: "8px 12px", border: "1px solid #c8cbe0", borderRadius: 8, background: "#fff", cursor: "pointer" }}>Remove photo from product</button>
-                  </div>
-                ) : null}
-                <label style={{ display: "inline-block", border: "2px dashed #c8cbe0", borderRadius: 12, padding: 18, background: "rgba(255,255,255,0.7)", cursor: imageUploading ? "wait" : "pointer" }}>
-                  <strong>{imageUploading ? "Uploading image..." : "Choose product photo"}</strong>
-                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={imageUploading} onChange={(event) => { void uploadProductImage(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} style={{ display: "block", marginTop: 10 }} />
-                </label>
-              </div>
-
-              {/* DETAILS */}
-              <div
-                style={{
-                  background: "#fff9ef",
-                  border: "1px solid #f0e2c8",
-                  borderRadius: 13,
-                  padding: 18,
-                }}
-              >
-                <h3
+                <div
                   style={{
-                    margin: "0 0 16px",
-                    color: "#9a6500",
-                    fontSize: 15,
+                    marginTop: 18,
+                    padding: 16,
+                    borderRadius: 12,
+                    background: "#fff",
+                    border: "1px solid #dcebe1",
                   }}
                 >
+                  <strong style={{ color: "#17683a" }}>
+                    Profit Preview
+                  </strong>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 900,
+                      marginTop: 8,
+                      color: currentProfit >= 0 ? "#17713d" : "#c62828",
+                    }}
+                  >
+                    {money(currentProfit)}
+                    {form.price_type === "per_kg" ? " per KG" : " per item"}
+                  </div>
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      color: "#718078",
+                      fontSize: 12,
+                    }}
+                  >
+                    Discount ke baad selling price minus production cost.
+                    Packaging aur delivery is calculation mein shamil nahi.
+                  </p>
+                </div>
+
+                {form.price_type === "per_kg" && (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      padding: 14,
+                      background: "#fff8e8",
+                      borderRadius: 10,
+                      color: "#805b12",
+                      fontSize: 13,
+                    }}
+                  >
+                    Customer weight select karega. Misal: Rs. 1,200/kg par
+                    50g = Rs. 60, 250g = Rs. 300, 500g = Rs. 600.
+                  </div>
+                )}
+
+                {form.price_type === "fixed" && (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      padding: 14,
+                      background: "#eef5ff",
+                      borderRadius: 10,
+                      color: "#315780",
+                      fontSize: 13,
+                    }}
+                  >
+                    Is product ki price fixed rahegi. Weight se price multiply
+                    nahi hogi.
+                  </div>
+                )}
+              </section>
+
+              <section
+                style={{
+                  ...formSectionStyle,
+                  background: "linear-gradient(135deg, #f7f3ff, #f1f6ff)",
+                  borderColor: "#dddff0",
+                }}
+              >
+                <h3 style={{ ...sectionHeadingStyle, color: "#4b4d82" }}>
+                  🖼️ Product Photo
+                </h3>
+
+                <p
+                  style={{
+                    margin: "0 0 14px",
+                    color: "#777b91",
+                    fontSize: 12,
+                  }}
+                >
+                  JPG, PNG, WEBP ya GIF — maximum 4 MB. Upload ke baad Add
+                  Product / Save Changes zaroor dabao.
+                </p>
+
+                {form.image_url ? (
+                  <div style={{ marginBottom: 14 }}>
+                    <img
+                      src={form.image_url}
+                      alt="Product preview"
+                      style={{
+                        display: "block",
+                        width: 180,
+                        height: 140,
+                        objectFit: "cover",
+                        borderRadius: 10,
+                        border: "1px solid #c8cbe0",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, image_url: "" })}
+                      style={{ ...secondaryButtonStyle, marginTop: 8 }}
+                    >
+                      Remove photo from product
+                    </button>
+                  </div>
+                ) : null}
+
+                <label
+                  style={{
+                    display: "inline-block",
+                    border: "2px dashed #c8cbe0",
+                    borderRadius: 12,
+                    padding: 18,
+                    background: "rgba(255,255,255,0.7)",
+                    cursor: imageUploading ? "wait" : "pointer",
+                  }}
+                >
+                  <strong>
+                    {imageUploading ? "Uploading image..." : "Choose product photo"}
+                  </strong>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    disabled={imageUploading}
+                    onChange={(event) => {
+                      void uploadProductImage(event.currentTarget.files?.[0]);
+                      event.currentTarget.value = "";
+                    }}
+                    style={{ display: "block", marginTop: 10 }}
+                  />
+                </label>
+              </section>
+
+              <section
+                style={{
+                  ...formSectionStyle,
+                  background: "#fff9ef",
+                  borderColor: "#f0e2c8",
+                }}
+              >
+                <h3 style={{ ...sectionHeadingStyle, color: "#9a6500" }}>
                   📝 Product Details
                 </h3>
 
@@ -1096,17 +1130,11 @@ export default function ProductsPage() {
                   <textarea
                     rows={4}
                     value={form.description}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        description: e.target.value,
-                      })
+                    onChange={(event) =>
+                      setForm({ ...form, description: event.target.value })
                     }
                     placeholder="Describe this product..."
-                    style={{
-                      ...inputStyle,
-                      resize: "vertical",
-                    }}
+                    style={{ ...inputStyle, resize: "vertical" }}
                   />
                 </Field>
 
@@ -1116,20 +1144,14 @@ export default function ProductsPage() {
                   <textarea
                     rows={3}
                     value={form.ingredients}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        ingredients: e.target.value,
-                      })
+                    onChange={(event) =>
+                      setForm({ ...form, ingredients: event.target.value })
                     }
                     placeholder="Milk, sugar, ghee, nuts..."
-                    style={{
-                      ...inputStyle,
-                      resize: "vertical",
-                    }}
+                    style={{ ...inputStyle, resize: "vertical" }}
                   />
                 </Field>
-              </div>
+              </section>
 
               <div
                 style={{
@@ -1142,37 +1164,17 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  style={{
-                    padding: "12px 19px",
-                    borderRadius: 9,
-                    border: "1px solid #d6dfd9",
-                    background: "#fff",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                  }}
+                  style={secondaryButtonStyle}
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  style={{
-                    padding: "12px 22px",
-                    borderRadius: 9,
-                    border: 0,
-                    background:
-                      "linear-gradient(135deg, #126638, #19944e)",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: 900,
-                    boxShadow:
-                      "0 6px 15px rgba(18,102,56,0.22)",
-                  }}
+                  disabled={imageUploading}
+                  style={primaryButtonStyle}
                 >
-                  ✓{" "}
-                  {editingId !== null
-                    ? "Save Changes"
-                    : "Add Product"}
+                  ✓ {editingId !== null ? "Save Changes" : "Add Product"}
                 </button>
               </div>
             </form>
@@ -1180,7 +1182,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* VIEW MODAL */}
       {viewProduct && (
         <div style={overlayStyle}>
           <div
@@ -1194,100 +1195,78 @@ export default function ProductsPage() {
           >
             <div
               style={{
-                background:
-                  "linear-gradient(135deg, #0f5b32, #19934e)",
+                background: "linear-gradient(135deg, #0f5b32, #19934e)",
                 color: "#fff",
                 padding: 30,
                 textAlign: "center",
               }}
             >
               {viewProduct.image_url ? (
-                <img src={viewProduct.image_url} alt={viewProduct.name} style={{ width: 150, height: 120, objectFit: "cover", borderRadius: 12, margin: "0 auto 10px", display: "block" }} />
+                <img
+                  src={viewProduct.image_url}
+                  alt={viewProduct.name}
+                  style={{
+                    width: 150,
+                    height: 120,
+                    objectFit: "cover",
+                    borderRadius: 12,
+                    margin: "0 auto 10px",
+                    display: "block",
+                  }}
+                />
               ) : (
                 <div style={{ fontSize: 65 }}>{viewProduct.image}</div>
               )}
 
-              <h2 style={{ margin: "10px 0 5px" }}>
-                {viewProduct.name}
-              </h2>
-
-              <span style={{ opacity: 0.8 }}>
-                {viewProduct.category}
-              </span>
+              <h2 style={{ margin: "10px 0 5px" }}>{viewProduct.name}</h2>
+              <span style={{ opacity: 0.8 }}>{viewProduct.category}</span>
             </div>
 
             <div style={{ padding: 25 }}>
               <DetailRow
-                label="Price"
-                value={`Rs. ${viewProduct.price.toLocaleString()}`}
+                label="Price Type"
+                value={viewProduct.price_type === "per_kg" ? "Per KG" : "Fixed"}
               />
-
               <DetailRow
-                label="Discount"
-                value={`${viewProduct.discount}%`}
+                label="Selling Price"
+                value={`${money(viewProduct.price)}${
+                  viewProduct.price_type === "per_kg" ? " / kg" : ""
+                }`}
               />
-
               <DetailRow
-                label="Stock"
-                value={String(viewProduct.stock)}
+                label="Cost Price"
+                value={`${money(viewProduct.cost_price)}${
+                  viewProduct.price_type === "per_kg" ? " / kg" : ""
+                }`}
               />
-
+              <DetailRow
+                label="Profit after discount"
+                value={`${money(getProfit(viewProduct))}${
+                  viewProduct.price_type === "per_kg" ? " / kg" : ""
+                }`}
+              />
+              <DetailRow label="Discount" value={`${viewProduct.discount}%`} />
+              <DetailRow label="Stock" value={String(viewProduct.stock)} />
               <DetailRow
                 label="Weight / Size"
                 value={viewProduct.weight || "-"}
               />
+              <DetailRow label="Status" value={viewProduct.status} />
+              <DetailRow label="Rating" value={`⭐ ${viewProduct.rating}`} />
 
-              <DetailRow
-                label="Status"
-                value={viewProduct.status}
-              />
-
-              <DetailRow
-                label="Rating"
-                value={`⭐ ${viewProduct.rating}`}
-              />
-
-              <h4 style={{ marginBottom: 5 }}>
-                Description
-              </h4>
-
-              <p
-                style={{
-                  color: "#6f7b74",
-                  lineHeight: 1.6,
-                  fontSize: 13,
-                }}
-              >
+              <h4>Description</h4>
+              <p style={detailTextStyle}>
                 {viewProduct.description || "No description."}
               </p>
 
-              <h4 style={{ marginBottom: 5 }}>
-                Ingredients
-              </h4>
-
-              <p
-                style={{
-                  color: "#6f7b74",
-                  lineHeight: 1.6,
-                  fontSize: 13,
-                }}
-              >
+              <h4>Ingredients</h4>
+              <p style={detailTextStyle}>
                 {viewProduct.ingredients || "No ingredients."}
               </p>
 
               <button
                 onClick={() => setViewProduct(null)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  marginTop: 10,
-                  border: 0,
-                  borderRadius: 9,
-                  background: "#176b3a",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
+                style={{ ...primaryButtonStyle, width: "100%", marginTop: 10 }}
               >
                 Close
               </button>
@@ -1296,7 +1275,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* DELETE MODAL */}
       {deleteProduct && (
         <div style={overlayStyle}>
           <div
@@ -1309,71 +1287,23 @@ export default function ProductsPage() {
               boxShadow: "0 25px 80px rgba(0,0,0,0.25)",
             }}
           >
-            <div
-              style={{
-                width: 70,
-                height: 70,
-                margin: "0 auto",
-                borderRadius: "50%",
-                background: "#fff0f0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 34,
-              }}
-            >
-              🗑️
-            </div>
-
-            <h2 style={{ margin: "17px 0 8px" }}>
-              Remove Product?
-            </h2>
-
-            <p
-              style={{
-                color: "#737e77",
-                fontSize: 14,
-                lineHeight: 1.6,
-              }}
-            >
+            <div style={{ fontSize: 40 }}>🗑️</div>
+            <h2>Remove Product?</h2>
+            <p style={detailTextStyle}>
               Are you sure you want to remove{" "}
               <strong>{deleteProduct.name}</strong>?
             </p>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                marginTop: 22,
-              }}
-            >
+            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
               <button
                 onClick={() => setDeleteProduct(null)}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 9,
-                  border: "1px solid #d6dfd9",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 800,
-                }}
+                style={{ ...secondaryButtonStyle, flex: 1 }}
               >
                 Cancel
               </button>
-
               <button
                 onClick={removeProduct}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 9,
-                  border: 0,
-                  background: "#c62828",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
+                style={{ ...deleteButtonStyle, flex: 1, padding: 12 }}
               >
                 Yes, Remove
               </button>
@@ -1415,16 +1345,9 @@ function StatCard({
           alignItems: "center",
         }}
       >
-        <span
-          style={{
-            color: "#65736b",
-            fontSize: 12,
-            fontWeight: 800,
-          }}
-        >
+        <span style={{ color: "#65736b", fontSize: 12, fontWeight: 800 }}>
           {title}
         </span>
-
         <span
           style={{
             fontSize: 25,
@@ -1448,13 +1371,7 @@ function StatCard({
         {value}
       </div>
 
-      <div
-        style={{
-          color: "#829088",
-          fontSize: 11,
-          marginTop: 4,
-        }}
-      >
+      <div style={{ color: "#829088", fontSize: 11, marginTop: 4 }}>
         {text}
       </div>
     </div>
@@ -1469,19 +1386,7 @@ function SmallButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        border: "1px solid #d5e2d9",
-        background: "#f8fbf9",
-        color: "#28583b",
-        padding: "7px 9px",
-        borderRadius: 7,
-        cursor: "pointer",
-        fontSize: 11,
-        fontWeight: 900,
-      }}
-    >
+    <button onClick={onClick} style={smallButtonStyle}>
       {text}
     </button>
   );
@@ -1503,15 +1408,7 @@ function Field({
         color: "#43554b",
       }}
     >
-      <span
-        style={{
-          display: "block",
-          marginBottom: 7,
-        }}
-      >
-        {label}
-      </span>
-
+      <span style={{ display: "block", marginBottom: 7 }}>{label}</span>
       {children}
     </label>
   );
@@ -1541,6 +1438,35 @@ function DetailRow({
   );
 }
 
+const panelStyle: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 16,
+  padding: 18,
+  border: "1px solid #dfeae2",
+  boxShadow: "0 8px 30px rgba(23, 74, 44, 0.07)",
+  marginBottom: 20,
+};
+
+const formSectionStyle: React.CSSProperties = {
+  background: "#f4faf6",
+  border: "1px solid #dcebe1",
+  borderRadius: 13,
+  padding: 18,
+  marginBottom: 18,
+};
+
+const sectionHeadingStyle: React.CSSProperties = {
+  margin: "0 0 16px",
+  color: "#17683a",
+  fontSize: 15,
+};
+
+const formGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+  gap: 15,
+};
+
 const headerStyle: React.CSSProperties = {
   padding: "14px 16px",
   textAlign: "left",
@@ -1565,6 +1491,93 @@ const inputStyle: React.CSSProperties = {
   background: "#fff",
   fontSize: 13,
   outline: "none",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  background: "#fff",
+  color: "#126638",
+  border: 0,
+  padding: "11px 18px",
+  borderRadius: 10,
+  fontWeight: 900,
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  padding: "11px 16px",
+  border: "1px solid #d5e2d9",
+  borderRadius: 9,
+  background: "#f8fbf9",
+  color: "#28583b",
+  cursor: "pointer",
+  fontWeight: 800,
+  fontSize: 13,
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  border: "1px solid #d5e2d9",
+  background: "#f8fbf9",
+  color: "#28583b",
+  padding: "7px 9px",
+  borderRadius: 7,
+  cursor: "pointer",
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const deleteButtonStyle: React.CSSProperties = {
+  border: "1px solid #f0cccc",
+  background: "#fff7f7",
+  color: "#b32626",
+  padding: "7px 9px",
+  borderRadius: 7,
+  cursor: "pointer",
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const countBadgeStyle: React.CSSProperties = {
+  background: "#eaf7ee",
+  color: "#126438",
+  borderRadius: 20,
+  padding: "8px 13px",
+  fontSize: 12,
+  fontWeight: 900,
+};
+
+const typeBadgeStyle: React.CSSProperties = {
+  background: "#edf6f0",
+  color: "#286040",
+  borderRadius: 8,
+  padding: "7px 10px",
+  fontSize: 11,
+  fontWeight: 800,
+};
+
+const statusBadgeStyle: React.CSSProperties = {
+  padding: "7px 11px",
+  borderRadius: 20,
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const smallMutedStyle: React.CSSProperties = {
+  color: "#89938d",
+  fontSize: 11,
+};
+
+const discountStyle: React.CSSProperties = {
+  color: "#c27a00",
+  fontSize: 11,
+  fontWeight: 800,
+  marginTop: 4,
+};
+
+const detailTextStyle: React.CSSProperties = {
+  color: "#6f7b74",
+  lineHeight: 1.6,
+  fontSize: 13,
 };
 
 const overlayStyle: React.CSSProperties = {
