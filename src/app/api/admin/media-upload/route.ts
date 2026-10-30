@@ -1,5 +1,6 @@
 import { del, list, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { isAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +17,8 @@ const ALLOWED_TYPES = [
 ];
 
 function isAuthorized(request: Request) {
-  const expected = process.env.ADMIN_MEDIA_PASSWORD;
-  const supplied = request.headers.get("x-admin-media-password");
-  return Boolean(expected && supplied && supplied === expected);
+  return isAdminRequest(request);
+}
 }
 
 // Admin media library: reload stored files after a page refresh.
