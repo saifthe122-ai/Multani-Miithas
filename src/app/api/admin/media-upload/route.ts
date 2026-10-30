@@ -19,7 +19,7 @@ const ALLOWED_TYPES = [
 function isAuthorized(request: Request) {
   return isAdminRequest(request);
 }
-}
+
 
 // Admin media library: reload stored files after a page refresh.
 export async function GET(request: Request) {
