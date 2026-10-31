@@ -16,6 +16,7 @@ type ProductInput = {
   stock?: unknown;
   discount?: unknown;
   weight?: unknown;
+  weight_options?: unknown;
   image?: unknown;
   image_url?: unknown;
   description?: unknown;
@@ -23,6 +24,11 @@ type ProductInput = {
   ingredients?: unknown;
   rating?: unknown;
   status?: unknown;
+};
+
+type WeightOption = {
+  weight: string;
+  price: number;
 };
 
 function getDatabase() {
@@ -98,6 +104,44 @@ function validateProduct(data: ProductInput) {
     return "Rating must be between 0 and 5";
   }
 
+  if (data.weight_options !== undefined) {
+    if (!Array.isArray(data.weight_options)) {
+      return "Weight options must be a list";
+    }
+
+    const seenWeights = new Set<string>();
+
+    for (const option of data.weight_options) {
+      if (
+        !option ||
+        typeof option !== "object" ||
+        Array.isArray(option)
+      ) {
+        return "Each weight option must be an object";
+      }
+
+      const item = option as Record<string, unknown>;
+
+      if (
+        typeof item.weight !== "string" ||
+        !item.weight.trim() ||
+        typeof item.price !== "number" ||
+        !Number.isFinite(item.price) ||
+        item.price < 0
+      ) {
+        return "Each weight option needs a valid weight and price";
+      }
+
+      const weight = item.weight.trim().toLowerCase();
+
+      if (seenWeights.has(weight)) {
+        return "Duplicate weight options are not allowed";
+      }
+
+      seenWeights.add(weight);
+    }
+  }
+
   for (const field of [
     "description",
     "long_description",
@@ -133,6 +177,9 @@ function formatProduct(row: Record<string, unknown>) {
     stock: Number(row.stock ?? 0),
     discount: Number(row.discount ?? 0),
     weight: String(row.weight ?? ""),
+    weight_options: Array.isArray(row.weight_options)
+      ? (row.weight_options as WeightOption[])
+      : [],
     image: String(row.image_icon ?? "🍬"),
     image_url: String(row.image_url ?? ""),
     description: String(row.description ?? ""),
@@ -147,7 +194,7 @@ function formatProduct(row: Record<string, unknown>) {
 
 const PRODUCT_COLUMNS = `
   id, name, price, price_type, cost_price, category, stock,
-  discount, weight, image_icon, image_url, description,
+  discount, weight, weight_options, image_icon, image_url, description,
   long_description, ingredients, rating, is_active,
   created_at, updated_at
 `;
@@ -158,7 +205,7 @@ export async function GET() {
 
     const rows = await sql`
       SELECT id, name, price, price_type, cost_price,
-             category, stock, discount, weight, image_icon,
+             category, stock, discount, weight, weight_options, image_icon,
              image_url, description, long_description,
              ingredients, rating, is_active, created_at, updated_at
       FROM products
@@ -222,7 +269,7 @@ export async function POST(request: Request) {
     const rows = await sql`
       INSERT INTO products (
         name, price, price_type, cost_price, category,
-        stock, discount, weight, image_icon, image_url,
+        stock, discount, weight, weight_options, image_icon, image_url,
         description, long_description, ingredients,
         rating, is_active
       )
@@ -235,6 +282,7 @@ export async function POST(request: Request) {
         ${typeof data.stock === "number" ? data.stock : 0},
         ${typeof data.discount === "number" ? data.discount : 0},
         ${typeof data.weight === "string" ? data.weight.trim() : ""},
+        ${JSON.stringify(data.weight_options ?? [])}::jsonb,
         ${typeof data.image === "string" ? data.image : "🍬"},
         ${typeof data.image_url === "string" ? data.image_url : ""},
         ${typeof data.description === "string" ? data.description.trim() : ""},
@@ -323,6 +371,12 @@ export async function PUT(request: Request) {
         stock = ${typeof data.stock === "number" ? data.stock : 0},
         discount = ${typeof data.discount === "number" ? data.discount : 0},
         weight = ${typeof data.weight === "string" ? data.weight.trim() : ""},
+        weight_options = COALESCE(
+          ${data.weight_options !== undefined
+            ? JSON.stringify(data.weight_options)
+            : null}::jsonb,
+          weight_options
+        ),
         image_icon = ${typeof data.image === "string" ? data.image : "🍬"},
         image_url = ${typeof data.image_url === "string" ? data.image_url : ""},
         description = ${typeof data.description === "string" ? data.description.trim() : ""},
