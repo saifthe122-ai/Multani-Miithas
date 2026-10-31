@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -49,17 +48,18 @@ type CartItem = {
 };
 
 type PaymentMethod = {
-  id: string;
+  id: string | number;
   method_key: string;
   name: string;
   description?: string;
   payment_type?: string;
+  provider?: string;
   instructions?: string;
   display_order?: number;
 };
 
 type PaymentAccount = {
-  id: string;
+  id: string | number;
   account_name: string;
   account_type: string;
   provider: string;
@@ -68,6 +68,8 @@ type PaymentAccount = {
   iban?: string;
   currency: string;
   is_primary: boolean;
+  wallet_owner_type?: string;
+  qr_image_url?: string;
 };
 
 const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
@@ -255,6 +257,9 @@ const fallbackPaymentMethods: PaymentMethod[] = [
   },
 ];
 
+const normalizePaymentName = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 export default function Home() {
   const [products, setProducts] =
     useState<Product[]>(defaultProducts);
@@ -267,9 +272,10 @@ export default function Home() {
 
   const [availablePaymentMethods, setAvailablePaymentMethods] =
     useState<PaymentMethod[]>(fallbackPaymentMethods);
-const [availablePaymentAccounts, setAvailablePaymentAccounts] =
-  useState<PaymentAccount[]>([]);
-  
+
+  const [availablePaymentAccounts, setAvailablePaymentAccounts] =
+    useState<PaymentAccount[]>([]);
+
   const [message, setMessage] = useState("");
 
   const [publishedSettings, setPublishedSettings] =
@@ -282,12 +288,22 @@ const [availablePaymentAccounts, setAvailablePaymentAccounts] =
   const [paymentMethod, setPaymentMethod] =
     useState("Cash on Delivery");
 
- const [submittingOrder, setSubmittingOrder] = useState(false);
-const [savedOrderNumber, setSavedOrderNumber] = useState("");
-const [savedOrderAmount, setSavedOrderAmount] = useState(0);
-const [savedPaymentMethod, setSavedPaymentMethod] = useState("");
-const [savedCustomerPhone, setSavedCustomerPhone] = useState("");
-const [cartOpen, setCartOpen] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [savedOrderNumber, setSavedOrderNumber] = useState("");
+  const [savedOrderAmount, setSavedOrderAmount] = useState(0);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState("");
+  const [savedCustomerPhone, setSavedCustomerPhone] = useState("");
+
+  const [savedPaymentAccounts, setSavedPaymentAccounts] =
+    useState<PaymentAccount[]>([]);
+
+  const [savedPaymentInstructions, setSavedPaymentInstructions] =
+    useState("");
+
+  const [copiedPaymentDetail, setCopiedPaymentDetail] =
+    useState("");
+
+  const [cartOpen, setCartOpen] = useState(false);
 
   // Products database se load karein.
   useEffect(() => {
@@ -427,107 +443,134 @@ const [cartOpen, setCartOpen] = useState(false);
     };
   }, []);
 
-// Admin mein enabled payment methods aur accounts load karein.
-useEffect(() => {
-  let cancelled = false;
+  // Admin ke enabled payment methods aur active accounts load karein.
+  useEffect(() => {
+    let cancelled = false;
 
-  fetch("/api/payment-options", { cache: "no-store" })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error("Payment options load nahi huay");
-      }
-      return response.json();
-    })
-    .then((result: unknown) => {
-      if (
-        cancelled ||
-        !result ||
-        typeof result !== "object"
-      ) {
-        return;
-      }
+    const loadPaymentOptions = async () => {
+      try {
+        const response = await fetch("/api/payment-options", {
+          cache: "no-store",
+        });
 
-      const payload = result as {
-        success?: boolean;
-        methods?: unknown;
-        accounts?: unknown;
-      };
-
-      if (!payload.success) {
-        return;
-      }
-
-      // Payment accounts load karein.
-      if (Array.isArray(payload.accounts)) {
-        const accounts = payload.accounts.filter(
-          (item): item is PaymentAccount => {
-            if (
-              !item ||
-              typeof item !== "object" ||
-              Array.isArray(item)
-            ) {
-              return false;
-            }
-
-            const account = item as Record<string, unknown>;
-
-            return (
-              typeof account.id === "string" &&
-              typeof account.account_title === "string" &&
-              typeof account.account_number === "string" &&
-              typeof account.provider === "string"
-            );
-          }
-        );
-
-        if (!cancelled) {
-          setAvailablePaymentAccounts(accounts);
+        if (!response.ok) {
+          throw new Error("Payment options load nahi huay");
         }
-      }
 
-      // Payment methods load karein.
-      if (Array.isArray(payload.methods)) {
-        const methods = payload.methods.filter(
-          (item): item is PaymentMethod => {
-            if (
-              !item ||
-              typeof item !== "object" ||
-              Array.isArray(item)
-            ) {
-              return false;
-            }
+        const result: unknown = await response.json();
 
-            const method = item as Record<string, unknown>;
+        if (
+          cancelled ||
+          !result ||
+          typeof result !== "object"
+        ) {
+          return;
+        }
 
-            return (
-              typeof method.id === "string" &&
-              typeof method.name === "string" &&
-              method.name.trim().length > 0
-            );
-          }
-        );
+        const payload = result as {
+          success?: boolean;
+          methods?: unknown;
+          accounts?: unknown;
+        };
 
-        if (!cancelled && methods.length > 0) {
-          const sortedMethods = [...methods].sort(
-            (a, b) =>
-              (a.display_order ?? 999) -
-              (b.display_order ?? 999)
+        if (!payload.success) return;
+
+        const accounts: PaymentAccount[] = Array.isArray(
+          payload.accounts
+        )
+          ? payload.accounts
+              .filter(
+                (item): item is Record<string, unknown> =>
+                  Boolean(item) &&
+                  typeof item === "object" &&
+                  !Array.isArray(item)
+              )
+              .filter(
+                (item) =>
+                  (typeof item.id === "string" ||
+                    typeof item.id === "number") &&
+                  typeof item.provider === "string" &&
+                  typeof item.account_title === "string" &&
+                  typeof item.account_number === "string"
+              )
+              .map((item) => ({
+                id: item.id as string | number,
+                account_name: String(item.account_name ?? ""),
+                account_type: String(item.account_type ?? ""),
+                provider: String(item.provider ?? ""),
+                account_title: String(item.account_title ?? ""),
+                account_number: String(item.account_number ?? ""),
+                iban: String(item.iban ?? ""),
+                currency: String(item.currency ?? "PKR"),
+                is_primary: Boolean(item.is_primary),
+                wallet_owner_type: String(
+                  item.wallet_owner_type ?? "personal"
+                ),
+                qr_image_url: String(item.qr_image_url ?? ""),
+              }))
+          : [];
+
+        const methods: PaymentMethod[] = Array.isArray(
+          payload.methods
+        )
+          ? payload.methods
+              .filter(
+                (item): item is Record<string, unknown> =>
+                  Boolean(item) &&
+                  typeof item === "object" &&
+                  !Array.isArray(item)
+              )
+              .filter(
+                (item) =>
+                  (typeof item.id === "string" ||
+                    typeof item.id === "number") &&
+                  typeof item.name === "string" &&
+                  item.name.trim().length > 0
+              )
+              .map((item) => ({
+                id: item.id as string | number,
+                method_key: String(item.method_key ?? ""),
+                name: String(item.name ?? ""),
+                description: String(item.description ?? ""),
+                payment_type: String(item.payment_type ?? ""),
+                provider: String(item.provider ?? ""),
+                instructions: String(item.instructions ?? ""),
+                display_order: Number(item.display_order ?? 999),
+              }))
+              .sort(
+                (a, b) =>
+                  (a.display_order ?? 999) -
+                  (b.display_order ?? 999)
+              )
+          : [];
+
+        if (cancelled) return;
+
+        setAvailablePaymentAccounts(accounts);
+
+        if (methods.length > 0) {
+          setAvailablePaymentMethods(methods);
+
+          setPaymentMethod((current) =>
+            methods.some((method) => method.name === current)
+              ? current
+              : methods[0].name
           );
-
-          setAvailablePaymentMethods(sortedMethods);
-          setPaymentMethod(sortedMethods[0].name);
+        } else {
+          setAvailablePaymentMethods(fallbackPaymentMethods);
+          setPaymentMethod("Cash on Delivery");
         }
+      } catch (error: unknown) {
+        console.error("Payment options error:", error);
       }
-    })
-    .catch((error: unknown) => {
-      console.error("Payment options error:", error);
-      // COD fallback pehle se available hai.
-    });
+    };
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    loadPaymentOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const publishedMedia = Array.isArray(
     publishedSettings?.media
@@ -638,6 +681,77 @@ useEffect(() => {
   const getSelectedWeight = (productId: number) =>
     selectedWeights[productId] ?? 1;
 
+  const isCashOnDelivery = (methodName: string) => {
+    const method = normalizePaymentName(methodName);
+
+    return (
+      method.includes("cashondelivery") ||
+      method === "cod"
+    );
+  };
+
+  const isJazzCash = (methodName: string) =>
+    normalizePaymentName(methodName).includes("jazzcash");
+
+  const getSelectedPaymentMethod = (methodName: string) =>
+    availablePaymentMethods.find(
+      (method) => method.name === methodName
+    );
+
+  const getMatchingPaymentAccounts = (
+    methodName: string,
+    methods: PaymentMethod[] = availablePaymentMethods,
+    accounts: PaymentAccount[] = availablePaymentAccounts
+  ) => {
+    const selectedMethod = methods.find(
+      (method) => method.name === methodName
+    );
+
+    const possibleNames = [
+      methodName,
+      selectedMethod?.method_key || "",
+      selectedMethod?.provider || "",
+      selectedMethod?.name || "",
+    ]
+      .filter(Boolean)
+      .map(normalizePaymentName);
+
+    return accounts
+      .filter((account) => {
+        const provider = normalizePaymentName(account.provider);
+
+        if (!provider) return false;
+
+        return possibleNames.some(
+          (name) =>
+            name &&
+            (provider === name ||
+              provider.includes(name) ||
+              name.includes(provider))
+        );
+      })
+      .sort(
+        (a, b) =>
+          Number(b.is_primary) - Number(a.is_primary)
+      );
+  };
+
+  const copyPaymentDetail = async (
+    value: string,
+    label: string
+  ) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedPaymentDetail(label);
+
+      window.setTimeout(() => {
+        setCopiedPaymentDetail("");
+      }, 2000);
+    } catch {
+      setMessage("Copy nahi ho saka. Detail manually copy karein.");
+    }
+  };
+
   // Product ko selected weight ke saath cart mein add karein.
   const addToCart = (id: number, weight = 1) => {
     setSavedOrderNumber("");
@@ -745,16 +859,17 @@ useEffect(() => {
       return;
     }
 
-    const items = cartItems.map((item) => ({
-      productId: String(item.productId),
-      weight: isGiftProduct(
-        products.find((p) => p.id === item.productId) ||
-          defaultProducts[0]
-      )
-        ? 1
-        : item.weight,
-      quantity: item.quantity,
-    }));
+    const items = cartItems.map((item) => {
+      const product = products.find(
+        (p) => p.id === item.productId
+      );
+
+      return {
+        productId: String(item.productId),
+        weight: product && isGiftProduct(product) ? 1 : item.weight,
+        quantity: item.quantity,
+      };
+    });
 
     if (items.length === 0) {
       setMessage("Cart mein valid products nahi hain.");
@@ -766,25 +881,25 @@ useEffect(() => {
     setMessage("");
 
     try {
-    const response = await fetch("/api/orders", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    customerName: customerName.trim(),
-    phone: customerPhone.trim(),
-    address: deliveryAddress.trim(),
-    paymentMethod,
-    items: items.map((item) => ({
-      productId: String(item.productId),
-      weight: Number(item.weight ?? 1),
-      quantity: Number(item.quantity),
-    })),
-  }),
-});
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          phone: customerPhone.trim(),
+          address: deliveryAddress.trim(),
+          paymentMethod,
+          items: items.map((item) => ({
+            productId: String(item.productId),
+            weight: Number(item.weight ?? 1),
+            quantity: Number(item.quantity),
+          })),
+        }),
+      });
 
-const result: unknown = await response.json();
+      const result: unknown = await response.json();
 
       if (!result || typeof result !== "object") {
         throw new Error("Server se valid response nahi mila.");
@@ -803,17 +918,25 @@ const result: unknown = await response.json();
           data.message || "Order save nahi ho saka."
         );
       }
-const orderNumber = data.order?.orderNumber || "";
 
-setSavedOrderNumber(orderNumber);
-setSavedOrderAmount(total);
-setSavedPaymentMethod(paymentMethod);
-setSavedCustomerPhone(customerPhone.trim());
+      const orderNumber = data.order?.orderNumber || "";
+      const selectedMethod = getSelectedPaymentMethod(paymentMethod);
+      const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
-setCart({});
-setCustomerName("");
-setCustomerPhone("");
-setDeliveryAddress("");
+      setSavedOrderNumber(orderNumber);
+      setSavedOrderAmount(total);
+      setSavedPaymentMethod(paymentMethod);
+      setSavedCustomerPhone(customerPhone.trim());
+      setSavedPaymentAccounts(matchingAccounts);
+      setSavedPaymentInstructions(
+        selectedMethod?.instructions || ""
+      );
+
+      setCart({});
+      setCustomerName("");
+      setCustomerPhone("");
+      setDeliveryAddress("");
+      setCartOpen(true);
 
       setMessage(
         orderNumber
@@ -1709,121 +1832,324 @@ setDeliveryAddress("");
                   margin: "auto",
                 }}
               >
-              {savedOrderNumber ? (
-  <div role="status">
-    <h3>Order submitted successfully!</h3>
+                {savedOrderNumber ? (
+                  <div role="status" style={{ textAlign: "left" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 42, color: "#237A4B" }}>
+                        ✓
+                      </div>
 
-    <p>Your order number:</p>
-    <strong style={{ overflowWrap: "anywhere" }}>
-      {savedOrderNumber}
-    </strong>
+                      <h2 style={{ color: "#123F42" }}>
+                        Order Successfully Submitted
+                      </h2>
 
-    <h3 style={{ marginTop: "20px" }}>Payment Details</h3>
+                      <p>Your order number:</p>
 
-    <p>
-      Payment method: <strong>{savedPaymentMethod}</strong>
-    </p>
+                      <h3
+                        style={{
+                          color: "#8A5630",
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {savedOrderNumber}
+                      </h3>
+                    </div>
 
-    <p>
-      Payable product amount:{" "}
-      <strong>{money(savedOrderAmount)}</strong>
-    </p>
+                    <div
+                      style={{
+                        padding: 16,
+                        marginTop: 20,
+                        background: "#FFF8EA",
+                        border: "1px solid #D8C59F",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <h3 style={{ color: "#123F42", marginTop: 0 }}>
+                        Order Payment Summary
+                      </h3>
 
-    <p>
-      Delivery charges will be confirmed by our business.
-    </p>
+                      <p>
+                        Payment Method:{" "}
+                        <strong>{savedPaymentMethod}</strong>
+                      </p>
 
-    {savedPaymentMethod.toLowerCase().includes("cash") ||
-    savedPaymentMethod.toLowerCase().includes("cod") ? (
-      <p>
-        Cash on Delivery: payment delivery receive karte waqt
-        ada karein.
-      </p>
-    ) : (
-      <>
-        <h3>Transfer to this account</h3>
+                      <p>
+                        Product Subtotal:{" "}
+                        <strong>{money(savedOrderAmount)}</strong>
+                      </p>
 
-        {availablePaymentAccounts
-          .filter((account) => {
-            const provider = account.provider.trim().toLowerCase();
-            const method = savedPaymentMethod.trim().toLowerCase();
+                      <p style={{ fontSize: 13 }}>
+                        Delivery charges are not included in this amount.
+                        Our business will confirm delivery charges and
+                        final payable amount separately.
+                      </p>
+                    </div>
 
-            return (
-              provider === method ||
-              method.includes(provider) ||
-              provider.includes(method)
-            );
-          })
-          .sort(
-            (a, b) =>
-              Number(b.is_primary) - Number(a.is_primary)
-          )
-          .map((account) => (
-            <div
-              key={account.id}
-              style={{
-                padding: "12px",
-                marginTop: "10px",
-                border: "1px solid #d6c7a1",
-                borderRadius: "8px",
-              }}
-            >
-              <p>
-                Account title: <strong>{account.account_title}</strong>
-              </p>
-              <p>
-                Account number: <strong>{account.account_number}</strong>
-              </p>
-              {account.iban && (
-                <p>
-                  IBAN: <strong>{account.iban}</strong>
-                </p>
-              )}
-              <p>Currency: {account.currency}</p>
-            </div>
-          ))}
+                    {isCashOnDelivery(savedPaymentMethod) ? (
+                      <div
+                        style={{
+                          padding: 16,
+                          marginTop: 16,
+                          background: "#FFF8EA",
+                          border: "1px solid #D8C59F",
+                          borderRadius: 6,
+                        }}
+                      >
+                        <h3>Cash on Delivery</h3>
 
-        {availablePaymentAccounts.filter((account) => {
-          const provider = account.provider.trim().toLowerCase();
-          const method = savedPaymentMethod.trim().toLowerCase();
+                        <p>
+                          Aap delivery receive karte waqt cash payment
+                          ada kar sakte hain.
+                        </p>
 
-          return (
-            provider === method ||
-            method.includes(provider) ||
-            provider.includes(method)
-          );
-        }).length === 0 && (
-          <p>
-            Payment account details are not available right now.
-            Please contact us on WhatsApp.
-          </p>
-        )}
+                        <p>
+                          Hamari team order availability aur delivery
+                          arrangements confirm karegi.
+                        </p>
 
-        <p>
-          Payment karne ke baad screenshot WhatsApp par bhejein.
-          Admin payment verify karne ke baad status update karega.
-        </p>
+                        <p>
+                          Order Status:{" "}
+                          <strong>Pending Confirmation</strong>
+                        </p>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          padding: 16,
+                          marginTop: 16,
+                          background: "#FFF8EA",
+                          border: "1px solid #D8C59F",
+                          borderRadius: 6,
+                        }}
+                      >
+                        <h3 style={{ color: "#123F42" }}>
+                          Payment Instructions
+                        </h3>
 
-       {WHATSAPP_NUMBER && (
-  <a
-    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
-      `Assalam-o-Alaikum, I have placed order ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Amount: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot.`
-    )}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    style={goldButton}
-  >
-    Send Payment Screenshot on WhatsApp
-  </a>
-        )}
-      </>
-    )}
+                        {savedPaymentInstructions && (
+                          <p>{savedPaymentInstructions}</p>
+                        )}
 
-    <p>Payment status: Pending verification</p>
-    <p>Order status: Pending confirmation</p>
-  </div>
-) : (
+                        {savedPaymentAccounts.length > 0 ? (
+                          savedPaymentAccounts.map((account) => (
+                            <div
+                              key={String(account.id)}
+                              style={{
+                                border: "1px solid #D8C59F",
+                                padding: 14,
+                                marginTop: 14,
+                                borderRadius: 6,
+                                background: "#FFFDF7",
+                              }}
+                            >
+                              <p>
+                                <strong>
+                                  {account.account_name || account.provider}
+                                </strong>
 
+                                {account.is_primary && (
+                                  <span
+                                    style={{
+                                      marginLeft: 8,
+                                      fontSize: 11,
+                                      color: "#237A4B",
+                                    }}
+                                  >
+                                    PRIMARY ACCOUNT
+                                  </span>
+                                )}
+                              </p>
+
+                              <p>
+                                Account Provider:{" "}
+                                <strong>{account.provider}</strong>
+                              </p>
+
+                              <p>
+                                Account Type:{" "}
+                                <strong>
+                                  {account.wallet_owner_type || "Personal"}
+                                </strong>
+                              </p>
+
+                              <p>
+                                Account Title:{" "}
+                                <strong>{account.account_title}</strong>
+                              </p>
+
+                              <p>
+                                Account Number:{" "}
+                                <strong style={{ overflowWrap: "anywhere" }}>
+                                  {account.account_number}
+                                </strong>
+                              </p>
+
+                              <button
+                                type="button"
+                                className="mm-gold-button"
+                                onClick={() =>
+                                  copyPaymentDetail(
+                                    account.account_number,
+                                    `Account ${String(account.id)}`
+                                  )
+                                }
+                              >
+                                {copiedPaymentDetail ===
+                                `Account ${String(account.id)}`
+                                  ? "Copied ✓"
+                                  : "Copy Account Number"}
+                              </button>
+
+                              {account.iban && (
+                                <>
+                                  <p style={{ overflowWrap: "anywhere" }}>
+                                    IBAN: <strong>{account.iban}</strong>
+                                  </p>
+
+                                  <button
+                                    type="button"
+                                    className="mm-gold-button"
+                                    onClick={() =>
+                                      copyPaymentDetail(
+                                        account.iban || "",
+                                        `IBAN ${String(account.id)}`
+                                      )
+                                    }
+                                  >
+                                    {copiedPaymentDetail ===
+                                    `IBAN ${String(account.id)}`
+                                      ? "Copied ✓"
+                                      : "Copy IBAN"}
+                                  </button>
+                                </>
+                              )}
+
+                              <p>
+                                Currency:{" "}
+                                <strong>{account.currency || "PKR"}</strong>
+                              </p>
+
+                              {account.qr_image_url && (
+                                <div style={{ marginTop: 16 }}>
+                                  <p><strong>Scan QR to Pay</strong></p>
+
+                                  <img
+                                    src={account.qr_image_url}
+                                    alt={`${account.provider} payment QR code`}
+                                    loading="lazy"
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      maxWidth: 260,
+                                      height: "auto",
+                                      margin: "10px auto",
+                                      border: "1px solid #D8C59F",
+                                      padding: 8,
+                                      background: "#FFFFFF",
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p>
+                            Is payment method ka active account abhi
+                            available nahi hai. Payment bhejne se pehle
+                            business se WhatsApp par account details
+                            confirm karein.
+                          </p>
+                        )}
+
+                        {isJazzCash(savedPaymentMethod) && (
+                          <div style={{ marginTop: 18 }}>
+                            <a
+                              href="https://www.jazzcash.com.pk/deeplink/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={goldButton}
+                            >
+                              Open JazzCash
+                            </a>
+
+                            <p style={{ fontSize: 12 }}>
+                              JazzCash ka official link hai. App opening
+                              aur payment amount filling device ke mutabiq
+                              different ho sakti hai. Payment khud verify
+                              karein.
+                            </p>
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            borderTop: "1px solid #D8C59F",
+                            marginTop: 20,
+                            paddingTop: 15,
+                          }}
+                        >
+                          <h3>Payment Verification</h3>
+
+                          <p>
+                            Payment karne ke baad screenshot WhatsApp par
+                            bhejein. Admin apne payment account mein amount
+                            verify karne ke baad payment status update karega.
+                          </p>
+
+                          <p>
+                            Payment Status:{" "}
+                            <strong style={{ color: "#A16B16" }}>
+                              Pending Verification
+                            </strong>
+                          </p>
+
+                          <p>
+                            Order Status:{" "}
+                            <strong>Pending Confirmation</strong>
+                          </p>
+
+                          {WHATSAPP_NUMBER && (
+                            <a
+                              href={`https://wa.me/${WHATSAPP_NUMBER.replace(
+                                /\D/g,
+                                ""
+                              )}?text=${encodeURIComponent(
+                                `Assalam-o-Alaikum Multani Mithas. My order number is ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Product subtotal: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot for verification.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                ...goldButton,
+                                width: "100%",
+                                textAlign: "center",
+                                marginTop: 12,
+                              }}
+                            >
+                              Send Payment Screenshot on WhatsApp
+                            </a>
+                          )}
+
+                          {!WHATSAPP_NUMBER && (
+                            <p>
+                              WhatsApp screenshot option business number
+                              configure hone ke baad available hoga.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ textAlign: "center", marginTop: 22 }}>
+                      <button
+                        type="button"
+                        className="mm-gold-button"
+                        onClick={() => setCartOpen(false)}
+                      >
+                        Continue Shopping
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <>
                     Your cart is empty. Explore our collection and choose
                     your favourite sweets.
@@ -1987,65 +2313,55 @@ setDeliveryAddress("");
                       required
                     >
                       {availablePaymentMethods.map((method) => (
-                        <option key={method.id} value={method.name}>
+                        <option
+                          key={String(method.id)}
+                          value={method.name}
+                        >
                           {method.name}
                         </option>
                       ))}
                     </select>
                   </label>
 
-                  {availablePaymentMethods.find(
-                    (method) => method.name === paymentMethod
-                  )?.description && (
+                  {getSelectedPaymentMethod(paymentMethod)?.description && (
                     <p style={{ fontSize: 13, marginTop: -8 }}>
-                      {
-                        availablePaymentMethods.find(
-                          (method) => method.name === paymentMethod
-                        )?.description
-                      }
+                      {getSelectedPaymentMethod(paymentMethod)?.description}
                     </p>
                   )}
 
-                  {availablePaymentMethods.find(
-                    (method) => method.name === paymentMethod
-                  )?.instructions && (
-                    <p style={{ fontSize: 13, marginTop: -8 }}>
-                      {
-                        availablePaymentMethods.find(
-                          (method) => method.name === paymentMethod
-                        )?.instructions
-                      }
+                  {!isCashOnDelivery(paymentMethod) && (
+                    <div
+                      style={{
+                        padding: 15,
+                        border: "1px solid #D8C59F",
+                        background: "#FFFDF7",
+                        borderRadius: 6,
+                      }}
+                    >
+                      <h3 style={{ marginTop: 0, color: "#123F42" }}>
+                        Selected Payment Method
+                      </h3>
+
+                      <p>
+                        {paymentMethod} select kiya gaya hai. Order submit
+                        karne ke baad payment instructions aur available
+                        account details show hongi.
+                      </p>
+
+                      <p style={{ fontSize: 13 }}>
+                        Payment order submit hone ke baad karein. Payment
+                        verification admin manually karega.
+                      </p>
+                    </div>
+                  )}
+
+                  {isCashOnDelivery(paymentMethod) && (
+                    <p style={{ fontSize: 13 }}>
+                      Cash on Delivery select kiya gaya hai. Payment
+                      delivery receive karte waqt ada karein.
                     </p>
                   )}
 
-                  {availablePaymentAccounts
-                    .filter(
-                      (account) =>
-                        account.provider.trim().toLowerCase() ===
-                        paymentMethod.trim().toLowerCase()
-                    )
-                    .sort(
-                      (a, b) =>
-                        Number(b.is_primary) - Number(a.is_primary)
-                    )
-                    .map((account) => (
-                      <div
-                        key={account.id}
-                        style={{
-                          border: "1px solid #c9a45c",
-                          borderRadius: 10,
-                          padding: 14,
-                          marginTop: 12,
-                        }}
-                      >
-                        <p><strong>Payment Account</strong></p>
-                        <p>Account Title: {account.account_title}</p>
-                        <p>Account Number: {account.account_number}</p>
-                        {account.iban && <p>IBAN: {account.iban}</p>}
-                        <p>Currency: {account.currency}</p>
-                      </div>
-                    ))}
-                    
                   <p style={{ fontSize: 14 }}>
                     Online payment is not processed automatically. Payment
                     verification and delivery charges will be confirmed
@@ -2059,8 +2375,8 @@ setDeliveryAddress("");
                     style={{ width: "100%" }}
                   >
                     {submittingOrder
-                      ? "Saving Order..."
-                      : "Place Order & Save"}
+                      ? "Submitting Your Order..."
+                      : "Confirm & Place Order"}
                   </button>
                 </form>
               </div>
