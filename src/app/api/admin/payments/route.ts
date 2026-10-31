@@ -36,6 +36,7 @@ export async function GET(request: Request) {
           id, account_name, account_type, provider,
           account_title, account_number, iban,
           currency, is_primary, is_active,
+          wallet_owner_type, qr_image_url,
           created_at, updated_at
         FROM business_payment_accounts
         ORDER BY is_primary DESC, id ASC
@@ -154,6 +155,16 @@ export async function POST(request: Request) {
           ? data.accountType.trim().toLowerCase()
           : "";
 
+      const walletOwnerType =
+        typeof data.walletOwnerType === "string"
+          ? data.walletOwnerType.trim().toLowerCase()
+          : "personal";
+
+      const qrImageUrl =
+        typeof data.qrImageUrl === "string"
+          ? data.qrImageUrl.trim()
+          : "";
+
       const provider =
         typeof data.provider === "string"
           ? data.provider.trim()
@@ -184,19 +195,27 @@ export async function POST(request: Request) {
       }
 
       if (!accountTitle || accountTitle.length > 150) {
-  return jsonError("Account title required hai.");
-}
+        return jsonError("Account title required hai.");
+      }
 
-if (!accountNumber && !iban) {
-  return jsonError("Account number ya IBAN zaroori hai.");
-}
+      if (!accountNumber && !iban) {
+        return jsonError("Account number ya IBAN zaroori hai.");
+      }
 
-if (accountNumber.length > 50 || iban.length > 50) {
-  return jsonError("Account details ki length valid nahi hai.");
-}
+      if (accountNumber.length > 50 || iban.length > 50) {
+        return jsonError("Account details ki length valid nahi hai.");
+      }
 
       if (!["bank", "wallet", "raast", "other"].includes(accountType)) {
         return jsonError("Account type valid nahi hai.");
+      }
+
+      if (!["personal", "merchant"].includes(walletOwnerType)) {
+        return jsonError("Wallet owner type valid nahi hai.");
+      }
+
+      if (qrImageUrl.length > 2000) {
+        return jsonError("QR image URL bohat lamba hai.");
       }
 
       if (!/^[A-Z]{3}$/.test(currency)) {
@@ -216,12 +235,14 @@ if (accountNumber.length > 50 || iban.length > 50) {
         INSERT INTO business_payment_accounts (
           account_name, account_type, provider,
           account_title, account_number, iban,
-          currency, is_primary, is_active
+          currency, wallet_owner_type, qr_image_url,
+          is_primary, is_active
         )
         VALUES (
           ${accountName}, ${accountType}, ${provider},
           ${accountTitle}, ${accountNumber}, ${iban},
-          ${currency}, ${makePrimary}, true
+          ${currency}, ${walletOwnerType}, ${qrImageUrl},
+          ${makePrimary}, true
         )
         RETURNING *
       `;
