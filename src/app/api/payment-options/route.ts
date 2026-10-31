@@ -39,22 +39,23 @@ export async function GET() {
         ORDER BY display_order ASC, id ASC
       `,
 
-      sql`
-        SELECT
-          id,
-          account_name,
-          account_type,
-          provider,
-          account_title,
-          account_number,
-          iban,
-          currency,
-          is_primary,
-          wallet_owner_type,
-          qr_image_url
-        FROM business_payment_accounts
-        WHERE is_active = true
-        ORDER BY is_primary DESC, id ASC
+     sql`
+  SELECT
+    id,
+    account_name,
+    account_type,
+    provider,
+    account_title,
+    account_number,
+    iban,
+    currency,
+    is_primary,
+    wallet_owner_type,
+    qr_image_url,
+    app_link
+  FROM business_payment_accounts
+  WHERE is_active = true
+  ORDER BY is_primary DESC, id ASC
       `,
     ]);
 
