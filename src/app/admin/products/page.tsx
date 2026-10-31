@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -71,6 +70,81 @@ function money(value: number) {
   return `Rs. ${Number(value || 0).toLocaleString("en-PK", {
     maximumFractionDigits: 2,
   })}`;
+}
+
+/**
+ * Weight ko kilograms mein convert karke per-KG rate se price calculate karta hai.
+ * Supported examples: 250g, 500 gm, 1kg, 2 kg, 0.5kg, 1.5 kilograms.
+ * Invalid format par null return hota hai.
+ */
+function calculatePriceFromWeight(
+  weight: string,
+  pricePerKg: number
+): number | null {
+  const match = weight
+    .trim()
+    .match(
+      /^(\d+(?:\.\d+)?)\s*(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)$/i
+    );
+
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    !Number.isFinite(pricePerKg) ||
+    pricePerKg < 0
+  ) {
+    return null;
+  }
+
+  const unit = match[2].toLowerCase();
+
+  const kilograms = ["kg", "kgs", "kilogram", "kilograms"].includes(unit)
+    ? amount
+    : amount / 1000;
+
+  return Math.round(kilograms * pricePerKg * 100) / 100;
+}
+
+/**
+ * Weight ko standard display format mein convert karta hai.
+ * Example: 0.25kg => 250g, 1.00kg => 1kg.
+ * Unrecognized format ko original form mein rakhta hai.
+ */
+function displayWeight(weight: string): string {
+  const match = weight
+    .trim()
+    .match(
+      /^(\d+(?:\.\d+)?)\s*(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)$/i
+    );
+
+  if (!match) return weight.trim();
+
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (!Number.isFinite(amount) || amount <= 0) return weight.trim();
+
+  const isKg = ["kg", "kgs", "kilogram", "kilograms"].includes(unit);
+
+  if (isKg) {
+    const grams = amount * 1000;
+
+    if (grams < 1000) {
+      return `${Number(grams.toFixed(3))}g`;
+    }
+
+    return `${Number(amount.toFixed(3))}kg`;
+  }
+
+  if (amount >= 1000) {
+    return `${Number((amount / 1000).toFixed(3))}kg`;
+  }
+
+  return `${Number(amount.toFixed(3))}g`;
 }
 
 function getProfit(
@@ -367,16 +441,31 @@ export default function ProductsPage() {
 
     for (const option of form.weight_options) {
       const optionWeight = option.weight.trim();
-      const optionPrice = Number(option.price);
 
       if (!optionWeight) {
         alert("Har weight option ka naam likho. Misal: 250g ya 1kg.");
         return;
       }
 
-      if (!Number.isFinite(optionPrice) || optionPrice < 0) {
-        alert(`"${optionWeight}" ki price valid honi chahiye.`);
-        return;
+      if (form.price_type === "per_kg") {
+        const calculatedPrice = calculatePriceFromWeight(
+          optionWeight,
+          Number(form.price)
+        );
+
+        if (calculatedPrice === null) {
+          alert(
+            `"${optionWeight}" ka weight format samajh nahi aaya. Sirf 250g, 500g, 1kg, 2kg jaisa format likho.`
+          );
+          return;
+        }
+      } else {
+        const optionPrice = Number(option.price);
+
+        if (!Number.isFinite(optionPrice) || optionPrice < 0) {
+          alert(`"${optionWeight}" ki price valid honi chahiye.`);
+          return;
+        }
       }
 
       const normalizedWeight = optionWeight.toLowerCase();
@@ -400,8 +489,14 @@ export default function ProductsPage() {
         discount: Number(form.discount),
         stock: Number(form.stock),
         weight_options: form.weight_options.map((option) => ({
-          weight: option.weight.trim(),
-          price: Number(option.price),
+          weight: displayWeight(option.weight),
+          price:
+            form.price_type === "per_kg"
+              ? calculatePriceFromWeight(
+                  option.weight,
+                  Number(form.price)
+                ) ?? 0
+              : Number(option.price),
         })),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
@@ -958,9 +1053,9 @@ export default function ProductsPage() {
                 </div>
 
                 <div style={infoBoxStyle}>
-                  Base price purane system aur compatibility ke liye hai.
-                  Customer ke liye neeche diye gaye Weight & Price Options
-                  istemal honge. Har product ki apni asli prices enter karo.
+                  {form.price_type === "per_kg"
+                    ? "Per KG rate enter karo. Neeche har weight ki selling price automatically calculate hogi. Misal: Rs. 2,000 per KG par 250g = Rs. 500 aur 500g = Rs. 1,000."
+                    : "Fixed price products ke liye neeche har weight ya box option ki selling price manually enter karo."}
                 </div>
               </section>
 
@@ -968,10 +1063,9 @@ export default function ProductsPage() {
                 <SectionHeading>02 · Weight & Price Options</SectionHeading>
 
                 <p style={helperTextStyle}>
-                  Is product ke available weights aur unki actual selling
-                  prices enter karo. Har product ki options aur prices alag
-                  ho sakti hain. Sirf wohi options add karo jo waqai available
-                  hain.
+                  {form.price_type === "per_kg"
+                    ? "Weight enter karo. Price per KG rate se automatically calculate hogi. Gram aur kilogram dono likh sakte ho, misal: 250g, 500g, 1kg, 2kg ya 5kg."
+                    : "Is fixed-price product ke available weights aur unki actual selling prices enter karo."}
                 </p>
 
                 {form.weight_options.length === 0 && (
@@ -981,65 +1075,123 @@ export default function ProductsPage() {
                   </div>
                 )}
 
-                {form.weight_options.map((option, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "minmax(120px, 1fr) minmax(120px, 1fr) auto",
-                      gap: 10,
-                      alignItems: "end",
-                      padding: 12,
-                      marginTop: 12,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: 9,
-                      background: colors.cream,
-                    }}
-                  >
-                    <Field label={`Weight / Size ${index + 1}`}>
-                      <input
-                        value={option.weight}
-                        onChange={(event) =>
-                          updateWeightOption(
-                            index,
-                            "weight",
-                            event.target.value
-                          )
-                        }
-                        placeholder="Misal: 250g, 500g, 1kg"
-                        style={inputStyle}
-                      />
-                    </Field>
+                {form.weight_options.map((option, index) => {
+                  const calculatedPrice =
+                    form.price_type === "per_kg"
+                      ? calculatePriceFromWeight(
+                          option.weight,
+                          Number(form.price)
+                        )
+                      : null;
 
-                    <Field label="Selling Price (Rs.)">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={option.price}
-                        onChange={(event) =>
-                          updateWeightOption(
-                            index,
-                            "price",
-                            event.target.value
-                          )
-                        }
-                        style={inputStyle}
-                      />
-                    </Field>
+                  const invalidWeight =
+                    form.price_type === "per_kg" &&
+                    option.weight.trim() !== "" &&
+                    calculatedPrice === null;
 
-                    <button
-                      type="button"
-                      onClick={() => removeWeightOption(index)}
+                  return (
+                    <div
+                      key={index}
                       style={{
-                        ...deleteButtonStyle,
-                        padding: "12px 13px",
+                        display: "grid",
+                        gridTemplateColumns:
+                          "minmax(120px, 1fr) minmax(120px, 1fr) auto",
+                        gap: 10,
+                        alignItems: "end",
+                        padding: 12,
+                        marginTop: 12,
+                        border: `1px solid ${
+                          invalidWeight ? colors.red : colors.border
+                        }`,
+                        borderRadius: 9,
+                        background: colors.cream,
                       }}
                     >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                      <Field label={`Weight / Size ${index + 1}`}>
+                        <input
+                          value={option.weight}
+                          onChange={(event) =>
+                            updateWeightOption(
+                              index,
+                              "weight",
+                              event.target.value
+                            )
+                          }
+                          placeholder="Misal: 250g, 500g, 1kg"
+                          style={inputStyle}
+                        />
+                      </Field>
+
+                      {form.price_type === "per_kg" ? (
+                        <Field label="Calculated Selling Price (Rs.)">
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              calculatedPrice === null
+                                ? ""
+                                : money(calculatedPrice)
+                            }
+                            placeholder={
+                              invalidWeight
+                                ? "Invalid weight"
+                                : "Weight enter karo"
+                            }
+                            style={{
+                              ...inputStyle,
+                              background: "#edf4ef",
+                              color: colors.teal,
+                              fontWeight: 800,
+                              borderColor: invalidWeight
+                                ? colors.red
+                                : colors.border,
+                            }}
+                          />
+                          {invalidWeight && (
+                            <span
+                              style={{
+                                display: "block",
+                                color: colors.red,
+                                fontSize: 10,
+                                marginTop: 5,
+                              }}
+                            >
+                              Weight format theek nahi. 250g ya 1kg likho.
+                            </span>
+                          )}
+                        </Field>
+                      ) : (
+                        <Field label="Selling Price (Rs.)">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={option.price}
+                            onChange={(event) =>
+                              updateWeightOption(
+                                index,
+                                "price",
+                                event.target.value
+                              )
+                            }
+                            style={inputStyle}
+                          />
+                        </Field>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => removeWeightOption(index)}
+                        style={{
+                          ...deleteButtonStyle,
+                          padding: "12px 13px",
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
 
                 <button
                   type="button"
@@ -1253,11 +1405,12 @@ export default function ProductsPage() {
                           index === viewProduct.weight_options.length - 1
                             ? "none"
                             : `1px solid ${colors.border}`,
-                        background: index % 2 === 0 ? colors.white : colors.cream,
+                        background:
+                          index % 2 === 0 ? colors.white : colors.cream,
                         fontSize: 12,
                       }}
                     >
-                      <strong>{option.weight}</strong>
+                      <strong>{displayWeight(option.weight)}</strong>
                       <strong style={{ color: colors.teal }}>
                         {money(option.price)}
                       </strong>
