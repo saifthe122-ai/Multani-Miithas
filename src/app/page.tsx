@@ -1912,6 +1912,34 @@ const result: unknown = await response.json();
                     </p>
                   )}
 
+                  {availablePaymentAccounts
+                    .filter(
+                      (account) =>
+                        account.provider.trim().toLowerCase() ===
+                        paymentMethod.trim().toLowerCase()
+                    )
+                    .sort(
+                      (a, b) =>
+                        Number(b.is_primary) - Number(a.is_primary)
+                    )
+                    .map((account) => (
+                      <div
+                        key={account.id}
+                        style={{
+                          border: "1px solid #c9a45c",
+                          borderRadius: 10,
+                          padding: 14,
+                          marginTop: 12,
+                        }}
+                      >
+                        <p><strong>Payment Account</strong></p>
+                        <p>Account Title: {account.account_title}</p>
+                        <p>Account Number: {account.account_number}</p>
+                        {account.iban && <p>IBAN: {account.iban}</p>}
+                        <p>Currency: {account.currency}</p>
+                      </div>
+                    ))}
+                    
                   <p style={{ fontSize: 14 }}>
                     Online payment is not processed automatically. Payment
                     verification and delivery charges will be confirmed
