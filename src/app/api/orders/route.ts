@@ -431,14 +431,15 @@ export async function PATCH(request: Request) {
       "cancelled",
     ];
 
-    const validPaymentStatuses = [
-      "pending",
-      "paid",
-      "failed",
-      "cancelled",
-      "refunded",
-      "partially refunded",
-    ];
+  const validPaymentStatuses = [
+  "pending",
+  "paid",
+  "failed",
+  "cancelled",
+  "refunded",
+  "partially refunded",
+  "partially_refunded",
+];
 
     if (
       !orderNumber ||
