@@ -26,6 +26,8 @@ type BusinessAccount = {
   currency: string;
   isPrimary: boolean;
   isActive: boolean;
+  walletOwnerType: string;
+  qrImageUrl: string;
 };
 
 type PaymentRecord = {
@@ -71,6 +73,8 @@ const buttonStyle = {
   fontWeight: 700,
 };
 
+const JAZZCASH_LINK = "https://www.jazzcash.com.pk/deeplink/";
+
 export default function PaymentsDashboard() {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
@@ -88,6 +92,8 @@ export default function PaymentsDashboard() {
   const [iban, setIban] = useState("");
   const [currency, setCurrency] = useState("PKR");
   const [isPrimary, setIsPrimary] = useState(false);
+  const [walletOwnerType, setWalletOwnerType] = useState("personal");
+  const [qrFile, setQrFile] = useState<File | null>(null);
 
   async function loadPaymentSettings() {
     try {
@@ -130,6 +136,8 @@ export default function PaymentsDashboard() {
             currency: String(item.currency ?? "PKR"),
             isPrimary: Boolean(item.is_primary),
             isActive: Boolean(item.is_active),
+            walletOwnerType: String(item.wallet_owner_type ?? "personal"),
+            qrImageUrl: String(item.qr_image_url ?? ""),
           })
         )
       );
@@ -236,6 +244,36 @@ export default function PaymentsDashboard() {
     }
   }
 
+  async function uploadQRImage(): Promise<string> {
+    if (!qrFile) return "";
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedTypes.includes(qrFile.type)) {
+      throw new Error("QR image JPG, PNG ya WEBP format mein honi chahiye.");
+    }
+
+    if (qrFile.size === 0 || qrFile.size > 4 * 1024 * 1024) {
+      throw new Error("QR image ka size 4 MB se kam hona chahiye.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", qrFile);
+
+    const response = await fetch("/api/admin/media-upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.success !== true || !result.url) {
+      throw new Error(result.error || "QR image upload nahi hui.");
+    }
+
+    return String(result.url);
+  }
+
   async function addAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -253,6 +291,12 @@ export default function PaymentsDashboard() {
       setSaving(true);
       setNotice("");
 
+      let uploadedQRUrl = "";
+
+      if (qrFile) {
+        uploadedQRUrl = await uploadQRImage();
+      }
+
       const response = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,6 +310,8 @@ export default function PaymentsDashboard() {
           iban: iban.trim(),
           currency,
           isPrimary,
+          walletOwnerType,
+          qrImageUrl: uploadedQRUrl,
         }),
       });
 
@@ -280,9 +326,17 @@ export default function PaymentsDashboard() {
       setAccountNumber("");
       setIban("");
       setIsPrimary(false);
+      setWalletOwnerType("personal");
+      setQrFile(null);
+
+      const fileInput = document.getElementById(
+        "payment-qr-upload"
+      ) as HTMLInputElement | null;
+
+      if (fileInput) fileInput.value = "";
 
       await loadPaymentSettings();
-      setNotice("Business payment account database mein save ho gaya.");
+      setNotice("Business payment account aur QR details database mein save ho gayi hain.");
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : "Account save nahi hua."
@@ -348,7 +402,9 @@ export default function PaymentsDashboard() {
       const result = await response.json();
 
       if (!response.ok || result.success !== true) {
-        throw new Error(result.message || result.error || "Status save nahi hua.");
+        throw new Error(
+          result.message || result.error || "Status save nahi hua."
+        );
       }
 
       setPayments((current) =>
@@ -486,9 +542,8 @@ export default function PaymentsDashboard() {
         <section style={{ ...cardStyle, marginBottom: 24 }}>
           <h2 style={{ marginTop: 0 }}>My Business Payment Accounts</h2>
           <p style={{ color: "#6b7280" }}>
-            Yahan apne business ke JazzCash, Easypaisa, Raast aur bank accounts
-            add karo. Customer ko sirf account title aur payment details dikhayi
-            jayengi.
+            JazzCash, Easypaisa, Raast aur bank accounts manage karo.
+            Personal wallet aur Merchant account ki details alag save hongi.
           </p>
 
           <form
@@ -526,7 +581,7 @@ export default function PaymentsDashboard() {
             </label>
 
             <label>
-              Provider
+              Payment Provider *
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
@@ -540,6 +595,20 @@ export default function PaymentsDashboard() {
               </select>
             </label>
 
+            {(provider === "JazzCash" || provider === "Easypaisa") && (
+              <label>
+                Wallet Account Ownership *
+                <select
+                  value={walletOwnerType}
+                  onChange={(e) => setWalletOwnerType(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="personal">Personal Account</option>
+                  <option value="merchant">Merchant / Business Account</option>
+                </select>
+              </label>
+            )}
+
             <label>
               Account Title *
               <input
@@ -552,11 +621,11 @@ export default function PaymentsDashboard() {
             </label>
 
             <label>
-              Account Number
+              Account Number / Mobile Number
               <input
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
-                placeholder="Wallet or bank account number"
+                placeholder="03XXXXXXXXX"
                 style={inputStyle}
               />
             </label>
@@ -586,6 +655,20 @@ export default function PaymentsDashboard() {
               </select>
             </label>
 
+            <label>
+              Raast / Payment QR Image
+              <input
+                id="payment-qr-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setQrFile(e.target.files?.[0] ?? null)}
+                style={inputStyle}
+              />
+              <small style={{ color: "#6b7280" }}>
+                JPG, PNG ya WEBP · Maximum 4 MB
+              </small>
+            </label>
+
             <label
               style={{
                 display: "flex",
@@ -613,12 +696,18 @@ export default function PaymentsDashboard() {
                   opacity: saving ? 0.6 : 1,
                 }}
               >
-                {saving ? "Saving..." : "Save Business Account"}
+                {saving ? "Saving account and uploading QR..." : "Save Business Account"}
               </button>
             </div>
           </form>
 
-          <hr style={{ border: 0, borderTop: "1px solid #e5e7eb", margin: "25px 0" }} />
+          <hr
+            style={{
+              border: 0,
+              borderTop: "1px solid #e5e7eb",
+              margin: "25px 0",
+            }}
+          />
 
           <h3>Saved Business Accounts</h3>
 
@@ -664,22 +753,81 @@ export default function PaymentsDashboard() {
                   <p style={{ marginBottom: 5, color: "#6b7280" }}>
                     {account.provider} · {account.accountType}
                   </p>
+
+                  {(account.provider.toLowerCase() === "jazzcash" ||
+                    account.provider.toLowerCase() === "easypaisa") && (
+                    <p style={{ margin: "5px 0", fontSize: 13 }}>
+                      <strong>Ownership:</strong>{" "}
+                      {account.walletOwnerType === "merchant"
+                        ? "Merchant / Business"
+                        : "Personal"}
+                    </p>
+                  )}
+
                   <p style={{ margin: "8px 0 4px" }}>
                     <strong>Title:</strong> {account.accountTitle}
                   </p>
+
                   {account.accountNumber && (
                     <p style={{ margin: "4px 0" }}>
                       <strong>Account:</strong> {account.accountNumber}
                     </p>
                   )}
+
                   {account.iban && (
                     <p style={{ margin: "4px 0" }}>
                       <strong>IBAN:</strong> {account.iban}
                     </p>
                   )}
+
                   <p style={{ margin: "4px 0 14px" }}>
                     <strong>Currency:</strong> {account.currency}
                   </p>
+
+                  {account.qrImageUrl && (
+                    <div style={{ margin: "12px 0" }}>
+                      <p style={{ fontWeight: 700, marginBottom: 8 }}>
+                        Saved Payment QR
+                      </p>
+                      <a
+                        href={account.qrImageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <img
+                          src={account.qrImageUrl}
+                          alt={`${account.accountName} payment QR`}
+                          style={{
+                            width: 170,
+                            height: 170,
+                            objectFit: "contain",
+                            background: "#fff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 10,
+                            padding: 6,
+                          }}
+                        />
+                      </a>
+                    </div>
+                  )}
+
+                  {account.provider.toLowerCase() === "jazzcash" && (
+                    <a
+                      href={JAZZCASH_LINK}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        ...buttonStyle,
+                        display: "inline-block",
+                        background: "#e11d48",
+                        color: "#fff",
+                        textDecoration: "none",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Open JazzCash
+                    </a>
+                  )}
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
@@ -887,17 +1035,18 @@ export default function PaymentsDashboard() {
         >
           <h2 style={{ marginTop: 0 }}>Payment Security</h2>
           <p>
-            Customer ko sirf business account title, account number ya IBAN
-            dikhaya jana chahiye.
+            Customer ko sirf business account title, account number, IBAN aur
+            configured payment QR dikhaya jana chahiye.
           </p>
           <p>
             Personal wallet PIN, OTP aur password website par kabhi save ya
             display nahi karne.
           </p>
           <p style={{ marginBottom: 0 }}>
-            Manual transfer ko payment proof aur admin verification ke baad hi
-            Paid mark karna hai. Gateway payment ke liye provider ki server-side
-            confirmation zaroori hogi.
+            Manual transfer ko apni JazzCash app mein verify karne ke baad hi
+            Paid mark karna hai. Screenshot akela payment confirmation nahi
+            hota. Gateway payment ke liye provider ki server-side confirmation
+            zaroori hogi.
           </p>
         </section>
       </div>
