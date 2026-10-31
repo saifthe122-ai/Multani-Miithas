@@ -371,8 +371,11 @@ export async function PATCH(request: Request) {
 
       const makePrimary = data.isPrimary === true;
 
-      const appLinkProvided = typeof data.appLink === "string";
-const appLink = appLinkProvided ? data.appLink.trim() : null;
+    const appLinkProvided = typeof data.appLink === "string";
+const appLink =
+  typeof data.appLink === "string"
+    ? data.appLink.trim()
+    : null;
 
 if (appLink) {
   try {
