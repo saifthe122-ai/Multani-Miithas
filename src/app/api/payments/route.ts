@@ -1,115 +1,353 @@
 
 import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const paymentMethods = [
-  "Cash on Delivery",
-  "Bank Transfer",
-  "JazzCash",
-  "Easypaisa",
-  "International Payments",
-] as const;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type PaymentMethod = (typeof paymentMethods)[number];
+const sql = neon(process.env.DATABASE_URL!);
 
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "Multani Mithas Payments API is ready",
-    paymentGateways: paymentMethods,
-    livePaymentsEnabled: false,
-    databaseConnected: false,
-    note: "Testing mode only. No real payment is processed.",
-  });
+function jsonError(message: string, status = 400) {
+  return NextResponse.json(
+    { success: false, message },
+    { status }
+  );
+}
+
+async function requireAdmin(request: Request) {
+  return await isAdminRequest(request);
+}
+
+export async function GET(request: Request) {
+  if (!(await requireAdmin(request))) {
+    return jsonError("Admin login required", 401);
+  }
+
+  try {
+    const [methods, accounts, gateways] = await Promise.all([
+      sql`
+        SELECT *
+        FROM payment_methods
+        ORDER BY display_order ASC, id ASC
+      `,
+      sql`
+        SELECT
+          id, account_name, account_type, provider,
+          account_title, account_number, iban,
+          currency, is_primary, is_active,
+          created_at, updated_at
+        FROM business_payment_accounts
+        ORDER BY is_primary DESC, id ASC
+      `,
+      sql`
+        SELECT
+          id, provider, environment, is_connected,
+          public_config, created_at, updated_at
+        FROM payment_gateway_configs
+        ORDER BY provider ASC
+      `,
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      methods,
+      accounts,
+      gateways,
+      databaseConnected: true,
+    });
+  } catch (error) {
+    console.error("Payment settings load failed:", error);
+    return jsonError("Payment settings load nahi ho sakin.", 500);
+  }
 }
 
 export async function POST(request: Request) {
+  if (!(await requireAdmin(request))) {
+    return jsonError("Admin login required", 401);
+  }
+
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
 
-    if (
-      !body ||
-      typeof body !== "object" ||
-      Array.isArray(body)
-    ) {
-      return NextResponse.json(
-        { success: false, message: "Invalid payment request" },
-        { status: 400 }
-      );
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return jsonError("Invalid request body.");
     }
 
-    const method = body.method;
-    const amount = body.amount;
-    const orderId = body.orderId;
+    const data = body as Record<string, unknown>;
+    const action = data.action;
 
-    if (
-      typeof method !== "string" ||
-      !paymentMethods.includes(method as PaymentMethod)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Please select a valid payment method",
-          allowedMethods: paymentMethods,
-        },
-        { status: 400 }
-      );
-    }
+    if (action === "create_method") {
+      const methodKey =
+        typeof data.methodKey === "string"
+          ? data.methodKey.trim().toLowerCase()
+          : "";
 
-    if (
-      typeof amount !== "number" ||
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Payment amount must be greater than zero",
-        },
-        { status: 400 }
-      );
-    }
+      const name =
+        typeof data.name === "string" ? data.name.trim() : "";
 
-    if (
-      typeof orderId !== "string" ||
-      orderId.trim().length === 0 ||
-      orderId.length > 100
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "A valid order ID is required",
-        },
-        { status: 400 }
-      );
-    }
+      const description =
+        typeof data.description === "string"
+          ? data.description.trim()
+          : "";
 
-    return NextResponse.json(
-      {
+      const paymentType =
+        typeof data.paymentType === "string"
+          ? data.paymentType
+          : "manual";
+
+      const provider =
+        typeof data.provider === "string"
+          ? data.provider.trim()
+          : null;
+
+      const instructions =
+        typeof data.instructions === "string"
+          ? data.instructions.trim()
+          : "";
+
+      const displayOrder =
+        typeof data.displayOrder === "number" &&
+        Number.isSafeInteger(data.displayOrder)
+          ? data.displayOrder
+          : 0;
+
+      if (!/^[a-z0-9_-]{2,60}$/.test(methodKey)) {
+        return jsonError("Method key valid nahi hai.");
+      }
+
+      if (!name || name.length > 100) {
+        return jsonError("Payment method ka naam required hai.");
+      }
+
+      if (!["manual", "gateway", "manual_gateway"].includes(paymentType)) {
+        return jsonError("Payment type valid nahi hai.");
+      }
+
+      const result = await sql`
+        INSERT INTO payment_methods (
+          method_key, name, description, payment_type,
+          provider, is_enabled, instructions, display_order
+        )
+        VALUES (
+          ${methodKey}, ${name}, ${description}, ${paymentType},
+          ${provider}, false, ${instructions}, ${displayOrder}
+        )
+        RETURNING *
+      `;
+
+      return NextResponse.json({
         success: true,
-        message: "Payment request received in testing mode",
-        payment: {
-          orderId: orderId.trim(),
-          method,
-          amount,
-          currency: "PKR",
-          paymentStatus: "pending",
-        },
-        livePaymentsEnabled: false,
-        paymentProcessed: false,
-        saved: false,
-        databaseConnected: false,
-        note:
-          "No money was collected. A verified payment provider and database are required for live payments.",
-      },
-      { status: 202 }
+        message: "Payment method add ho gaya.",
+        method: result[0],
+      });
+    }
+
+    if (action === "create_account") {
+      const accountName =
+        typeof data.accountName === "string"
+          ? data.accountName.trim()
+          : "";
+
+      const accountType =
+        typeof data.accountType === "string"
+          ? data.accountType.trim().toLowerCase()
+          : "";
+
+      const provider =
+        typeof data.provider === "string"
+          ? data.provider.trim()
+          : null;
+
+      const accountTitle =
+        typeof data.accountTitle === "string"
+          ? data.accountTitle.trim()
+          : "";
+
+      const accountNumber =
+        typeof data.accountNumber === "string"
+          ? data.accountNumber.trim()
+          : "";
+
+      const iban =
+        typeof data.iban === "string"
+          ? data.iban.trim()
+          : "";
+
+      const currency =
+        typeof data.currency === "string"
+          ? data.currency.trim().toUpperCase()
+          : "PKR";
+
+      if (!accountName || accountName.length > 100) {
+        return jsonError("Account name required hai.");
+      }
+
+      if (!["bank", "wallet", "raast", "other"].includes(accountType)) {
+        return jsonError("Account type valid nahi hai.");
+      }
+
+      if (!/^[A-Z]{3}$/.test(currency)) {
+        return jsonError("Currency code valid nahi hai.");
+      }
+
+      const makePrimary = data.isPrimary === true;
+
+      if (makePrimary) {
+        await sql`
+          UPDATE business_payment_accounts
+          SET is_primary = false, updated_at = NOW()
+        `;
+      }
+
+      const result = await sql`
+        INSERT INTO business_payment_accounts (
+          account_name, account_type, provider,
+          account_title, account_number, iban,
+          currency, is_primary, is_active
+        )
+        VALUES (
+          ${accountName}, ${accountType}, ${provider},
+          ${accountTitle}, ${accountNumber}, ${iban},
+          ${currency}, ${makePrimary}, true
+        )
+        RETURNING *
+      `;
+
+      return NextResponse.json({
+        success: true,
+        message: "Business account add ho gaya.",
+        account: result[0],
+      });
+    }
+
+    return jsonError("Action valid nahi hai.");
+  } catch (error) {
+    console.error("Payment settings save failed:", error);
+
+    return jsonError(
+      "Payment settings save nahi ho sakin. Duplicate method key bhi check karein.",
+      500
     );
-  } catch {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Invalid JSON data",
-      },
-      { status: 400 }
-    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!(await requireAdmin(request))) {
+    return jsonError("Admin login required", 401);
+  }
+
+  try {
+    const body: unknown = await request.json();
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return jsonError("Invalid request body.");
+    }
+
+    const data = body as Record<string, unknown>;
+    const action = data.action;
+
+    if (action === "update_method") {
+      const id = Number(data.id);
+
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        return jsonError("Payment method ID valid nahi.");
+      }
+
+      const name =
+        typeof data.name === "string" ? data.name.trim() : null;
+
+      const description =
+        typeof data.description === "string"
+          ? data.description.trim()
+          : null;
+
+      const instructions =
+        typeof data.instructions === "string"
+          ? data.instructions.trim()
+          : null;
+
+      const isEnabled =
+        typeof data.isEnabled === "boolean"
+          ? data.isEnabled
+          : null;
+
+      const displayOrder =
+        typeof data.displayOrder === "number" &&
+        Number.isSafeInteger(data.displayOrder)
+          ? data.displayOrder
+          : null;
+
+      const result = await sql`
+        UPDATE payment_methods
+        SET
+          name = COALESCE(${name}, name),
+          description = COALESCE(${description}, description),
+          instructions = COALESCE(${instructions}, instructions),
+          is_enabled = COALESCE(${isEnabled}, is_enabled),
+          display_order = COALESCE(${displayOrder}, display_order),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
+      if (!result.length) {
+        return jsonError("Payment method nahi mila.", 404);
+      }
+
+      return NextResponse.json({
+        success: true,
+        method: result[0],
+      });
+    }
+
+    if (action === "update_account") {
+      const id = Number(data.id);
+
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        return jsonError("Account ID valid nahi.");
+      }
+
+      const isActive =
+        typeof data.isActive === "boolean"
+          ? data.isActive
+          : null;
+
+      const makePrimary = data.isPrimary === true;
+
+      if (makePrimary) {
+        await sql`
+          UPDATE business_payment_accounts
+          SET is_primary = false, updated_at = NOW()
+        `;
+      }
+
+      const result = await sql`
+        UPDATE business_payment_accounts
+        SET
+          is_active = COALESCE(${isActive}, is_active),
+          is_primary = CASE
+            WHEN ${makePrimary} THEN true
+            ELSE is_primary
+          END,
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
+      if (!result.length) {
+        return jsonError("Business account nahi mila.", 404);
+      }
+
+      return NextResponse.json({
+        success: true,
+        account: result[0],
+      });
+    }
+
+    return jsonError("Action valid nahi hai.");
+  } catch (error) {
+    console.error("Payment settings update failed:", error);
+    return jsonError("Payment settings update nahi ho sakin.", 500);
   }
 }
