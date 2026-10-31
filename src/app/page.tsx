@@ -720,24 +720,25 @@ export default function Home() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-       body: JSON.stringify({
-  customerName: customerName.trim(),
-  phone: customerPhone.trim(),
-  address: deliveryAddress.trim(),
-  paymentMethod,
-  items: items.map((item) => ({
-    productId: String(item.productId),
-    weight: Number(item.weight ?? 1),
-    quantity: Number(item.quantity),
-  })),
-}),
+    const response = await fetch("/api/orders", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    customerName: customerName.trim(),
+    phone: customerPhone.trim(),
+    address: deliveryAddress.trim(),
+    paymentMethod,
+    items: items.map((item) => ({
+      productId: String(item.productId),
+      weight: Number(item.weight ?? 1),
+      quantity: Number(item.quantity),
+    })),
+  }),
+});
 
-      const result: unknown = await response.json();
+const result: unknown = await response.json();
 
       if (!result || typeof result !== "object") {
         throw new Error("Server se valid response nahi mila.");
