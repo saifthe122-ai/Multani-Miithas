@@ -58,6 +58,18 @@ type PaymentMethod = {
   display_order?: number;
 };
 
+type PaymentAccount = {
+  id: string;
+  account_name: string;
+  account_type: string;
+  provider: string;
+  account_title: string;
+  account_number: string;
+  iban?: string;
+  currency: string;
+  is_primary: boolean;
+};
+
 const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
 
 const cartKey = (productId: number, weight: number) =>
@@ -255,7 +267,9 @@ export default function Home() {
 
   const [availablePaymentMethods, setAvailablePaymentMethods] =
     useState<PaymentMethod[]>(fallbackPaymentMethods);
-
+const [availablePaymentAccounts, setAvailablePaymentAccounts] =
+  useState<PaymentAccount[]>([]);
+  
   const [message, setMessage] = useState("");
 
   const [publishedSettings, setPublishedSettings] =
@@ -410,38 +424,66 @@ export default function Home() {
     };
   }, []);
 
-  // Admin mein enabled payment methods load karein.
-  useEffect(() => {
-    let cancelled = false;
+// Admin mein enabled payment methods aur accounts load karein.
+useEffect(() => {
+  let cancelled = false;
 
-    fetch("/api/payment-options", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Payment methods load nahi huay");
+  fetch("/api/payment-options", { cache: "no-store" })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error("Payment options load nahi huay");
+      }
+      return response.json();
+    })
+    .then((result: unknown) => {
+      if (
+        cancelled ||
+        !result ||
+        typeof result !== "object"
+      ) {
+        return;
+      }
+
+      const payload = result as {
+        success?: boolean;
+        methods?: unknown;
+        accounts?: unknown;
+      };
+
+      if (!payload.success) {
+        return;
+      }
+
+      // Payment accounts load karein.
+      if (Array.isArray(payload.accounts)) {
+        const accounts = payload.accounts.filter(
+          (item): item is PaymentAccount => {
+            if (
+              !item ||
+              typeof item !== "object" ||
+              Array.isArray(item)
+            ) {
+              return false;
+            }
+
+            const account = item as Record<string, unknown>;
+
+            return (
+              typeof account.id === "string" &&
+              typeof account.account_title === "string" &&
+              typeof account.account_number === "string" &&
+              typeof account.provider === "string"
+            );
+          }
+        );
+
+        if (!cancelled) {
+          setAvailablePaymentAccounts(accounts);
         }
-        return response.json();
-      })
-      .then((result: unknown) => {
-        if (
-          cancelled ||
-          !result ||
-          typeof result !== "object"
-        ) {
-          return;
-        }
+      }
 
-        const payload = result as {
-          success?: boolean;
-          methods?: unknown;
-        };
-
-        if (
-          !payload.success ||
-          !Array.isArray(payload.methods)
-        ) {
-          return;
-        }
-
+      // Payment methods load karein.
+      if (Array.isArray(payload.methods)) {
         const methods = payload.methods.filter(
           (item): item is PaymentMethod => {
             if (
@@ -472,16 +514,17 @@ export default function Home() {
           setAvailablePaymentMethods(sortedMethods);
           setPaymentMethod(sortedMethods[0].name);
         }
-      })
-      .catch((error: unknown) => {
-        console.error("Payment methods error:", error);
-        // COD fallback pehle se available hai.
-      });
+      }
+    })
+    .catch((error: unknown) => {
+      console.error("Payment options error:", error);
+      // COD fallback pehle se available hai.
+    });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const publishedMedia = Array.isArray(
     publishedSettings?.media
