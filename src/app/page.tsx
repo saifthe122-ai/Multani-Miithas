@@ -1816,7 +1816,7 @@ setDeliveryAddress("");
     Send Payment Screenshot on WhatsApp
   </a>
 )}
-
+        </>
     <p>Payment status: Pending verification</p>
     <p>Order status: Pending confirmation</p>
   </div>
