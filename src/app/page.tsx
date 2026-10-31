@@ -282,9 +282,12 @@ const [availablePaymentAccounts, setAvailablePaymentAccounts] =
   const [paymentMethod, setPaymentMethod] =
     useState("Cash on Delivery");
 
-  const [submittingOrder, setSubmittingOrder] = useState(false);
-  const [savedOrderNumber, setSavedOrderNumber] = useState("");
-  const [cartOpen, setCartOpen] = useState(false);
+ const [submittingOrder, setSubmittingOrder] = useState(false);
+const [savedOrderNumber, setSavedOrderNumber] = useState("");
+const [savedOrderAmount, setSavedOrderAmount] = useState(0);
+const [savedPaymentMethod, setSavedPaymentMethod] = useState("");
+const [savedCustomerPhone, setSavedCustomerPhone] = useState("");
+const [cartOpen, setCartOpen] = useState(false);
 
   // Products database se load karein.
   useEffect(() => {
@@ -800,14 +803,17 @@ const result: unknown = await response.json();
           data.message || "Order save nahi ho saka."
         );
       }
+const orderNumber = data.order?.orderNumber || "";
 
-      const orderNumber = data.order?.orderNumber || "";
+setSavedOrderNumber(orderNumber);
+setSavedOrderAmount(total);
+setSavedPaymentMethod(paymentMethod);
+setSavedCustomerPhone(customerPhone.trim());
 
-      setSavedOrderNumber(orderNumber);
-      setCart({});
-      setCustomerName("");
-      setCustomerPhone("");
-      setDeliveryAddress("");
+setCart({});
+setCustomerName("");
+setCustomerPhone("");
+setDeliveryAddress("");
 
       setMessage(
         orderNumber
@@ -1703,21 +1709,119 @@ const result: unknown = await response.json();
                   margin: "auto",
                 }}
               >
-                {savedOrderNumber ? (
-                  <div role="status">
-                    <h3>Order submitted successfully!</h3>
-                    <p>Your order number is:</p>
-                    <strong style={{ overflowWrap: "anywhere" }}>
-                      {savedOrderNumber}
-                    </strong>
-                    <p>Payment status: Pending verification</p>
-                    <p>Order status: Pending confirmation</p>
-                    <p>
-                      Business delivery charges and payment details will
-                      be confirmed before the order is accepted.
-                    </p>
-                  </div>
-                ) : (
+              {savedOrderNumber ? (
+  <div role="status">
+    <h3>Order submitted successfully!</h3>
+
+    <p>Your order number:</p>
+    <strong style={{ overflowWrap: "anywhere" }}>
+      {savedOrderNumber}
+    </strong>
+
+    <h3 style={{ marginTop: "20px" }}>Payment Details</h3>
+
+    <p>
+      Payment method: <strong>{savedPaymentMethod}</strong>
+    </p>
+
+    <p>
+      Payable product amount:{" "}
+      <strong>{money(savedOrderAmount)}</strong>
+    </p>
+
+    <p>
+      Delivery charges will be confirmed by our business.
+    </p>
+
+    {savedPaymentMethod.toLowerCase().includes("cash") ||
+    savedPaymentMethod.toLowerCase().includes("cod") ? (
+      <p>
+        Cash on Delivery: payment delivery receive karte waqt
+        ada karein.
+      </p>
+    ) : (
+      <>
+        <h3>Transfer to this account</h3>
+
+        {availablePaymentAccounts
+          .filter((account) => {
+            const provider = account.provider.trim().toLowerCase();
+            const method = savedPaymentMethod.trim().toLowerCase();
+
+            return (
+              provider === method ||
+              method.includes(provider) ||
+              provider.includes(method)
+            );
+          })
+          .sort(
+            (a, b) =>
+              Number(b.is_primary) - Number(a.is_primary)
+          )
+          .map((account) => (
+            <div
+              key={account.id}
+              style={{
+                padding: "12px",
+                marginTop: "10px",
+                border: "1px solid #d6c7a1",
+                borderRadius: "8px",
+              }}
+            >
+              <p>
+                Account title: <strong>{account.account_title}</strong>
+              </p>
+              <p>
+                Account number: <strong>{account.account_number}</strong>
+              </p>
+              {account.iban && (
+                <p>
+                  IBAN: <strong>{account.iban}</strong>
+                </p>
+              )}
+              <p>Currency: {account.currency}</p>
+            </div>
+          ))}
+
+        {availablePaymentAccounts.filter((account) => {
+          const provider = account.provider.trim().toLowerCase();
+          const method = savedPaymentMethod.trim().toLowerCase();
+
+          return (
+            provider === method ||
+            method.includes(provider) ||
+            provider.includes(method)
+          );
+        }).length === 0 && (
+          <p>
+            Payment account details are not available right now.
+            Please contact us on WhatsApp.
+          </p>
+        )}
+
+        <p>
+          Payment karne ke baad screenshot WhatsApp par bhejein.
+          Admin payment verify karne ke baad status update karega.
+        </p>
+
+       {WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      `Assalam-o-Alaikum, I have placed order ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Amount: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot.`
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={goldButton}
+  >
+    Send Payment Screenshot on WhatsApp
+  </a>
+)}
+
+    <p>Payment status: Pending verification</p>
+    <p>Order status: Pending confirmation</p>
+  </div>
+) : (
+
                   <>
                     Your cart is empty. Explore our collection and choose
                     your favourite sweets.
