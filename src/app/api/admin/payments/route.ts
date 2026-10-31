@@ -183,6 +183,18 @@ export async function POST(request: Request) {
         return jsonError("Account name required hai.");
       }
 
+      if (!accountTitle || accountTitle.length > 150) {
+  return jsonError("Account title required hai.");
+}
+
+if (!accountNumber && !iban) {
+  return jsonError("Account number ya IBAN zaroori hai.");
+}
+
+if (accountNumber.length > 50 || iban.length > 50) {
+  return jsonError("Account details ki length valid nahi hai.");
+}
+
       if (!["bank", "wallet", "raast", "other"].includes(accountType)) {
         return jsonError("Account type valid nahi hai.");
       }
