@@ -42,10 +42,33 @@ type Product = {
   status: "Active" | "Inactive";
 };
 
+type CartItem = {
+  productId: number;
+  weight: number;
+  quantity: number;
+};
+
+type PaymentMethod = {
+  id: string;
+  method_key: string;
+  name: string;
+  description?: string;
+  payment_type?: string;
+  instructions?: string;
+  display_order?: number;
+};
+
+const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
+
+const cartKey = (productId: number, weight: number) =>
+  `${productId}-${weight}`;
+
 const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
+
 const BUSINESS_EMAIL =
   process.env.NEXT_PUBLIC_BUSINESS_EMAIL || "";
+
 const BUSINESS_PHONE =
   process.env.NEXT_PUBLIC_BUSINESS_PHONE || "";
 
@@ -208,34 +231,48 @@ const goldButton: CSSProperties = {
   display: "inline-block",
 };
 
-const paymentMethods = [
-  "JazzCash",
-  "Easypaisa",
-  "Raast ID",
-  "Payoneer",
-  "Bank Transfer",
-  "Cash on Delivery",
-] as const;
+const fallbackPaymentMethods: PaymentMethod[] = [
+  {
+    id: "cod-fallback",
+    method_key: "cash_on_delivery",
+    name: "Cash on Delivery",
+    description: "Order receive karte waqt cash payment.",
+    payment_type: "manual",
+    instructions: "Delivery par cash ada karein.",
+    display_order: 1,
+  },
+];
 
 export default function Home() {
   const [products, setProducts] =
     useState<Product[]>(defaultProducts);
-  const [cart, setCart] = useState<Record<number, number>>({});
+
+  const [cart, setCart] =
+    useState<Record<string, CartItem>>({});
+
+  const [selectedWeights, setSelectedWeights] =
+    useState<Record<number, number>>({});
+
+  const [availablePaymentMethods, setAvailablePaymentMethods] =
+    useState<PaymentMethod[]>(fallbackPaymentMethods);
+
   const [message, setMessage] = useState("");
+
   const [publishedSettings, setPublishedSettings] =
     useState<PublishedSettings | null>(null);
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+
   const [paymentMethod, setPaymentMethod] =
-    useState<(typeof paymentMethods)[number]>("Cash on Delivery");
+    useState("Cash on Delivery");
+
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [savedOrderNumber, setSavedOrderNumber] = useState("");
-
-  // Cart popup: closed by default; opens when customer clicks Cart.
   const [cartOpen, setCartOpen] = useState(false);
 
+  // Products database se load karein.
   useEffect(() => {
     let cancelled = false;
 
@@ -267,7 +304,7 @@ export default function Home() {
           return;
         }
 
-const databaseProducts: Product[] = payload.products
+        const databaseProducts: Product[] = payload.products
           .filter(
             (item): item is Record<string, unknown> =>
               Boolean(item) &&
@@ -276,10 +313,12 @@ const databaseProducts: Product[] = payload.products
           )
           .map((item) => {
             const name = String(item.name ?? "Product");
+
             const savedDefault = defaultProducts.find(
               (product) =>
                 product.name.toLowerCase() === name.toLowerCase()
             );
+
             const imageUrl =
               typeof item.image_url === "string"
                 ? item.image_url
@@ -305,18 +344,19 @@ const databaseProducts: Product[] = payload.products
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-status: (
-  String(item.status ?? "").toLowerCase() === "inactive"
-    ? "Inactive"
-    : "Active"
-) as "Active" | "Inactive",
+              status: (
+                String(item.status ?? "").toLowerCase() === "inactive"
+                  ? "Inactive"
+                  : "Active"
+              ) as "Active" | "Inactive",
             };
           })
           .filter(
             (product) =>
               Number.isSafeInteger(product.id) &&
               product.id > 0 &&
-              Number.isFinite(product.price)
+              Number.isFinite(product.price) &&
+              product.price >= 0
           );
 
         if (!cancelled && databaseProducts.length > 0) {
@@ -332,6 +372,7 @@ status: (
     };
   }, []);
 
+  // Website media settings load karein.
   useEffect(() => {
     let cancelled = false;
 
@@ -369,6 +410,79 @@ status: (
     };
   }, []);
 
+  // Admin mein enabled payment methods load karein.
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/payment-options", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Payment methods load nahi huay");
+        }
+        return response.json();
+      })
+      .then((result: unknown) => {
+        if (
+          cancelled ||
+          !result ||
+          typeof result !== "object"
+        ) {
+          return;
+        }
+
+        const payload = result as {
+          success?: boolean;
+          methods?: unknown;
+        };
+
+        if (
+          !payload.success ||
+          !Array.isArray(payload.methods)
+        ) {
+          return;
+        }
+
+        const methods = payload.methods.filter(
+          (item): item is PaymentMethod => {
+            if (
+              !item ||
+              typeof item !== "object" ||
+              Array.isArray(item)
+            ) {
+              return false;
+            }
+
+            const method = item as Record<string, unknown>;
+
+            return (
+              typeof method.id === "string" &&
+              typeof method.name === "string" &&
+              method.name.trim().length > 0
+            );
+          }
+        );
+
+        if (!cancelled && methods.length > 0) {
+          const sortedMethods = [...methods].sort(
+            (a, b) =>
+              (a.display_order ?? 999) -
+              (b.display_order ?? 999)
+          );
+
+          setAvailablePaymentMethods(sortedMethods);
+          setPaymentMethod(sortedMethods[0].name);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Payment methods error:", error);
+        // COD fallback pehle se available hai.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const publishedMedia = Array.isArray(
     publishedSettings?.media
   )
@@ -391,6 +505,7 @@ status: (
       if (!item.url || !item.name) return false;
 
       const savedType = String(item.type || "").toLowerCase();
+
       const typeMatches =
         type === "image"
           ? savedType === "image" ||
@@ -440,11 +555,14 @@ status: (
 
   const heroTitle =
     publishedSettings?.heroTitle || "Multan Ki Mithas,";
+
   const heroSubtitle =
     publishedSettings?.heroSubtitle ||
     "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan.";
+
   const backgroundColor =
     publishedSettings?.backgroundColor || "#F3E8D4";
+
   const brandColor =
     publishedSettings?.brandColor || "#D8AC55";
 
@@ -458,8 +576,8 @@ status: (
   const isProductEnabled = (product: Product) =>
     getProductSetting(product)?.enabled !== false;
 
- const getProductBackground = (product: Product) =>
-  "#FFF8EA";
+  const getProductBackground = (product: Product) =>
+    "#FFF8EA";
 
   const getProductImage = (product: Product) =>
     findPublishedMedia(
@@ -468,39 +586,77 @@ status: (
       product.image_url || product.image
     );
 
-  
-  const addToCart = (id: number) => {
+  const isGiftProduct = (product: Product) =>
+    product.category === "Gift Boxes";
+
+  const getSelectedWeight = (productId: number) =>
+    selectedWeights[productId] ?? 1;
+
+  // Product ko selected weight ke saath cart mein add karein.
+  const addToCart = (id: number, weight = 1) => {
     setSavedOrderNumber("");
+
+    const key = cartKey(id, weight);
+
     setCart((old) => ({
       ...old,
-      [id]: (old[id] || 0) + 1,
+      [key]: {
+        productId: id,
+        weight,
+        quantity: (old[key]?.quantity || 0) + 1,
+      },
     }));
+
     setMessage("");
     setCartOpen(true);
   };
 
-
-  const removeFromCart = (id: number) => {
+  // Cart se selected product/weight remove karein.
+  const removeFromCart = (key: string) => {
     setSavedOrderNumber("");
+
     setCart((old) => {
       const next = { ...old };
-      if (next[id] > 1) next[id]--;
-      else delete next[id];
+      const item = next[key];
+
+      if (!item) return old;
+
+      if (item.quantity > 1) {
+        next[key] = {
+          ...item,
+          quantity: item.quantity - 1,
+        };
+      } else {
+        delete next[key];
+      }
+
       return next;
     });
+
     setMessage("Cart update ho gaya.");
   };
 
-  const cartCount = Object.values(cart).reduce(
-    (sum, quantity) => sum + quantity,
+  const cartItems = Object.values(cart);
+
+  const cartCount = cartItems.reduce(
+    (sum, item) => sum + item.quantity,
     0
   );
 
-  const total = products.reduce(
-    (sum, product) =>
-      sum + product.price * (cart[product.id] || 0),
-    0
-  );
+  const total = cartItems.reduce((sum, item) => {
+    const product = products.find(
+      (p) => p.id === item.productId
+    );
+
+    if (!product) return sum;
+
+    return (
+      sum +
+      product.price *
+        (isGiftProduct(product) ? 1 : item.weight) *
+        item.quantity
+    );
+  }, 0);
 
   const regularProducts = products.filter(
     (product) =>
@@ -514,7 +670,10 @@ status: (
       isProductEnabled(product)
   );
 
-  const placeOrder = async (event: FormEvent<HTMLFormElement>) => {
+  // Customer order submit karein.
+  const placeOrder = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
 
     if (submittingOrder) return;
@@ -540,12 +699,16 @@ status: (
       return;
     }
 
-    const items = products
-      .filter((product) => (cart[product.id] || 0) > 0)
-      .map((product) => ({
-        productId: String(product.id),
-        quantity: cart[product.id],
-      }));
+    const items = cartItems.map((item) => ({
+      productId: String(item.productId),
+      weight: isGiftProduct(
+        products.find((p) => p.id === item.productId) ||
+          defaultProducts[0]
+      )
+        ? 1
+        : item.weight,
+      quantity: item.quantity,
+    }));
 
     if (items.length === 0) {
       setMessage("Cart mein valid products nahi hain.");
@@ -598,6 +761,7 @@ status: (
       setCustomerName("");
       setCustomerPhone("");
       setDeliveryAddress("");
+
       setMessage(
         orderNumber
           ? `Order ${orderNumber} successfully save ho gaya.`
@@ -819,24 +983,21 @@ status: (
 
         .mm-card:hover { transform: translateY(-3px); }
 
-       
-.mm-product-image {
-  display: block;
-  width: 100%;
-  height: 250px;
-  padding: 10px;
-  object-fit: contain;
-  object-position: center;
-  background: #FFF8EA;
-}
+        .mm-product-image {
+          display: block;
+          width: 100%;
+          height: 250px;
+          padding: 10px;
+          object-fit: contain;
+          object-position: center;
+          background: #FFF8EA;
+        }
 
-
-    
-.mm-card-body {
-  padding: 20px 15px 23px;
-  text-align: center;
-  background: #FFF8EA;
-}
+        .mm-card-body {
+          padding: 20px 15px 23px;
+          text-align: center;
+          background: #FFF8EA;
+        }
 
         .mm-card-category {
           color: #9A7132;
@@ -1001,20 +1162,18 @@ status: (
           box-shadow: 0 5px 20px rgba(0,0,0,.2);
         }
 
-        
-.mm-cart-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: rgba(4, 24, 26, .88);
-  padding: 24px 14px;
-}
-
+        .mm-cart-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          background: rgba(4, 24, 26, .88);
+          padding: 24px 14px;
+        }
 
         .mm-cart-panel {
           max-width: 850px;
@@ -1049,7 +1208,7 @@ status: (
           .mm-hero-description { font-size: 16px; }
           .mm-outline-button { margin: 12px 0 0; }
           .mm-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.mm-product-image { height: 210px; }
+          .mm-product-image { height: 210px; }
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
@@ -1162,33 +1321,79 @@ status: (
             gap: 22,
           }}
         >
-          {regularProducts.map((product) => (
-            <article
-              key={product.id}
-              className="mm-card"
-              style={{ background: getProductBackground(product) }}
-            >
-              <img
-                className="mm-product-image"
-                src={getProductImage(product)}
-                alt={product.name}
-                loading="lazy"
-              />
-              <div className="mm-card-body">
-                <span className="mm-card-category">{product.category}</span>
-                <h3 className="mm-card-title">{product.name}</h3>
-                {product.weight && <p>{product.weight}</p>}
-                <p className="mm-price">{money(product.price)}</p>
-                <button
-                  type="button"
-                  className="mm-gold-button"
-                  onClick={() => addToCart(product.id)}
-                >
-                  Add to Cart +
-                </button>
-              </div>
-            </article>
-          ))}
+          {regularProducts.map((product) => {
+            const selectedWeight = getSelectedWeight(product.id);
+
+            return (
+              <article
+                key={product.id}
+                className="mm-card"
+                style={{ background: getProductBackground(product) }}
+              >
+                <img
+                  className="mm-product-image"
+                  src={getProductImage(product)}
+                  alt={product.name}
+                  loading="lazy"
+                />
+
+                <div className="mm-card-body">
+                  <span className="mm-card-category">
+                    {product.category}
+                  </span>
+
+                  <h3 className="mm-card-title">{product.name}</h3>
+
+                  {product.weight && <p>{product.weight}</p>}
+
+                  <label
+                    style={{
+                      display: "block",
+                      textAlign: "left",
+                      fontSize: 13,
+                      marginTop: 12,
+                    }}
+                  >
+                    Select Weight
+                    <select
+                      className="mm-input"
+                      value={selectedWeight}
+                      onChange={(event) =>
+                        setSelectedWeights((old) => ({
+                          ...old,
+                          [product.id]: Number(event.target.value),
+                        }))
+                      }
+                    >
+                      {WEIGHT_OPTIONS.map((weight) => (
+                        <option key={weight} value={weight}>
+                          {weight} kg
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <p className="mm-price">
+                    {money(product.price * selectedWeight)}
+                  </p>
+
+                  <p style={{ fontSize: 12, marginTop: -12 }}>
+                    {money(product.price)} per kg
+                  </p>
+
+                  <button
+                    type="button"
+                    className="mm-gold-button"
+                    onClick={() =>
+                      addToCart(product.id, selectedWeight)
+                    }
+                  >
+                    Add to Cart +
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -1389,10 +1594,11 @@ status: (
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-price">{money(product.price)}</p>
+                <p style={{ fontSize: 12 }}>Fixed price gift box</p>
                 <button
                   type="button"
                   className="mm-gold-button"
-                  onClick={() => addToCart(product.id)}
+                  onClick={() => addToCart(product.id, 1)}
                 >
                   Add to Cart +
                 </button>
@@ -1490,11 +1696,27 @@ status: (
                   border: "1px solid #D8C59F",
                 }}
               >
-                {products
-                  .filter((product) => cart[product.id])
-                  .map((product) => (
+                {cartItems.map((item) => {
+                  const product = products.find(
+                    (p) => p.id === item.productId
+                  );
+
+                  if (!product) return null;
+
+                  const gift = isGiftProduct(product);
+                  const lineTotal =
+                    product.price *
+                    (gift ? 1 : item.weight) *
+                    item.quantity;
+
+                  const key = cartKey(
+                    item.productId,
+                    item.weight
+                  );
+
+                  return (
                     <div
-                      key={product.id}
+                      key={key}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -1508,16 +1730,22 @@ status: (
                       <div>
                         <strong>{product.name}</strong>
                         <div>
-                          {money(product.price)} × {cart[product.id]}
+                          {gift
+                            ? `Fixed price × ${item.quantity}`
+                            : `${item.weight} kg × ${item.quantity}`}
+                        </div>
+                        <div style={{ fontSize: 13 }}>
+                          {gift
+                            ? "Gift box price"
+                            : `${money(product.price)} per kg`}
                         </div>
                       </div>
+
                       <div>
-                        <strong>
-                          {money(product.price * cart[product.id])}
-                        </strong>
+                        <strong>{money(lineTotal)}</strong>
                         <button
                           type="button"
-                          onClick={() => removeFromCart(product.id)}
+                          onClick={() => removeFromCart(key)}
                           style={{
                             padding: "7px 10px",
                             marginLeft: 8,
@@ -1530,7 +1758,8 @@ status: (
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
                 <h3 style={{ textAlign: "right", color: "#123F42" }}>
                   Subtotal: {money(total)}
@@ -1552,7 +1781,9 @@ status: (
                     <input
                       className="mm-input"
                       value={customerName}
-                      onChange={(event) => setCustomerName(event.target.value)}
+                      onChange={(event) =>
+                        setCustomerName(event.target.value)
+                      }
                       maxLength={120}
                       required
                       autoComplete="name"
@@ -1566,7 +1797,9 @@ status: (
                       className="mm-input"
                       type="tel"
                       value={customerPhone}
-                      onChange={(event) => setCustomerPhone(event.target.value)}
+                      onChange={(event) =>
+                        setCustomerPhone(event.target.value)
+                      }
                       maxLength={30}
                       required
                       autoComplete="tel"
@@ -1596,22 +1829,41 @@ status: (
                       className="mm-input"
                       value={paymentMethod}
                       onChange={(event) =>
-                        setPaymentMethod(
-                          event.target.value as (typeof paymentMethods)[number]
-                        )
+                        setPaymentMethod(event.target.value)
                       }
                       required
                     >
-                      <option value="Cash on Delivery">
-                        Cash on Delivery (COD)
-                      </option>
-                      <option value="JazzCash">JazzCash</option>
-                      <option value="Easypaisa">Easypaisa</option>
-                      <option value="Raast ID">Raast ID</option>
-                      <option value="Payoneer">Payoneer</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
+                      {availablePaymentMethods.map((method) => (
+                        <option key={method.id} value={method.name}>
+                          {method.name}
+                        </option>
+                      ))}
                     </select>
                   </label>
+
+                  {availablePaymentMethods.find(
+                    (method) => method.name === paymentMethod
+                  )?.description && (
+                    <p style={{ fontSize: 13, marginTop: -8 }}>
+                      {
+                        availablePaymentMethods.find(
+                          (method) => method.name === paymentMethod
+                        )?.description
+                      }
+                    </p>
+                  )}
+
+                  {availablePaymentMethods.find(
+                    (method) => method.name === paymentMethod
+                  )?.instructions && (
+                    <p style={{ fontSize: 13, marginTop: -8 }}>
+                      {
+                        availablePaymentMethods.find(
+                          (method) => method.name === paymentMethod
+                        )?.instructions
+                      }
+                    </p>
+                  )}
 
                   <p style={{ fontSize: 14 }}>
                     Online payment is not processed automatically. Payment
@@ -1671,11 +1923,10 @@ status: (
       <section id="payments" style={{ ...sectionStyle, background: "#E8D6B4" }}>
         <h2 className="mm-section-heading">Payment Information</h2>
         <p style={{ maxWidth: 800, margin: "auto", textAlign: "center" }}>
-          Available methods include JazzCash, Easypaisa, Raast ID,
-          Payoneer, bank transfer and cash on delivery. Select a method
-          at checkout. The business must confirm transfer details and
-          verify payments manually. Do not send card details or passwords
-          through WhatsApp.
+          Payment methods shown at checkout depend on the methods enabled
+          by the business. Transfer details and payment verification
+          must be confirmed manually by the business. Do not send card
+          details or passwords through WhatsApp.
         </p>
       </section>
 
