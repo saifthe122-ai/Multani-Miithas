@@ -5,10 +5,24 @@ import { neon } from "@neondatabase/serverless";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const sql = neon(process.env.DATABASE_URL!);
+const databaseUrl = process.env.DATABASE_URL;
 
 export async function GET() {
+  if (!databaseUrl) {
+    console.error("DATABASE_URL is not configured.");
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Payment service is temporarily unavailable.",
+      },
+      { status: 500 }
+    );
+  }
+
   try {
+    const sql = neon(databaseUrl);
+
     const [methods, accounts] = await Promise.all([
       sql`
         SELECT
@@ -24,6 +38,7 @@ export async function GET() {
         WHERE is_enabled = true
         ORDER BY display_order ASC, id ASC
       `,
+
       sql`
         SELECT
           id,
@@ -34,7 +49,9 @@ export async function GET() {
           account_number,
           iban,
           currency,
-          is_primary
+          is_primary,
+          wallet_owner_type,
+          qr_image_url
         FROM business_payment_accounts
         WHERE is_active = true
         ORDER BY is_primary DESC, id ASC
@@ -48,8 +65,11 @@ export async function GET() {
         accounts,
       },
       {
+        status: 200,
         headers: {
-          "Cache-Control": "no-store",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
         },
       }
     );
@@ -61,7 +81,12 @@ export async function GET() {
         success: false,
         message: "Payment options abhi load nahi ho sakin.",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   }
 }
