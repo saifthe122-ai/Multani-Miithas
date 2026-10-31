@@ -725,14 +725,17 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          phone: customerPhone.trim(),
-          address: deliveryAddress.trim(),
-          paymentMethod,
-          items,
-        }),
-      });
+       body: JSON.stringify({
+  customerName: customerName.trim(),
+  phone: customerPhone.trim(),
+  address: deliveryAddress.trim(),
+  paymentMethod,
+  items: items.map((item) => ({
+    productId: String(item.productId),
+    weight: Number(item.weight ?? 1),
+    quantity: Number(item.quantity),
+  })),
+}),
 
       const result: unknown = await response.json();
 
