@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -5,11 +6,26 @@ import { useEffect, useState } from "react";
 
 type PaymentMethod = {
   id: string;
+  methodKey: string;
   name: string;
   description: string;
-  status: "Enabled" | "Disabled";
+  enabled: boolean;
   type: string;
+  provider: string;
   instructions: string;
+};
+
+type BusinessAccount = {
+  id: string;
+  accountName: string;
+  accountType: string;
+  provider: string;
+  accountTitle: string;
+  accountNumber: string;
+  iban: string;
+  currency: string;
+  isPrimary: boolean;
+  isActive: boolean;
 };
 
 type PaymentRecord = {
@@ -29,61 +45,6 @@ type PaymentRecord = {
   date: string;
 };
 
-const initialMethods: PaymentMethod[] = [
-  {
-    id: "cod",
-    name: "Cash on Delivery",
-    description: "Customer pays when order is delivered.",
-    status: "Enabled",
-    type: "Manual",
-    instructions: "Collect payment at delivery.",
-  },
-  {
-    id: "jazzcash",
-    name: "JazzCash",
-    description: "Pakistan local digital payment.",
-    status: "Disabled",
-    type: "Gateway",
-    instructions: "Gateway integration required.",
-  },
-  {
-    id: "easypaisa",
-    name: "Easypaisa",
-    description: "Pakistan local digital payment.",
-    status: "Disabled",
-    type: "Gateway",
-    instructions: "Gateway integration required.",
-  },
-  {
-    id: "raast",
-    name: "Raast",
-    description: "Pakistan instant payment option.",
-    status: "Disabled",
-    type: "Manual / Gateway",
-    instructions: "Raast ID or Till details will be configured.",
-  },
-  {
-    id: "bank",
-    name: "Bank Transfer",
-    description: "Customer transfers payment to business bank account.",
-    status: "Disabled",
-    type: "Manual",
-    instructions: "Bank details will be configured.",
-  },
-  {
-    id: "payoneer",
-    name: "Payoneer",
-    description: "International payment option where eligible.",
-    status: "Disabled",
-    type: "Gateway",
-    instructions: "Provider integration required.",
-  },
-];
-
-const initialPayments: PaymentRecord[] = [
-  
-];
-
 const cardStyle = {
   background: "#ffffff",
   border: "1px solid #e5e7eb",
@@ -92,138 +53,333 @@ const cardStyle = {
   boxShadow: "0 6px 20px rgba(0,0,0,.06)",
 };
 
-export default function PaymentsDashboard() {
-  const [methods, setMethods] = useState(initialMethods);
-  const [payments, setPayments] = useState(initialPayments);
-  const [search, setSearch] = useState("");
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box" as const,
+  padding: "12px 13px",
+  borderRadius: 9,
+  border: "1px solid #d1d5db",
+  fontSize: 14,
+  marginTop: 6,
+};
 
-  useEffect(() => {
-  let cancelled = false;
+const buttonStyle = {
+  border: "none",
+  borderRadius: 9,
+  padding: "11px 16px",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+export default function PaymentsDashboard() {
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const [accountName, setAccountName] = useState("");
+  const [accountType, setAccountType] = useState("wallet");
+  const [provider, setProvider] = useState("JazzCash");
+  const [accountTitle, setAccountTitle] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [iban, setIban] = useState("");
+  const [currency, setCurrency] = useState("PKR");
+  const [isPrimary, setIsPrimary] = useState(false);
+
+  async function loadPaymentSettings() {
+    try {
+      setLoading(true);
+
+      const response = await fetch("/api/admin/payments", {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (!response.ok || payload.success !== true) {
+        throw new Error(payload.error || "Payment settings load nahi huin.");
+      }
+
+      setMethods(
+        (Array.isArray(payload.methods) ? payload.methods : []).map(
+          (item: Record<string, unknown>) => ({
+            id: String(item.id),
+            methodKey: String(item.method_key ?? ""),
+            name: String(item.name ?? ""),
+            description: String(item.description ?? ""),
+            enabled: Boolean(item.is_enabled),
+            type: String(item.payment_type ?? "manual"),
+            provider: String(item.provider ?? ""),
+            instructions: String(item.instructions ?? ""),
+          })
+        )
+      );
+
+      setAccounts(
+        (Array.isArray(payload.accounts) ? payload.accounts : []).map(
+          (item: Record<string, unknown>) => ({
+            id: String(item.id),
+            accountName: String(item.account_name ?? ""),
+            accountType: String(item.account_type ?? ""),
+            provider: String(item.provider ?? ""),
+            accountTitle: String(item.account_title ?? ""),
+            accountNumber: String(item.account_number ?? ""),
+            iban: String(item.iban ?? ""),
+            currency: String(item.currency ?? "PKR"),
+            isPrimary: Boolean(item.is_primary),
+            isActive: Boolean(item.is_active),
+          })
+        )
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Payment settings load nahi huin."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function loadPayments() {
     try {
       const response = await fetch("/api/orders", {
         cache: "no-store",
       });
-
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          payload.error || "Orders could not be loaded"
-        );
+        throw new Error(payload.error || "Orders load nahi huay.");
       }
 
-      const rows = Array.isArray(payload.orders)
-        ? payload.orders
-        : [];
-
-      if (cancelled) return;
+      const rows = Array.isArray(payload.orders) ? payload.orders : [];
 
       setPayments(
-        rows.map(
-          (order: Record<string, unknown>, index: number) => {
-            const paymentStatus = String(
-              order.payment_status ??
-                order.paymentStatus ??
-                "pending"
-            ).toLowerCase();
+        rows.map((order: Record<string, unknown>, index: number) => {
+          const paymentStatus = String(
+            order.payment_status ?? order.paymentStatus ?? "pending"
+          ).toLowerCase();
 
-            const method = String(
-              order.payment_method ??
-                order.paymentMethod ??
-                "Unknown"
-            );
+          const statusMap: Record<string, PaymentRecord["status"]> = {
+            paid: "Paid",
+            failed: "Failed",
+            cancelled: "Cancelled",
+            refunded: "Refunded",
+            partially_refunded: "Partially Refunded",
+            "partially refunded": "Partially Refunded",
+          };
 
-            const rawAmount =
-              order.total ?? order.total_amount ?? order.amount ?? 0;
-
-            const amount = Number(rawAmount) || 0;
-
-            return {
-              id: String(
-                order.id ?? order.order_number ?? index
-              ),
-              orderId: String(
-                order.order_number ??
-                  order.orderNumber ??
-                  order.id ??
-                  "—"
-              ),
-              customer: String(
-                order.customer_name ??
-                  order.customerName ??
-                  order.customer ??
-                  "Customer"
-              ),
-              amount,
-              method,
-              status:
-                paymentStatus === "paid"
-                  ? "Paid"
-                  : paymentStatus === "failed"
-                  ? "Failed"
-                  : paymentStatus === "cancelled"
-                  ? "Cancelled"
-                  : paymentStatus === "refunded"
-                  ? "Refunded"
-                  : paymentStatus === "partially_refunded"
-                  ? "Partially Refunded"
-                  : "Pending",
-              transactionId: "—",
-              date: String(
-                order.created_at ?? order.createdAt ?? "—"
-              ),
-            };
-          }
-        )
+          return {
+            id: String(order.id ?? order.order_number ?? index),
+            orderId: String(
+              order.order_number ?? order.orderNumber ?? order.id ?? "—"
+            ),
+            customer: String(
+              order.customer_name ?? order.customerName ?? "Customer"
+            ),
+            amount: Number(
+              order.total ?? order.total_amount ?? order.amount ?? 0
+            ),
+            method: String(
+              order.payment_method ?? order.paymentMethod ?? "Unknown"
+            ),
+            status: statusMap[paymentStatus] ?? "Pending",
+            transactionId: "—",
+            date: String(order.created_at ?? order.createdAt ?? "—"),
+          };
+        })
       );
     } catch (error) {
       console.error("Payments loading failed:", error);
     }
   }
 
-  loadPayments();
+  useEffect(() => {
+    loadPaymentSettings();
+    loadPayments();
+  }, []);
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
-  const enabledMethods = methods.filter(
-    (item) => item.status === "Enabled"
-  ).length;
+  async function toggleMethod(method: PaymentMethod) {
+    try {
+      const response = await fetch("/api/admin/payments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_method",
+          id: Number(method.id),
+          isEnabled: !method.enabled,
+        }),
+      });
 
-  const paidPayments = payments.filter(
-    (item) => item.status === "Paid"
-  ).length;
+      const result = await response.json();
 
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.error || "Payment method update nahi hua.");
+      }
+
+      setMethods((current) =>
+        current.map((item) =>
+          item.id === method.id
+            ? { ...item, enabled: !item.enabled }
+            : item
+        )
+      );
+
+      setNotice(`${method.name} ka status database mein save ho gaya.`);
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Update failed."
+      );
+    }
+  }
+
+  async function addAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!accountName.trim() || !accountTitle.trim()) {
+      setNotice("Account name aur account title zaroori hain.");
+      return;
+    }
+
+    if (!accountNumber.trim() && !iban.trim()) {
+      setNotice("Account number ya IBAN mein se ek zaroor dein.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setNotice("");
+
+      const response = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_account",
+          accountName: accountName.trim(),
+          accountType,
+          provider: provider.trim(),
+          accountTitle: accountTitle.trim(),
+          accountNumber: accountNumber.trim(),
+          iban: iban.trim(),
+          currency,
+          isPrimary,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.error || "Account save nahi hua.");
+      }
+
+      setAccountName("");
+      setAccountTitle("");
+      setAccountNumber("");
+      setIban("");
+      setIsPrimary(false);
+
+      await loadPaymentSettings();
+      setNotice("Business payment account database mein save ho gaya.");
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Account save nahi hua."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateAccount(
+    account: BusinessAccount,
+    changes: { isActive?: boolean; isPrimary?: boolean }
+  ) {
+    try {
+      const response = await fetch("/api/admin/payments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_account",
+          id: Number(account.id),
+          ...changes,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.error || "Account update nahi hua.");
+      }
+
+      await loadPaymentSettings();
+      setNotice("Account settings database mein save ho gayi hain.");
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Account update nahi hua."
+      );
+    }
+  }
+
+  async function updatePaymentStatus(
+    payment: PaymentRecord,
+    status: PaymentRecord["status"]
+  ) {
+    const paymentStatusMap: Record<string, string> = {
+      Pending: "pending",
+      Paid: "paid",
+      Failed: "failed",
+      Cancelled: "cancelled",
+      Refunded: "refunded",
+      "Partially Refunded": "partially_refunded",
+    };
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber: payment.orderId,
+          paymentStatus: paymentStatusMap[status],
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.message || result.error || "Status save nahi hua.");
+      }
+
+      setPayments((current) =>
+        current.map((item) =>
+          item.id === payment.id ? { ...item, status } : item
+        )
+      );
+
+      setNotice("Payment status database mein save ho gaya.");
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Payment status save nahi hua."
+      );
+    }
+  }
+
+  const money = (value: number) =>
+    `Rs. ${value.toLocaleString("en-PK")}`;
+
+  const enabledMethods = methods.filter((item) => item.enabled).length;
+  const paidPayments = payments.filter((item) => item.status === "Paid");
   const pendingPayments = payments.filter(
     (item) => item.status === "Pending"
-  ).length;
-
-  const totalPaid = payments
-    .filter((item) => item.status === "Paid")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const toggleMethod = (id: string) => {
-    setMethods((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status:
-                item.status === "Enabled"
-                  ? "Disabled"
-                  : "Enabled",
-            }
-          : item
-      )
-    );
-  };
+  );
+  const totalPaid = paidPayments.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
 
   const filteredPayments = payments.filter((item) => {
     const value = search.toLowerCase();
-
     return (
       item.orderId.toLowerCase().includes(value) ||
       item.customer.toLowerCase().includes(value) ||
@@ -231,67 +387,6 @@ export default function PaymentsDashboard() {
       item.status.toLowerCase().includes(value)
     );
   });
-
- 
-const updatePaymentStatus = async (
-  id: string,
-  status: PaymentRecord["status"]
-) => {
-  const payment = payments.find((item) => item.id === id);
-
-  if (!payment) {
-    alert("Payment record nahi mila.");
-    return;
-  }
-
-  const paymentStatusMap: Record<string, string> = {
-    Pending: "pending",
-    Paid: "paid",
-    Failed: "failed",
-    Cancelled: "cancelled",
-    Refunded: "refunded",
-    "Partially Refunded": "partially refunded",
-  };
-
-  try {
-    const response = await fetch("/api/orders", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        orderNumber: payment.orderId,
-        paymentStatus: paymentStatusMap[status],
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || result.success !== true) {
-      throw new Error(
-        result.message || "Payment status save nahi hua."
-      );
-    }
-
-    setPayments((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, status } : item
-      )
-    );
-
-    alert("Payment status database mein save ho gaya.");
-  } catch (error) {
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Payment status save nahi hua."
-    );
-  }
-};
-
-
-  const money = (value: number) =>
-    `Rs. ${value.toLocaleString("en-PK")}`;
 
   return (
     <main
@@ -318,8 +413,7 @@ const updatePaymentStatus = async (
 
         <header
           style={{
-            background:
-              "linear-gradient(135deg,#166534,#15803d)",
+            background: "linear-gradient(135deg,#123b3a,#176b61)",
             color: "#fff",
             borderRadius: 20,
             padding: 28,
@@ -329,59 +423,51 @@ const updatePaymentStatus = async (
           <div style={{ fontSize: 12, opacity: 0.8 }}>
             MULTANI MITHAS / FINANCE
           </div>
-
           <h1 style={{ margin: "6px 0 0", fontSize: 30 }}>
             Payments Management
           </h1>
-
           <p style={{ margin: "8px 0 0", opacity: 0.9 }}>
-            Manage payment methods, transactions, payment status
-            and future gateway integrations.
+            Manage business accounts, payment methods and customer transactions.
           </p>
         </header>
 
-        {/* STATS */}
+        {notice && (
+          <div
+            style={{
+              ...cardStyle,
+              marginBottom: 20,
+              background: "#fffbeb",
+              borderColor: "#fcd34d",
+            }}
+          >
+            {notice}
+            <button
+              onClick={() => setNotice("")}
+              style={{ ...buttonStyle, float: "right", padding: "2px 8px" }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit,minmax(190px,1fr))",
+            gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))",
             gap: 16,
             marginBottom: 24,
           }}
         >
           {[
-            [
-              "Payment Methods",
-              methods.length,
-              "Configured methods",
-            ],
-            [
-              "Enabled Methods",
-              enabledMethods,
-              "Customer-visible methods",
-            ],
-            [
-              "Paid Transactions",
-              paidPayments,
-              "Verified paid records",
-            ],
-            [
-              "Pending Payments",
-              pendingPayments,
-              "Require action",
-            ],
-            [
-              "Paid Amount",
-              money(totalPaid),
-              "Demo/local data",
-            ],
-          ].map(([title, value, note]) => (
-            <div key={title} style={cardStyle}>
-              <div style={{ color: "#6b7280", fontSize: 13 }}>
-                {title}
-              </div>
-
+            ["Payment Methods", methods.length],
+            ["Enabled Methods", enabledMethods],
+            ["Business Accounts", accounts.length],
+            ["Paid Transactions", paidPayments.length],
+            ["Pending Payments", pendingPayments.length],
+            ["Paid Amount", money(totalPaid)],
+          ].map(([title, value]) => (
+            <div key={String(title)} style={cardStyle}>
+              <div style={{ color: "#6b7280", fontSize: 13 }}>{title}</div>
               <div
                 style={{
                   fontSize: 27,
@@ -392,164 +478,324 @@ const updatePaymentStatus = async (
               >
                 {value}
               </div>
-
-              <div
-                style={{
-                  marginTop: 7,
-                  color: "#16a34a",
-                  fontSize: 12,
-                }}
-              >
-                {note}
-              </div>
             </div>
           ))}
         </section>
 
-        {/* PAYMENT METHODS */}
-        <section style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>
-            Customer Payment Methods
-          </h2>
-
+        {/* BUSINESS PAYMENT ACCOUNTS */}
+        <section style={{ ...cardStyle, marginBottom: 24 }}>
+          <h2 style={{ marginTop: 0 }}>My Business Payment Accounts</h2>
           <p style={{ color: "#6b7280" }}>
-            Enable only the payment methods that customers should
-            see at checkout.
+            Yahan apne business ke JazzCash, Easypaisa, Raast aur bank accounts
+            add karo. Customer ko sirf account title aur payment details dikhayi
+            jayengi.
           </p>
 
-          <div
+          <form
+            onSubmit={addAccount}
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit,minmax(280px,1fr))",
+              gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
               gap: 16,
+              marginTop: 20,
             }}
           >
-            {methods.map((method) => (
-              <div
-                key={method.id}
+            <label>
+              Account Name *
+              <input
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder="Example: Main JazzCash Account"
+                style={inputStyle}
+                required
+              />
+            </label>
+
+            <label>
+              Account Type *
+              <select
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="wallet">Mobile Wallet</option>
+                <option value="bank">Bank Account</option>
+                <option value="raast">Raast</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+
+            <label>
+              Provider
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                style={inputStyle}
+              >
+                <option>JazzCash</option>
+                <option>Easypaisa</option>
+                <option>Raast</option>
+                <option>Bank</option>
+                <option>Other</option>
+              </select>
+            </label>
+
+            <label>
+              Account Title *
+              <input
+                value={accountTitle}
+                onChange={(e) => setAccountTitle(e.target.value)}
+                placeholder="Name shown on transfer"
+                style={inputStyle}
+                required
+              />
+            </label>
+
+            <label>
+              Account Number
+              <input
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="Wallet or bank account number"
+                style={inputStyle}
+              />
+            </label>
+
+            <label>
+              IBAN
+              <input
+                value={iban}
+                onChange={(e) => setIban(e.target.value)}
+                placeholder="PK..."
+                style={inputStyle}
+              />
+            </label>
+
+            <label>
+              Currency
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="PKR">PKR</option>
+                <option value="USD">USD</option>
+                <option value="GBP">GBP</option>
+                <option value="AED">AED</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </label>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                paddingTop: 25,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+              />
+              Set as primary account
+            </label>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <button
+                type="submit"
+                disabled={saving}
                 style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 14,
-                  padding: 18,
-                  background:
-                    method.status === "Enabled"
-                      ? "#f0fdf4"
-                      : "#fafafa",
+                  ...buttonStyle,
+                  background: "#145b50",
+                  color: "#fff",
+                  opacity: saving ? 0.6 : 1,
                 }}
               >
+                {saving ? "Saving..." : "Save Business Account"}
+              </button>
+            </div>
+          </form>
+
+          <hr style={{ border: 0, borderTop: "1px solid #e5e7eb", margin: "25px 0" }} />
+
+          <h3>Saved Business Accounts</h3>
+
+          {loading ? (
+            <p>Accounts load ho rahe hain...</p>
+          ) : accounts.length === 0 ? (
+            <p style={{ color: "#6b7280" }}>
+              Abhi koi business account add nahi hua.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+                gap: 14,
+              }}
+            >
+              {accounts.map((account) => (
                 <div
+                  key={account.id}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 13,
+                    padding: 17,
+                    background: account.isActive ? "#f0fdf4" : "#fafafa",
                   }}
                 >
-                  <div>
-                    <h3 style={{ margin: 0 }}>
-                      {method.name}
-                    </h3>
-
-                    <p
-                      style={{
-                        color: "#6b7280",
-                        fontSize: 13,
-                      }}
-                    >
-                      {method.description}
-                    </p>
-                  </div>
-
-                  <span
+                  <div
                     style={{
-                      height: "fit-content",
-                      padding: "5px 9px",
-                      borderRadius: 20,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      background:
-                        method.status === "Enabled"
-                          ? "#dcfce7"
-                          : "#fee2e2",
-                      color:
-                        method.status === "Enabled"
-                          ? "#166534"
-                          : "#991b1b",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
                     }}
                   >
-                    {method.status}
-                  </span>
-                </div>
+                    <strong>{account.accountName}</strong>
+                    {account.isPrimary && (
+                      <span style={{ color: "#166534", fontSize: 12 }}>
+                        Primary
+                      </span>
+                    )}
+                  </div>
 
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#6b7280",
-                    marginBottom: 14,
-                  }}
-                >
-                  Type: {method.type}
-                </div>
+                  <p style={{ marginBottom: 5, color: "#6b7280" }}>
+                    {account.provider} · {account.accountType}
+                  </p>
+                  <p style={{ margin: "8px 0 4px" }}>
+                    <strong>Title:</strong> {account.accountTitle}
+                  </p>
+                  {account.accountNumber && (
+                    <p style={{ margin: "4px 0" }}>
+                      <strong>Account:</strong> {account.accountNumber}
+                    </p>
+                  )}
+                  {account.iban && (
+                    <p style={{ margin: "4px 0" }}>
+                      <strong>IBAN:</strong> {account.iban}
+                    </p>
+                  )}
+                  <p style={{ margin: "4px 0 14px" }}>
+                    <strong>Currency:</strong> {account.currency}
+                  </p>
 
-                <button
-                  onClick={() => toggleMethod(method.id)}
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    borderRadius: 9,
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    background:
-                      method.status === "Enabled"
-                        ? "#fee2e2"
-                        : "#dcfce7",
-                    color:
-                      method.status === "Enabled"
-                        ? "#991b1b"
-                        : "#166534",
-                  }}
-                >
-                  {method.status === "Enabled"
-                    ? "Disable Method"
-                    : "Enable Method"}
-                </button>
-              </div>
-            ))}
-          </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() =>
+                        updateAccount(account, { isActive: !account.isActive })
+                      }
+                      style={{
+                        ...buttonStyle,
+                        background: account.isActive ? "#fee2e2" : "#dcfce7",
+                        color: account.isActive ? "#991b1b" : "#166534",
+                      }}
+                    >
+                      {account.isActive ? "Deactivate" : "Activate"}
+                    </button>
+
+                    {!account.isPrimary && account.isActive && (
+                      <button
+                        onClick={() =>
+                          updateAccount(account, { isPrimary: true })
+                        }
+                        style={{
+                          ...buttonStyle,
+                          background: "#e0f2fe",
+                          color: "#075985",
+                        }}
+                      >
+                        Make Primary
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        {/* SEARCH */}
-        <section
-          style={{
-            ...cardStyle,
-            marginTop: 24,
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>
-            Payment Transactions
-          </h2>
+        {/* PAYMENT METHODS */}
+        <section style={{ ...cardStyle, marginBottom: 24 }}>
+          <h2 style={{ marginTop: 0 }}>Customer Payment Methods</h2>
+          <p style={{ color: "#6b7280" }}>
+            Yahan se checkout par payment methods enable ya disable karo.
+          </p>
 
+          {loading ? (
+            <p>Payment methods load ho rahe hain...</p>
+          ) : methods.length === 0 ? (
+            <p>Database mein payment methods nahi milay.</p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+                gap: 16,
+              }}
+            >
+              {methods.map((method) => (
+                <div
+                  key={method.id}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    padding: 18,
+                    background: method.enabled ? "#f0fdf4" : "#fafafa",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                    }}
+                  >
+                    <h3 style={{ margin: 0 }}>{method.name}</h3>
+                    <strong
+                      style={{
+                        color: method.enabled ? "#166534" : "#991b1b",
+                        fontSize: 12,
+                      }}
+                    >
+                      {method.enabled ? "Enabled" : "Disabled"}
+                    </strong>
+                  </div>
+                  <p style={{ color: "#6b7280", fontSize: 13 }}>
+                    {method.description}
+                  </p>
+                  <p style={{ color: "#6b7280", fontSize: 12 }}>
+                    Type: {method.type}
+                  </p>
+                  <button
+                    onClick={() => toggleMethod(method)}
+                    style={{
+                      ...buttonStyle,
+                      width: "100%",
+                      background: method.enabled ? "#fee2e2" : "#dcfce7",
+                      color: method.enabled ? "#991b1b" : "#166534",
+                    }}
+                  >
+                    {method.enabled ? "Disable Method" : "Enable Method"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* TRANSACTIONS */}
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>Payment Transactions</h2>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search order, customer, method or status..."
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "13px 15px",
-              borderRadius: 10,
-              border: "1px solid #d1d5db",
-              fontSize: 14,
-            }}
+            style={inputStyle}
           />
 
-          <div
-            style={{
-              overflowX: "auto",
-              marginTop: 18,
-            }}
-          >
+          <div style={{ overflowX: "auto", marginTop: 18 }}>
             <table
               style={{
                 width: "100%",
@@ -574,8 +820,7 @@ const updatePaymentStatus = async (
                       style={{
                         textAlign: "left",
                         padding: 13,
-                        borderBottom:
-                          "2px solid #e5e7eb",
+                        borderBottom: "2px solid #e5e7eb",
                         color: "#6b7280",
                         fontSize: 12,
                       }}
@@ -585,73 +830,29 @@ const updatePaymentStatus = async (
                   ))}
                 </tr>
               </thead>
-
               <tbody>
                 {filteredPayments.map((payment) => (
                   <tr key={payment.id}>
-                    <td style={{ padding: 13 }}>
-                      <strong>{payment.id}</strong>
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      {payment.orderId}
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      {payment.customer}
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      {money(payment.amount)}
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      {payment.method}
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      <span
-                        style={{
-                          padding: "6px 9px",
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          background:
-                            payment.status === "Paid"
-                              ? "#dcfce7"
-                              : payment.status === "Pending"
-                              ? "#fef3c7"
-                              : "#fee2e2",
-                          color:
-                            payment.status === "Paid"
-                              ? "#166534"
-                              : payment.status === "Pending"
-                              ? "#92400e"
-                              : "#991b1b",
-                        }}
-                      >
-                        {payment.status}
-                      </span>
-                    </td>
-
-                    <td style={{ padding: 13 }}>
-                      {payment.transactionId}
-                    </td>
-
+                    <td style={{ padding: 13 }}>{payment.id}</td>
+                    <td style={{ padding: 13 }}>{payment.orderId}</td>
+                    <td style={{ padding: 13 }}>{payment.customer}</td>
+                    <td style={{ padding: 13 }}>{money(payment.amount)}</td>
+                    <td style={{ padding: 13 }}>{payment.method}</td>
+                    <td style={{ padding: 13 }}>{payment.status}</td>
+                    <td style={{ padding: 13 }}>{payment.transactionId}</td>
                     <td style={{ padding: 13 }}>
                       <select
                         value={payment.status}
                         onChange={(e) =>
                           updatePaymentStatus(
-                            payment.id,
+                            payment,
                             e.target.value as PaymentRecord["status"]
                           )
                         }
                         style={{
-                          padding: "8px",
+                          padding: 8,
                           borderRadius: 8,
-                          border:
-                            "1px solid #d1d5db",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         <option>Pending</option>
@@ -659,19 +860,23 @@ const updatePaymentStatus = async (
                         <option>Failed</option>
                         <option>Cancelled</option>
                         <option>Refunded</option>
-                        <option>
-                          Partially Refunded
-                        </option>
+                        <option>Partially Refunded</option>
                       </select>
                     </td>
                   </tr>
                 ))}
+                {filteredPayments.length === 0 && (
+                  <tr>
+                    <td colSpan={8} style={{ padding: 20, color: "#6b7280" }}>
+                      Koi payment transaction nahi mili.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </section>
 
-        {/* SECURITY */}
         <section
           style={{
             ...cardStyle,
@@ -680,24 +885,19 @@ const updatePaymentStatus = async (
             borderColor: "#fde68a",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>
-            🔐 Payment Security Architecture
-          </h2>
-
+          <h2 style={{ marginTop: 0 }}>Payment Security</h2>
           <p>
-            Payment status must eventually be updated only after
-            verified gateway/server confirmation.
+            Customer ko sirf business account title, account number ya IBAN
+            dikhaya jana chahiye.
           </p>
-
           <p>
-            Gateway secret keys must remain server-side and must
-            never be placed in customer-facing browser code.
+            Personal wallet PIN, OTP aur password website par kabhi save ya
+            display nahi karne.
           </p>
-
           <p style={{ marginBottom: 0 }}>
-            Refunds, cancellations, transaction IDs and gateway
-            callbacks will be connected when the actual payment
-            providers are integrated.
+            Manual transfer ko payment proof aur admin verification ke baad hi
+            Paid mark karna hai. Gateway payment ke liye provider ki server-side
+            confirmation zaroori hogi.
           </p>
         </section>
       </div>
