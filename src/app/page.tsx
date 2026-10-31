@@ -458,8 +458,8 @@ status: (
   const isProductEnabled = (product: Product) =>
     getProductSetting(product)?.enabled !== false;
 
-  const getProductBackground = (product: Product) =>
-    getProductSetting(product)?.background || "#FFF8EA";
+ const getProductBackground = (product: Product) =>
+  "#FFF8EA";
 
   const getProductImage = (product: Product) =>
     findPublishedMedia(
@@ -819,18 +819,24 @@ status: (
 
         .mm-card:hover { transform: translateY(-3px); }
 
-        .mm-product-image {
-          display: block;
-          width: 100%;
-          height: 235px;
-          object-fit: cover;
-          background: #E7D7B9;
-        }
+       
+.mm-product-image {
+  display: block;
+  width: 100%;
+  height: 250px;
+  padding: 10px;
+  object-fit: contain;
+  object-position: center;
+  background: #FFF8EA;
+}
 
-        .mm-card-body {
-          padding: 20px 15px 23px;
-          text-align: center;
-        }
+
+    
+.mm-card-body {
+  padding: 20px 15px 23px;
+  text-align: center;
+  background: #FFF8EA;
+}
 
         .mm-card-category {
           color: #9A7132;
@@ -1043,7 +1049,7 @@ status: (
           .mm-hero-description { font-size: 16px; }
           .mm-outline-button { margin: 12px 0 0; }
           .mm-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .mm-product-image { height: 190px; }
+.mm-product-image { height: 210px; }
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
