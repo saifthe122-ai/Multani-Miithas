@@ -217,7 +217,9 @@ export default function ProductsPage() {
       stock: product.stock,
       status: product.status,
       weight: product.weight,
-      weight_options: product.weight_options ?? [],
+      weight_options: (product.weight_options ?? []).map((option) => ({
+        ...option,
+      })),
       image: product.image,
       image_url: product.image_url ?? "",
       description: product.description ?? "",
@@ -337,12 +339,21 @@ export default function ProductsPage() {
       return;
     }
 
-    if (form.price < 0 || form.cost_price < 0) {
-      alert("Price aur cost negative nahi ho sakte.");
+    if (
+      !Number.isFinite(Number(form.price)) ||
+      !Number.isFinite(Number(form.cost_price)) ||
+      form.price < 0 ||
+      form.cost_price < 0
+    ) {
+      alert("Price aur cost valid aur zero ya us se zyada honi chahiye.");
       return;
     }
 
-    if (form.discount < 0 || form.discount > 100) {
+    if (
+      !Number.isFinite(Number(form.discount)) ||
+      form.discount < 0 ||
+      form.discount > 100
+    ) {
       alert("Discount 0 se 100 ke darmiyan hona chahiye.");
       return;
     }
@@ -352,25 +363,30 @@ export default function ProductsPage() {
       return;
     }
 
-    const optionNames = form.weight_options.map((option) =>
-      option.weight.trim().toLowerCase()
-    );
+    const optionNames = new Set<string>();
 
-    if (
-      form.weight_options.some(
-        (option) =>
-          !option.weight.trim() ||
-          !Number.isFinite(option.price) ||
-          option.price < 0
-      )
-    ) {
-      alert("Har weight option ka naam aur valid price enter karo.");
-      return;
-    }
+    for (const option of form.weight_options) {
+      const optionWeight = option.weight.trim();
+      const optionPrice = Number(option.price);
 
-    if (new Set(optionNames).size !== optionNames.length) {
-      alert("Ek hi weight option do baar add nahi kar sakte.");
-      return;
+      if (!optionWeight) {
+        alert("Har weight option ka naam likho. Misal: 250g ya 1kg.");
+        return;
+      }
+
+      if (!Number.isFinite(optionPrice) || optionPrice < 0) {
+        alert(`"${optionWeight}" ki price valid honi chahiye.`);
+        return;
+      }
+
+      const normalizedWeight = optionWeight.toLowerCase();
+
+      if (optionNames.has(normalizedWeight)) {
+        alert(`"${optionWeight}" weight option pehle se mojood hai.`);
+        return;
+      }
+
+      optionNames.add(normalizedWeight);
     }
 
     try {
@@ -378,15 +394,15 @@ export default function ProductsPage() {
 
       const payload = {
         ...form,
-        weight_options: form.weight_options.map((option) => ({
-          weight: option.weight.trim(),
-          price: Number(option.price),
-        })),
         name: form.name.trim(),
         price: Number(form.price),
         cost_price: Number(form.cost_price),
         discount: Number(form.discount),
         stock: Number(form.stock),
+        weight_options: form.weight_options.map((option) => ({
+          weight: option.weight.trim(),
+          price: Number(option.price),
+        })),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
           : 5,
@@ -620,10 +636,9 @@ export default function ProductsPage() {
                               {product.name}
                             </strong>
                             <span style={weightTextStyle}>
-                              {product.weight}
                               {product.weight_options.length > 0
-                                ? ` · ${product.weight_options.length} price options`
-                                : ""}
+                                ? `${product.weight_options.length} weight/price options`
+                                : product.weight || "No weight options"}
                             </span>
                           </div>
                         </div>
@@ -807,8 +822,8 @@ export default function ProductsPage() {
                   <Field
                     label={
                       form.price_type === "per_kg"
-                        ? "Selling Price per KG (Rs.)"
-                        : "Selling Price per Item (Rs.)"
+                        ? "Base Selling Price per KG (Rs.)"
+                        : "Base Selling Price per Item (Rs.)"
                     }
                   >
                     <input
@@ -888,7 +903,7 @@ export default function ProductsPage() {
                       onChange={(event) =>
                         setForm({ ...form, weight: event.target.value })
                       }
-                      placeholder="500g / 1kg / 2kg box"
+                      placeholder="Misal: assorted box"
                       style={inputStyle}
                     />
                   </Field>
@@ -923,7 +938,7 @@ export default function ProductsPage() {
 
                 <div style={profitBoxStyle}>
                   <strong style={{ color: colors.gold }}>
-                    Profit Preview
+                    Profit Preview (Base Price)
                   </strong>
                   <div
                     style={{
@@ -937,39 +952,32 @@ export default function ProductsPage() {
                     {form.price_type === "per_kg" ? " per KG" : " per item"}
                   </div>
                   <p style={profitNoteStyle}>
-                    Discount ke baad selling price minus production cost.
+                    Discount ke baad base selling price minus production cost.
                     Packaging aur delivery is calculation mein shamil nahi.
                   </p>
                 </div>
 
-                {form.price_type === "per_kg" && (
-                  <div style={infoBoxStyle}>
-                    Customer weight select karega. Neeche Weight & Price
-                    Options mein har available weight ki asal price enter karo.
-                  </div>
-                )}
-
-                {form.price_type === "fixed" && (
-                  <div style={infoBoxStyle}>
-                    Fixed-price item ke liye bhi apna size aur price option
-                    add kar sakte ho.
-                  </div>
-                )}
+                <div style={infoBoxStyle}>
+                  Base price purane system aur compatibility ke liye hai.
+                  Customer ke liye neeche diye gaye Weight & Price Options
+                  istemal honge. Har product ki apni asli prices enter karo.
+                </div>
               </section>
 
               <section style={formSectionStyle}>
                 <SectionHeading>02 · Weight & Price Options</SectionHeading>
 
                 <p style={helperTextStyle}>
-                  Is product ke apne available weights aur unki selling
-                  prices enter karo. Har product ke options aur prices alag
-                  ho sakte hain. Koi automatic price calculate nahi hogi.
+                  Is product ke available weights aur unki actual selling
+                  prices enter karo. Har product ki options aur prices alag
+                  ho sakti hain. Sirf wohi options add karo jo waqai available
+                  hain.
                 </p>
 
                 {form.weight_options.length === 0 && (
                   <div style={infoBoxStyle}>
-                    Abhi koi weight/price option add nahi hua. Customer ke
-                    liye options banane ke liye neeche button dabao.
+                    Abhi koi weight/price option add nahi kiya gaya. Neeche
+                    button se is product ke options add karo.
                   </div>
                 )}
 
@@ -978,12 +986,11 @@ export default function ProductsPage() {
                     key={index}
                     style={{
                       display: "grid",
-                      gridTemplateColumns:
-                        "minmax(100px, 1fr) minmax(120px, 1fr) auto",
+                      gridTemplateColumns: "minmax(120px, 1fr) minmax(120px, 1fr) auto",
                       gap: 10,
                       alignItems: "end",
-                      marginBottom: 12,
                       padding: 12,
+                      marginTop: 12,
                       border: `1px solid ${colors.border}`,
                       borderRadius: 9,
                       background: colors.cream,
@@ -999,9 +1006,8 @@ export default function ProductsPage() {
                             event.target.value
                           )
                         }
-                        placeholder="e.g. 250g"
+                        placeholder="Misal: 250g, 500g, 1kg"
                         style={inputStyle}
-                        required
                       />
                     </Field>
 
@@ -1019,14 +1025,16 @@ export default function ProductsPage() {
                           )
                         }
                         style={inputStyle}
-                        required
                       />
                     </Field>
 
                     <button
                       type="button"
                       onClick={() => removeWeightOption(index)}
-                      style={deleteButtonStyle}
+                      style={{
+                        ...deleteButtonStyle,
+                        padding: "12px 13px",
+                      }}
                     >
                       Remove
                     </button>
@@ -1036,9 +1044,9 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={addWeightOption}
-                  style={outlineGoldButtonStyle}
+                  style={{ ...outlineGoldButtonStyle, marginTop: 14 }}
                 >
-                  ＋ Add Weight & Price
+                  ＋ Add Weight / Price Option
                 </button>
               </section>
 
@@ -1197,7 +1205,7 @@ export default function ProductsPage() {
                 value={viewProduct.price_type === "per_kg" ? "Per KG" : "Fixed"}
               />
               <DetailRow
-                label="Selling Price"
+                label="Base Selling Price"
                 value={`${money(viewProduct.price)}${
                   viewProduct.price_type === "per_kg" ? " / kg" : ""
                 }`}
@@ -1220,25 +1228,47 @@ export default function ProductsPage() {
                 label="Weight / Size"
                 value={viewProduct.weight || "-"}
               />
-
-              <h4 style={detailHeadingStyle}>Available Weight & Prices</h4>
-
-              {viewProduct.weight_options.length > 0 ? (
-                viewProduct.weight_options.map((option, index) => (
-                  <DetailRow
-                    key={`${option.weight}-${index}`}
-                    label={option.weight}
-                    value={money(option.price)}
-                  />
-                ))
-              ) : (
-                <p style={detailTextStyle}>
-                  Abhi koi weight/price option add nahi hua.
-                </p>
-              )}
-
               <DetailRow label="Status" value={viewProduct.status} />
               <DetailRow label="Rating" value={`⭐ ${viewProduct.rating}`} />
+
+              <h4 style={detailHeadingStyle}>Weight & Price Options</h4>
+
+              {viewProduct.weight_options.length > 0 ? (
+                <div
+                  style={{
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 9,
+                    overflow: "hidden",
+                  }}
+                >
+                  {viewProduct.weight_options.map((option, index) => (
+                    <div
+                      key={`${option.weight}-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: 12,
+                        borderBottom:
+                          index === viewProduct.weight_options.length - 1
+                            ? "none"
+                            : `1px solid ${colors.border}`,
+                        background: index % 2 === 0 ? colors.white : colors.cream,
+                        fontSize: 12,
+                      }}
+                    >
+                      <strong>{option.weight}</strong>
+                      <strong style={{ color: colors.teal }}>
+                        {money(option.price)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={detailTextStyle}>
+                  Abhi koi weight/price option add nahi kiya gaya.
+                </p>
+              )}
 
               <h4 style={detailHeadingStyle}>Short Description</h4>
               <p style={detailTextStyle}>
