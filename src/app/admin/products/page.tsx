@@ -1,9 +1,15 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type PriceType = "per_kg" | "fixed";
+
+type WeightOption = {
+  weight: string;
+  price: number;
+};
 
 type Product = {
   id: number | string;
@@ -16,6 +22,7 @@ type Product = {
   stock: number;
   status: "Active" | "Inactive";
   weight: string;
+  weight_options: WeightOption[];
   image: string;
   image_url: string;
   description: string;
@@ -36,6 +43,7 @@ const emptyProduct: ProductForm = {
   stock: 0,
   status: "Active",
   weight: "",
+  weight_options: [],
   image: "🍬",
   image_url: "",
   description: "",
@@ -121,6 +129,19 @@ export default function ProductsPage() {
           stock: Number(product.stock ?? 0),
           status: product.status === "Inactive" ? "Inactive" : "Active",
           weight: product.weight ?? "",
+          weight_options: Array.isArray(product.weight_options)
+            ? product.weight_options
+                .filter(
+                  (option): option is WeightOption =>
+                    Boolean(option) &&
+                    typeof option.weight === "string" &&
+                    Number.isFinite(Number(option.price))
+                )
+                .map((option) => ({
+                  weight: option.weight,
+                  price: Number(option.price),
+                }))
+            : [],
           image: product.image ?? "🍬",
           image_url: product.image_url ?? "",
           description: product.description ?? "",
@@ -179,7 +200,7 @@ export default function ProductsPage() {
 
   function openAddProduct() {
     setEditingId(null);
-    setForm({ ...emptyProduct });
+    setForm({ ...emptyProduct, weight_options: [] });
     setShowForm(true);
   }
 
@@ -196,6 +217,7 @@ export default function ProductsPage() {
       stock: product.stock,
       status: product.status,
       weight: product.weight,
+      weight_options: product.weight_options ?? [],
       image: product.image,
       image_url: product.image_url ?? "",
       description: product.description ?? "",
@@ -204,6 +226,43 @@ export default function ProductsPage() {
     });
 
     setShowForm(true);
+  }
+
+  function addWeightOption() {
+    setForm((current) => ({
+      ...current,
+      weight_options: [
+        ...current.weight_options,
+        { weight: "", price: 0 },
+      ],
+    }));
+  }
+
+  function updateWeightOption(
+    index: number,
+    field: "weight" | "price",
+    value: string
+  ) {
+    setForm((current) => ({
+      ...current,
+      weight_options: current.weight_options.map((option, optionIndex) =>
+        optionIndex === index
+          ? {
+              ...option,
+              [field]: field === "price" ? Number(value) : value,
+            }
+          : option
+      ),
+    }));
+  }
+
+  function removeWeightOption(index: number) {
+    setForm((current) => ({
+      ...current,
+      weight_options: current.weight_options.filter(
+        (_, optionIndex) => optionIndex !== index
+      ),
+    }));
   }
 
   async function uploadProductImage(file: File | undefined) {
@@ -293,11 +352,36 @@ export default function ProductsPage() {
       return;
     }
 
+    const optionNames = form.weight_options.map((option) =>
+      option.weight.trim().toLowerCase()
+    );
+
+    if (
+      form.weight_options.some(
+        (option) =>
+          !option.weight.trim() ||
+          !Number.isFinite(option.price) ||
+          option.price < 0
+      )
+    ) {
+      alert("Har weight option ka naam aur valid price enter karo.");
+      return;
+    }
+
+    if (new Set(optionNames).size !== optionNames.length) {
+      alert("Ek hi weight option do baar add nahi kar sakte.");
+      return;
+    }
+
     try {
       const isEditing = editingId !== null;
 
       const payload = {
         ...form,
+        weight_options: form.weight_options.map((option) => ({
+          weight: option.weight.trim(),
+          price: Number(option.price),
+        })),
         name: form.name.trim(),
         price: Number(form.price),
         cost_price: Number(form.cost_price),
@@ -330,7 +414,7 @@ export default function ProductsPage() {
 
       setShowForm(false);
       setEditingId(null);
-      setForm({ ...emptyProduct });
+      setForm({ ...emptyProduct, weight_options: [] });
 
       alert(
         isEditing
@@ -447,7 +531,7 @@ export default function ProductsPage() {
           <StatCard
             icon="🏷"
             title="Categories"
-                        value={categoryCount}
+            value={categoryCount}
             text="Product categories"
           />
         </section>
@@ -537,6 +621,9 @@ export default function ProductsPage() {
                             </strong>
                             <span style={weightTextStyle}>
                               {product.weight}
+                              {product.weight_options.length > 0
+                                ? ` · ${product.weight_options.length} price options`
+                                : ""}
                             </span>
                           </div>
                         </div>
@@ -857,21 +944,106 @@ export default function ProductsPage() {
 
                 {form.price_type === "per_kg" && (
                   <div style={infoBoxStyle}>
-                    Customer weight select karega. Misal: Rs. 1,200/kg par
-                    50g = Rs. 60, 250g = Rs. 300, 500g = Rs. 600.
+                    Customer weight select karega. Neeche Weight & Price
+                    Options mein har available weight ki asal price enter karo.
                   </div>
                 )}
 
                 {form.price_type === "fixed" && (
                   <div style={infoBoxStyle}>
-                    Is product ki price fixed rahegi. Weight se price multiply
-                    nahi hogi.
+                    Fixed-price item ke liye bhi apna size aur price option
+                    add kar sakte ho.
                   </div>
                 )}
               </section>
 
               <section style={formSectionStyle}>
-                <SectionHeading>02 · Product Photography</SectionHeading>
+                <SectionHeading>02 · Weight & Price Options</SectionHeading>
+
+                <p style={helperTextStyle}>
+                  Is product ke apne available weights aur unki selling
+                  prices enter karo. Har product ke options aur prices alag
+                  ho sakte hain. Koi automatic price calculate nahi hogi.
+                </p>
+
+                {form.weight_options.length === 0 && (
+                  <div style={infoBoxStyle}>
+                    Abhi koi weight/price option add nahi hua. Customer ke
+                    liye options banane ke liye neeche button dabao.
+                  </div>
+                )}
+
+                {form.weight_options.map((option, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "minmax(100px, 1fr) minmax(120px, 1fr) auto",
+                      gap: 10,
+                      alignItems: "end",
+                      marginBottom: 12,
+                      padding: 12,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 9,
+                      background: colors.cream,
+                    }}
+                  >
+                    <Field label={`Weight / Size ${index + 1}`}>
+                      <input
+                        value={option.weight}
+                        onChange={(event) =>
+                          updateWeightOption(
+                            index,
+                            "weight",
+                            event.target.value
+                          )
+                        }
+                        placeholder="e.g. 250g"
+                        style={inputStyle}
+                        required
+                      />
+                    </Field>
+
+                    <Field label="Selling Price (Rs.)">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={option.price}
+                        onChange={(event) =>
+                          updateWeightOption(
+                            index,
+                            "price",
+                            event.target.value
+                          )
+                        }
+                        style={inputStyle}
+                        required
+                      />
+                    </Field>
+
+                    <button
+                      type="button"
+                      onClick={() => removeWeightOption(index)}
+                      style={deleteButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addWeightOption}
+                  style={outlineGoldButtonStyle}
+                >
+                  ＋ Add Weight & Price
+                </button>
+              </section>
+
+              <section style={formSectionStyle}>
+                <SectionHeading>03 · Product Photography</SectionHeading>
 
                 <p style={helperTextStyle}>
                   JPG, PNG, WEBP ya GIF — maximum 4 MB. Upload ke baad Add
@@ -897,7 +1069,7 @@ export default function ProductsPage() {
 
                 <label style={uploadBoxStyle}>
                   <strong>
-                                        {imageUploading
+                    {imageUploading
                       ? "Uploading image..."
                       : "Choose product photo"}
                   </strong>
@@ -918,7 +1090,7 @@ export default function ProductsPage() {
               </section>
 
               <section style={formSectionStyle}>
-                <SectionHeading>03 · Product Details & Article</SectionHeading>
+                <SectionHeading>04 · Product Details & Article</SectionHeading>
 
                 <Field label="Short Description">
                   <textarea
@@ -1048,6 +1220,23 @@ export default function ProductsPage() {
                 label="Weight / Size"
                 value={viewProduct.weight || "-"}
               />
+
+              <h4 style={detailHeadingStyle}>Available Weight & Prices</h4>
+
+              {viewProduct.weight_options.length > 0 ? (
+                viewProduct.weight_options.map((option, index) => (
+                  <DetailRow
+                    key={`${option.weight}-${index}`}
+                    label={option.weight}
+                    value={money(option.price)}
+                  />
+                ))
+              ) : (
+                <p style={detailTextStyle}>
+                  Abhi koi weight/price option add nahi hua.
+                </p>
+              )}
+
               <DetailRow label="Status" value={viewProduct.status} />
               <DetailRow label="Rating" value={`⭐ ${viewProduct.rating}`} />
 
@@ -1295,6 +1484,7 @@ const statNoteStyle: React.CSSProperties = {
   fontSize: 11,
   marginTop: 4,
 };
+
 const panelStyle: React.CSSProperties = {
   background: colors.white,
   borderRadius: 13,
