@@ -1,19 +1,12 @@
-
 import { put, list } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { isAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CONFIG_PATH = "multani-mithas/site-media.json";
 const MAX_CONFIG_SIZE = 100 * 1024;
-
-function isAuthorized(request: Request) {
-  const expected = process.env.ADMIN_MEDIA_PASSWORD;
-  const supplied = request.headers.get("x-admin-media-password");
-
-  return Boolean(expected && supplied && supplied === expected);
-}
 
 // Customer website reads the published settings here.
 export async function GET() {
@@ -62,7 +55,7 @@ export async function GET() {
 
 // Admin publishes settings here.
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isAdminRequest(request)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }
