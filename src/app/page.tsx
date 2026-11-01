@@ -14,6 +14,7 @@ type PublishedProductSetting = {
   enabled?: boolean;
   background?: string;
 };
+
 type PublishedOffer = {
   id: string;
   title: string;
@@ -21,6 +22,16 @@ type PublishedOffer = {
   buttonText: string;
   buttonLink: string;
   enabled: boolean;
+};
+
+type PublishedSettings = {
+  media?: PublishedMedia[];
+  products?: PublishedProductSetting[];
+  offers?: PublishedOffer[];
+  heroTitle?: string;
+  heroSubtitle?: string;
+  backgroundColor?: string;
+  brandColor?: string;
 };
 type PublishedSettings = {
   media?: PublishedMedia[];
