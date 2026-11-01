@@ -33,15 +33,6 @@ type PublishedSettings = {
   backgroundColor?: string;
   brandColor?: string;
 };
-type PublishedSettings = {
-  media?: PublishedMedia[];
-  products?: PublishedProductSetting[];
-  offers?: PublishedOffer[];
-  heroTitle?: string;
-  heroSubtitle?: string;
-  backgroundColor?: string;
-  brandColor?: string;
-};
 
 type Product = {
   id: number;
