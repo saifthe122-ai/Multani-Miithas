@@ -70,6 +70,7 @@ type PaymentAccount = {
   is_primary: boolean;
   wallet_owner_type?: string;
   qr_image_url?: string;
+  app_link?: string;
 };
 
 const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
@@ -503,10 +504,11 @@ export default function Home() {
                 iban: String(item.iban ?? ""),
                 currency: String(item.currency ?? "PKR"),
                 is_primary: Boolean(item.is_primary),
-                wallet_owner_type: String(
-                  item.wallet_owner_type ?? "personal"
-                ),
-                qr_image_url: String(item.qr_image_url ?? ""),
+               wallet_owner_type: String(
+  item.wallet_owner_type ?? "personal"
+),
+qr_image_url: String(item.qr_image_url ?? ""),
+app_link: String(item.app_link ?? ""),
               }))
           : [];
 
@@ -698,44 +700,78 @@ export default function Home() {
       (method) => method.name === methodName
     );
 
-  const getMatchingPaymentAccounts = (
-    methodName: string,
-    methods: PaymentMethod[] = availablePaymentMethods,
-    accounts: PaymentAccount[] = availablePaymentAccounts
-  ) => {
-    const selectedMethod = methods.find(
-      (method) => method.name === methodName
-    );
+ const getMatchingPaymentAccounts = (
+  methodName: string,
+  methods: PaymentMethod[] = availablePaymentMethods,
+  accounts: PaymentAccount[] = availablePaymentAccounts
+) => {
+  const selectedMethod = methods.find(
+    (method) => method.name === methodName
+  );
 
-    const possibleNames = [
-      methodName,
-      selectedMethod?.method_key || "",
-      selectedMethod?.provider || "",
-      selectedMethod?.name || "",
-    ]
-      .filter(Boolean)
-      .map(normalizePaymentName);
+  const methodNames = [
+    methodName,
+    selectedMethod?.method_key || "",
+    selectedMethod?.provider || "",
+    selectedMethod?.name || "",
+  ]
+    .filter(Boolean)
+    .map(normalizePaymentName);
 
-    return accounts
-      .filter((account) => {
-        const provider = normalizePaymentName(account.provider);
+  const isMethod = (value: string, names: string[]) =>
+    names.includes(normalizePaymentName(value));
 
-        if (!provider) return false;
+  const isCashOnDelivery = methodNames.some((name) =>
+    ["cashondelivery", "cod"].includes(name)
+  );
 
-        return possibleNames.some(
-          (name) =>
-            name &&
-            (provider === name ||
-              provider.includes(name) ||
-              name.includes(provider))
+  if (isCashOnDelivery) return [];
+
+  const isJazzCash = methodNames.includes("jazzcash");
+  const isEasypaisa = methodNames.includes("easypaisa");
+  const isRaast = methodNames.some((name) =>
+    ["raast", "raastid"].includes(name)
+  );
+  const isBankTransfer = methodNames.includes("banktransfer");
+  const isPayoneer = methodNames.includes("payoneer");
+
+  return accounts
+    .filter((account) => {
+      const provider = normalizePaymentName(account.provider);
+      const accountType = normalizePaymentName(account.account_type);
+
+      if (isJazzCash) {
+        return provider === "jazzcash";
+      }
+
+      if (isEasypaisa) {
+        return provider === "easypaisa";
+      }
+
+      if (isRaast) {
+        return (
+          provider === "raast" ||
+          accountType === "raast" ||
+          accountType === "raastid"
         );
-      })
-      .sort(
-        (a, b) =>
-          Number(b.is_primary) - Number(a.is_primary)
-      );
-  };
+      }
 
+      if (isBankTransfer) {
+        return accountType === "bank";
+      }
+
+      if (isPayoneer) {
+        return provider === "payoneer";
+      }
+
+      return isMethod(provider, methodNames);
+    })
+    .sort(
+      (a, b) =>
+        Number(b.is_primary) - Number(a.is_primary)
+    );
+};
+  
   const copyPaymentDetail = async (
     value: string,
     label: string
@@ -2029,28 +2065,43 @@ export default function Home() {
                                 <strong>{account.currency || "PKR"}</strong>
                               </p>
 
-                              {account.qr_image_url && (
-                                <div style={{ marginTop: 16 }}>
-                                  <p><strong>Scan QR to Pay</strong></p>
+                    {account.qr_image_url && (
+  <div style={{ marginTop: 16 }}>
+    <p><strong>Scan QR to Pay</strong></p>
 
-                                  <img
-                                    src={account.qr_image_url}
-                                    alt={`${account.provider} payment QR code`}
-                                    loading="lazy"
-                                    style={{
-                                      display: "block",
-                                      width: "100%",
-                                      maxWidth: 260,
-                                      height: "auto",
-                                      margin: "10px auto",
-                                      border: "1px solid #D8C59F",
-                                      padding: 8,
-                                      background: "#FFFFFF",
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
+    <img
+      src={account.qr_image_url}
+      alt={`${account.provider} payment QR code`}
+      loading="lazy"
+      style={{
+        display: "block",
+        width: "100%",
+        maxWidth: 260,
+        height: "auto",
+        margin: "10px auto",
+        border: "1px solid #D8C59F",
+        padding: 8,
+        background: "#FFFFFF",
+      }}
+    />
+  </div>
+)}
+
+{account.app_link &&
+  account.app_link.startsWith("https://") && (
+    <a
+      href={account.app_link}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        ...goldButton,
+        marginTop: 12,
+      }}
+    >
+      Open {account.provider}
+    </a>
+  )}
+</div>
                           ))
                         ) : (
                           <p>
@@ -2061,7 +2112,14 @@ export default function Home() {
                           </p>
                         )}
 
-                        {isJazzCash(savedPaymentMethod) && (
+                       {isJazzCash(savedPaymentMethod) &&
+  !getMatchingPaymentAccounts(savedPaymentMethod).some(
+    (account) =>
+      Boolean(
+        account.app_link &&
+        account.app_link.startsWith("https://")
+      )
+  ) && (
                           <div style={{ marginTop: 18 }}>
                             <a
                               href="https://www.jazzcash.com.pk/deeplink/"
