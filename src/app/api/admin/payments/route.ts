@@ -371,7 +371,7 @@ export async function PATCH(request: Request) {
 
       const makePrimary = data.isPrimary === true;
 
-    const appLinkProvided = typeof data.appLink === "string";
+const appLinkProvided = typeof data.appLink === "string";
 const appLink =
   typeof data.appLink === "string"
     ? data.appLink.trim()
@@ -387,6 +387,21 @@ if (appLink) {
   } catch {
     return jsonError("Please enter a valid payment app link.");
   }
+}
+
+const walletOwnerTypeProvided =
+  data.walletOwnerType === "personal" ||
+  data.walletOwnerType === "merchant";
+
+const walletOwnerType = walletOwnerTypeProvided
+  ? data.walletOwnerType
+  : null;
+
+if (
+  data.walletOwnerType !== undefined &&
+  !walletOwnerTypeProvided
+) {
+  return jsonError("Wallet ownership type valid nahi.");
 }
       
       if (makePrimary) {
@@ -404,11 +419,15 @@ if (appLink) {
     WHEN ${makePrimary} THEN true
     ELSE is_primary
   END,
-  app_link = CASE
-    WHEN ${appLinkProvided} THEN ${appLink}
-    ELSE app_link
-  END,
-  updated_at = NOW()
+app_link = CASE
+  WHEN ${appLinkProvided} THEN ${appLink}
+  ELSE app_link
+END,
+wallet_owner_type = CASE
+  WHEN ${walletOwnerTypeProvided} THEN ${walletOwnerType}
+  ELSE wallet_owner_type
+END,
+updated_at = NOW()
   
         WHERE id = ${id}
         RETURNING *
