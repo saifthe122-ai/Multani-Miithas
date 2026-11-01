@@ -32,14 +32,14 @@ export async function GET(request: Request) {
         ORDER BY display_order ASC, id ASC
       `,
       sql`
-        SELECT
-          id, account_name, account_type, provider,
-          account_title, account_number, iban,
-          currency, is_primary, is_active,
-          wallet_owner_type, qr_image_url,
-          created_at, updated_at
-        FROM business_payment_accounts
-        ORDER BY is_primary DESC, id ASC
+     SELECT
+  id, account_name, account_type, provider,
+  account_title, account_number, iban,
+  currency, is_primary, is_active,
+  wallet_owner_type, qr_image_url, app_link,
+  created_at, updated_at
+FROM business_payment_accounts
+ORDER BY is_primary DESC, id ASC
       `,
       sql`
         SELECT
@@ -165,6 +165,29 @@ export async function POST(request: Request) {
           ? data.qrImageUrl.trim()
           : "";
 
+      const appLink =
+  typeof data.appLink === "string"
+    ? data.appLink.trim()
+    : "";
+
+if (appLink) {
+  try {
+    const parsedAppLink = new URL(appLink);
+
+    if (parsedAppLink.protocol !== "https:") {
+      return NextResponse.json(
+        { error: "Payment app link must use HTTPS." },
+        { status: 400 }
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "Please enter a valid payment app link." },
+      { status: 400 }
+    );
+  }
+}
+      
       const provider =
         typeof data.provider === "string"
           ? data.provider.trim()
@@ -232,18 +255,18 @@ export async function POST(request: Request) {
       }
 
       const result = await sql`
-        INSERT INTO business_payment_accounts (
-          account_name, account_type, provider,
-          account_title, account_number, iban,
-          currency, wallet_owner_type, qr_image_url,
-          is_primary, is_active
-        )
-        VALUES (
-          ${accountName}, ${accountType}, ${provider},
-          ${accountTitle}, ${accountNumber}, ${iban},
-          ${currency}, ${walletOwnerType}, ${qrImageUrl},
-          ${makePrimary}, true
-        )
+ INSERT INTO business_payment_accounts (
+  account_name, account_type, provider,
+  account_title, account_number, iban,
+  currency, wallet_owner_type, qr_image_url, app_link,
+  is_primary, is_active
+)
+      VALUES (
+  ${accountName}, ${accountType}, ${provider},
+  ${accountTitle}, ${accountNumber}, ${iban},
+  ${currency}, ${walletOwnerType}, ${qrImageUrl}, ${appLink},
+  ${makePrimary}, true
+)
         RETURNING *
       `;
 
@@ -348,6 +371,39 @@ export async function PATCH(request: Request) {
 
       const makePrimary = data.isPrimary === true;
 
+const appLinkProvided = typeof data.appLink === "string";
+const appLink =
+  typeof data.appLink === "string"
+    ? data.appLink.trim()
+    : null;
+
+if (appLink) {
+  try {
+    const parsedAppLink = new URL(appLink);
+
+    if (parsedAppLink.protocol !== "https:") {
+      return jsonError("Payment app link must use HTTPS.");
+    }
+  } catch {
+    return jsonError("Please enter a valid payment app link.");
+  }
+}
+
+const walletOwnerTypeProvided =
+  data.walletOwnerType === "personal" ||
+  data.walletOwnerType === "merchant";
+
+const walletOwnerType = walletOwnerTypeProvided
+  ? data.walletOwnerType
+  : null;
+
+if (
+  data.walletOwnerType !== undefined &&
+  !walletOwnerTypeProvided
+) {
+  return jsonError("Wallet ownership type valid nahi.");
+}
+      
       if (makePrimary) {
         await sql`
           UPDATE business_payment_accounts
@@ -357,13 +413,22 @@ export async function PATCH(request: Request) {
 
       const result = await sql`
         UPDATE business_payment_accounts
-        SET
-          is_active = COALESCE(${isActive}, is_active),
-          is_primary = CASE
-            WHEN ${makePrimary} THEN true
-            ELSE is_primary
-          END,
-          updated_at = NOW()
+       SET
+  is_active = COALESCE(${isActive}, is_active),
+  is_primary = CASE
+    WHEN ${makePrimary} THEN true
+    ELSE is_primary
+  END,
+app_link = CASE
+  WHEN ${appLinkProvided} THEN ${appLink}
+  ELSE app_link
+END,
+wallet_owner_type = CASE
+  WHEN ${walletOwnerTypeProvided} THEN ${walletOwnerType}
+  ELSE wallet_owner_type
+END,
+updated_at = NOW()
+  
         WHERE id = ${id}
         RETURNING *
       `;

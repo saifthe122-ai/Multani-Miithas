@@ -28,6 +28,7 @@ type BusinessAccount = {
   isActive: boolean;
   walletOwnerType: string;
   qrImageUrl: string;
+  appLink: string;
 };
 
 type PaymentRecord = {
@@ -88,9 +89,13 @@ export default function PaymentsDashboard() {
   const [accountType, setAccountType] = useState("wallet");
   const [provider, setProvider] = useState("JazzCash");
   const [accountTitle, setAccountTitle] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [iban, setIban] = useState("");
-  const [currency, setCurrency] = useState("PKR");
+const [accountNumber, setAccountNumber] = useState("");
+const [iban, setIban] = useState("");
+const [appLink, setAppLink] = useState("");
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+const [editingAppLink, setEditingAppLink] = useState("");
+const [editingWalletOwnerType, setEditingWalletOwnerType] = useState("personal");
+const [currency, setCurrency] = useState("PKR");
   const [isPrimary, setIsPrimary] = useState(false);
   const [walletOwnerType, setWalletOwnerType] = useState("personal");
   const [qrFile, setQrFile] = useState<File | null>(null);
@@ -136,8 +141,9 @@ export default function PaymentsDashboard() {
             currency: String(item.currency ?? "PKR"),
             isPrimary: Boolean(item.is_primary),
             isActive: Boolean(item.is_active),
-            walletOwnerType: String(item.wallet_owner_type ?? "personal"),
-            qrImageUrl: String(item.qr_image_url ?? ""),
+          walletOwnerType: String(item.wallet_owner_type ?? "personal"),
+qrImageUrl: String(item.qr_image_url ?? ""),
+appLink: String(item.app_link ?? ""),
           })
         )
       );
@@ -310,8 +316,9 @@ export default function PaymentsDashboard() {
           iban: iban.trim(),
           currency,
           isPrimary,
-          walletOwnerType,
-          qrImageUrl: uploadedQRUrl,
+         walletOwnerType,
+qrImageUrl: uploadedQRUrl,
+appLink: appLink.trim(),
         }),
       });
 
@@ -321,13 +328,14 @@ export default function PaymentsDashboard() {
         throw new Error(result.error || "Account save nahi hua.");
       }
 
-      setAccountName("");
-      setAccountTitle("");
-      setAccountNumber("");
-      setIban("");
-      setIsPrimary(false);
-      setWalletOwnerType("personal");
-      setQrFile(null);
+     setAccountName("");
+setAccountTitle("");
+setAccountNumber("");
+setIban("");
+setAppLink("");
+setIsPrimary(false);
+setWalletOwnerType("personal");
+setQrFile(null);
 
       const fileInput = document.getElementById(
         "payment-qr-upload"
@@ -346,35 +354,41 @@ export default function PaymentsDashboard() {
     }
   }
 
-  async function updateAccount(
-    account: BusinessAccount,
-    changes: { isActive?: boolean; isPrimary?: boolean }
-  ) {
-    try {
-      const response = await fetch("/api/admin/payments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update_account",
-          id: Number(account.id),
-          ...changes,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.success !== true) {
-        throw new Error(result.error || "Account update nahi hua.");
-      }
-
-      await loadPaymentSettings();
-      setNotice("Account settings database mein save ho gayi hain.");
-    } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Account update nahi hua."
-      );
-    }
+async function updateAccount(
+  account: BusinessAccount,
+  changes: {
+    isActive?: boolean;
+    isPrimary?: boolean;
+    appLink?: string;
+    walletOwnerType?: string;
   }
+) {
+  try {
+    const response = await fetch("/api/admin/payments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_account",
+        id: Number(account.id),
+        ...changes,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.success !== true) {
+      throw new Error(result.error || "Account update nahi hua.");
+    }
+
+   await loadPaymentSettings();
+setEditingAccountId(null);
+setNotice("Account settings database mein save ho gayi hain.");
+  } catch (error) {
+    setNotice(
+      error instanceof Error ? error.message : "Account update nahi hua."
+    );
+  }
+}
 
   async function updatePaymentStatus(
     payment: PaymentRecord,
@@ -630,16 +644,29 @@ export default function PaymentsDashboard() {
               />
             </label>
 
-            <label>
-              IBAN
-              <input
-                value={iban}
-                onChange={(e) => setIban(e.target.value)}
-                placeholder="PK..."
-                style={inputStyle}
-              />
-            </label>
-
+          <label>
+  Payment App / Bank App Link
+  <input
+    type="url"
+    value={appLink}
+    onChange={(e) => setAppLink(e.target.value)}
+    placeholder="https://..."
+    style={inputStyle}
+  />
+  <small style={{ color: "#6b7280" }}>
+    Optional · Sirf verified HTTPS link enter karein
+  </small>
+</label>
+          
+<label>
+  IBAN
+  <input
+    value={iban}
+    onChange={(e) => setIban(e.target.value)}
+    placeholder="PK..."
+    style={inputStyle}
+  />
+</label>
             <label>
               Currency
               <select
@@ -783,7 +810,81 @@ export default function PaymentsDashboard() {
                   <p style={{ margin: "4px 0 14px" }}>
                     <strong>Currency:</strong> {account.currency}
                   </p>
+   {editingAccountId === account.id ? (
+  <div style={{ margin: "12px 0", display: "grid", gap: 10 }}>
+    <label>
+      Payment App / Bank App Link
+      <input
+        type="url"
+        value={editingAppLink}
+        onChange={(e) => setEditingAppLink(e.target.value)}
+        placeholder="https://..."
+        style={inputStyle}
+      />
+    </label>
 
+    {(account.provider.toLowerCase() === "jazzcash" ||
+      account.provider.toLowerCase() === "easypaisa") && (
+      <label>
+        Wallet Ownership
+        <select
+          value={editingWalletOwnerType}
+          onChange={(e) => setEditingWalletOwnerType(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="personal">Personal Account</option>
+          <option value="merchant">Merchant / Business Account</option>
+        </select>
+      </label>
+    )}
+
+    <div style={{ display: "flex", gap: 8 }}>
+      <button
+        type="button"
+        onClick={() =>
+          updateAccount(account, {
+            appLink: editingAppLink.trim(),
+            walletOwnerType: editingWalletOwnerType,
+          })
+        }
+        style={{ ...buttonStyle, background: "#145b50", color: "#fff" }}
+      >
+        Save Changes
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setEditingAccountId(null)}
+        style={{ ...buttonStyle, background: "#e5e7eb", color: "#111827" }}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+) : (
+  <>
+    {account.appLink && (
+      <p style={{ margin: "4px 0 14px" }}>
+        <strong>App Link:</strong>{" "}
+        <a href={account.appLink} target="_blank" rel="noopener noreferrer">
+          Open Payment App
+        </a>
+      </p>
+    )}
+
+    <button
+      type="button"
+      onClick={() => {
+        setEditingAccountId(account.id);
+        setEditingAppLink(account.appLink);
+        setEditingWalletOwnerType(account.walletOwnerType);
+      }}
+      style={{ ...buttonStyle, background: "#e0f2fe", color: "#075985" }}
+    >
+      Edit App Link / Ownership
+    </button>
+  </>
+)}             
                   {account.qrImageUrl && (
                     <div style={{ margin: "12px 0" }}>
                       <p style={{ fontWeight: 700, marginBottom: 8 }}>
