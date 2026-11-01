@@ -17,6 +17,15 @@ type ProductStyle = {
   enabled: boolean;
 };
 
+type OfferItem = {
+  id: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonLink: string;
+  enabled: boolean;
+};
+
 type PublishedSettings = {
   heroTitle?: string;
   heroSubtitle?: string;
@@ -24,8 +33,8 @@ type PublishedSettings = {
   backgroundColor?: string;
   products?: ProductStyle[];
   media?: MediaItem[];
+  offers?: OfferItem[];
 };
-
 type MediaLibraryResponse = {
   success?: boolean;
   error?: string;
@@ -59,8 +68,14 @@ function getDisplayName(pathname: string) {
 
 export default function WebsiteDesignPage() {
   const [activeTab, setActiveTab] = useState("media");
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [products, setProducts] = useState<ProductStyle[]>(initialProducts);
+const [media, setMedia] = useState<MediaItem[]>([]);
+const [products, setProducts] = useState<ProductStyle[]>(initialProducts);
+const [offers, setOffers] = useState<OfferItem[]>([]);
+const [offerTitle, setOfferTitle] = useState("");
+const [offerDescription, setOfferDescription] = useState("");
+const [offerButtonText, setOfferButtonText] = useState("Shop Now");
+const [offerButtonLink, setOfferButtonLink] = useState("#products");
+const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   const [heroTitle, setHeroTitle] = useState("Multan Ki Mithas,");
   const [heroSubtitle, setHeroSubtitle] = useState(
     "Saraiki Wasib ki riwayat, har mithai ke saath. Discover the timeless taste and sweet heritage of Multan, Pakistan."
@@ -95,12 +110,16 @@ export default function WebsiteDesignPage() {
             setBrandColor(savedSettings.brandColor || "#D8AC55");
             setBackgroundColor(savedSettings.backgroundColor || "#F3E8D4");
 
-            if (
-              Array.isArray(savedSettings.products) &&
-              savedSettings.products.length
-            ) {
-              setProducts(savedSettings.products);
-            }
+         if (
+  Array.isArray(savedSettings.products) &&
+  savedSettings.products.length
+) {
+  setProducts(savedSettings.products);
+}
+
+if (Array.isArray(savedSettings.offers)) {
+  setOffers(savedSettings.offers);
+}
           }
         }
       } catch {
@@ -338,14 +357,15 @@ export default function WebsiteDesignPage() {
   async function publishSettings() {
     setBusy(true);
 
-    const settings: PublishedSettings = {
-      heroTitle,
-      heroSubtitle,
-      brandColor,
-      backgroundColor,
-      products,
-      media: media.map(({ name, url, type }) => ({ name, url, type })),
-    };
+  const settings: PublishedSettings = {
+  heroTitle,
+  heroSubtitle,
+  brandColor,
+  backgroundColor,
+  products,
+  media: media.map(({ name, url, type }) => ({ name, url, type })),
+  offers,
+};
 
     try {
       const response = await fetch("/api/site-media", {
@@ -447,12 +467,13 @@ export default function WebsiteDesignPage() {
             marginBottom: 22,
           }}
         >
-          {[
-            ["media", "Images & Videos"],
-            ["products", "Product Backgrounds"],
-            ["homepage", "Homepage Design"],
-            ["theme", "Theme & Colors"],
-          ].map(([id, label]) => (
+        {[
+  ["media", "Images & Videos"],
+  ["products", "Product Backgrounds"],
+  ["homepage", "Homepage Design"],
+  ["offers", "Offers & Promotions"],
+  ["theme", "Theme & Colors"],
+].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -916,7 +937,243 @@ export default function WebsiteDesignPage() {
             </div>
           </section>
         )}
+{activeTab === "offers" && (
+  <section style={{ display: "grid", gap: 18 }}>
+    <div style={panelStyle}>
+      <h2 style={{ marginTop: 0 }}>Create Homepage Offer</h2>
+      <p style={{ color: "#75676b", lineHeight: 1.6 }}>
+        Yahan se offer banayein. Offer enable karne ke baad
+        Save & Publish dabayein.
+      </p>
 
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+
+          const title = offerTitle.trim();
+          const description = offerDescription.trim();
+
+          if (!title || !description) {
+            setNotice("Offer title aur description zaroori hain.");
+            return;
+          }
+
+          const offer: OfferItem = {
+            id: editingOfferId || crypto.randomUUID(),
+            title,
+            description,
+            buttonText: offerButtonText.trim() || "Shop Now",
+            buttonLink: offerButtonLink.trim() || "#products",
+            enabled: true,
+          };
+
+          setOffers((current) =>
+            editingOfferId
+              ? current.map((item) =>
+                  item.id === editingOfferId ? offer : item
+                )
+              : [...current, offer]
+          );
+
+          setOfferTitle("");
+          setOfferDescription("");
+          setOfferButtonText("Shop Now");
+          setOfferButtonLink("#products");
+          setEditingOfferId(null);
+          setNotice("Offer tayyar hai. Live karne ke liye Save & Publish dabayein.");
+        }}
+        style={{ display: "grid", gap: 13 }}
+      >
+        <label>
+          Offer Title
+          <input
+            required
+            maxLength={100}
+            value={offerTitle}
+            onChange={(event) => setOfferTitle(event.target.value)}
+            placeholder="Example: Special Eid Collection"
+            style={{
+              display: "block",
+              width: "100%",
+              boxSizing: "border-box",
+              padding: 12,
+              marginTop: 6,
+              border: "1px solid #d9c8c8",
+              borderRadius: 8,
+            }}
+          />
+        </label>
+
+        <label>
+          Offer Description
+          <textarea
+            required
+            maxLength={500}
+            rows={3}
+            value={offerDescription}
+            onChange={(event) => setOfferDescription(event.target.value)}
+            placeholder="Offer ki details likhein..."
+            style={{
+              display: "block",
+              width: "100%",
+              boxSizing: "border-box",
+              padding: 12,
+              marginTop: 6,
+              border: "1px solid #d9c8c8",
+              borderRadius: 8,
+            }}
+          />
+        </label>
+
+        <label>
+          Button Text
+          <input
+            maxLength={30}
+            value={offerButtonText}
+            onChange={(event) => setOfferButtonText(event.target.value)}
+            placeholder="Shop Now"
+            style={{
+              display: "block",
+              width: "100%",
+              boxSizing: "border-box",
+              padding: 12,
+              marginTop: 6,
+              border: "1px solid #d9c8c8",
+              borderRadius: 8,
+            }}
+          />
+        </label>
+
+        <label>
+          Button Link
+          <input
+            maxLength={200}
+            value={offerButtonLink}
+            onChange={(event) => setOfferButtonLink(event.target.value)}
+            placeholder="#products"
+            style={{
+              display: "block",
+              width: "100%",
+              boxSizing: "border-box",
+              padding: 12,
+              marginTop: 6,
+              border: "1px solid #d9c8c8",
+              borderRadius: 8,
+            }}
+          />
+        </label>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button type="submit" style={buttonStyle}>
+            {editingOfferId ? "Update Offer" : "Add Offer"}
+          </button>
+
+          {editingOfferId && (
+            <button
+              type="button"
+              style={{ ...buttonStyle, background: "#75676b" }}
+              onClick={() => {
+                setEditingOfferId(null);
+                setOfferTitle("");
+                setOfferDescription("");
+                setOfferButtonText("Shop Now");
+                setOfferButtonLink("#products");
+              }}
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+
+    <div style={panelStyle}>
+      <h2 style={{ marginTop: 0 }}>Offers List ({offers.length})</h2>
+
+      {offers.length === 0 ? (
+        <p style={{ color: "#75676b" }}>
+          Abhi koi offer nahi bana.
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {offers.map((offer) => (
+            <div
+              key={offer.id}
+              style={{
+                border: "1px solid #eadfd8",
+                borderRadius: 10,
+                padding: 15,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 17 }}>
+                {offer.title}
+              </div>
+
+              <p style={{ color: "#75676b", lineHeight: 1.5 }}>
+                {offer.description}
+              </p>
+
+              <p style={{ fontSize: 13 }}>
+                Button: {offer.buttonText} · Link: {offer.buttonLink}
+              </p>
+
+              <p style={{ fontSize: 13 }}>
+                Status: {offer.enabled ? "Enabled" : "Unpublished"}
+              </p>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  style={buttonStyle}
+                  onClick={() => {
+                    setEditingOfferId(offer.id);
+                    setOfferTitle(offer.title);
+                    setOfferDescription(offer.description);
+                    setOfferButtonText(offer.buttonText);
+                    setOfferButtonLink(offer.buttonLink);
+                  }}
+                >
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  style={{ ...buttonStyle, background: "#75676b" }}
+                  onClick={() =>
+                    setOffers((current) =>
+                      current.map((item) =>
+                        item.id === offer.id
+                          ? { ...item, enabled: !item.enabled }
+                          : item
+                      )
+                    )
+                  }
+                >
+                  {offer.enabled ? "Unpublish" : "Publish"}
+                </button>
+
+                <button
+                  type="button"
+                  style={{ ...buttonStyle, background: "#8a263c" }}
+                  onClick={() => {
+                    if (window.confirm("Is offer ko delete karna hai?")) {
+                      setOffers((current) =>
+                        current.filter((item) => item.id !== offer.id)
+                      );
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+)}
+        
         {activeTab === "theme" && (
           <section
             style={{
