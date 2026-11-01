@@ -14,10 +14,18 @@ type PublishedProductSetting = {
   enabled?: boolean;
   background?: string;
 };
-
+type PublishedOffer = {
+  id: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonLink: string;
+  enabled: boolean;
+};
 type PublishedSettings = {
   media?: PublishedMedia[];
   products?: PublishedProductSetting[];
+  offers?: PublishedOffer[];
   heroTitle?: string;
   heroSubtitle?: string;
   backgroundColor?: string;
@@ -1444,9 +1452,10 @@ app_link: String(item.app_link ?? ""),
           </span>
         </a>
 
-        <nav className="mm-nav">
+              <nav className="mm-nav">
           <a href="#home">Home</a>
           <a href="#products">Shop</a>
+          <a href="#offers">Offers</a>
           <a href="#about">Our Story</a>
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
@@ -1514,7 +1523,93 @@ app_link: String(item.app_link ?? ""),
           ))}
         </div>
       </section>
+      {publishedSettings?.offers?.some((offer) => offer.enabled) && (
+        <section
+          id="offers"
+          style={{
+            ...sectionStyle,
+            background: "#092F32",
+            color: "#F3E8D4",
+          }}
+        >
+          <div className="mm-ornament">✦ ❖ ✦</div>
 
+          <p className="mm-eyebrow" style={{ textAlign: "center" }}>
+            Special Deals · Limited Promotions
+          </p>
+
+          <h2
+            className="mm-section-heading"
+            style={{ color: "#FFF1D7" }}
+          >
+            Offers & Promotions
+          </h2>
+
+          <p
+            className="mm-section-intro"
+            style={{ color: "#D9D0BE" }}
+          >
+            Discover our latest special offers from Multani Mithas.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 22,
+              maxWidth: 1000,
+              margin: "auto",
+            }}
+          >
+            {publishedSettings.offers
+              .filter((offer) => offer.enabled)
+              .map((offer) => (
+                <article
+                  key={offer.id}
+                  style={{
+                    background: "#FFF8EA",
+                    color: "#123F42",
+                    padding: 25,
+                    border: "1px solid #D8AC55",
+                    borderRadius: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ color: "#A16B16", fontSize: 22 }}>
+                    ✦ SPECIAL OFFER ✦
+                  </div>
+
+                  <h3
+                    style={{
+                      fontSize: 23,
+                      margin: "15px 0",
+                      color: "#123F42",
+                    }}
+                  >
+                    {offer.title}
+                  </h3>
+
+                  <p style={{ lineHeight: 1.7 }}>
+                    {offer.description}
+                  </p>
+
+                  {offer.buttonText && offer.buttonLink && (
+                    <a
+                      href={offer.buttonLink}
+                      style={{
+                        ...goldButton,
+                        display: "inline-block",
+                        marginTop: 15,
+                      }}
+                    >
+                      {offer.buttonText} →
+                    </a>
+                  )}
+                </article>
+              ))}
+          </div>
+        </section>
+      )}
       <section
         id="products"
         style={{ ...sectionStyle, background: "#FFF8EA" }}
