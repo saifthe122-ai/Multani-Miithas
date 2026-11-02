@@ -298,7 +298,7 @@ export default function Home() {
 
   const [paymentMethod, setPaymentMethod] =
     useState("Cash on Delivery");
-
+const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [savedOrderNumber, setSavedOrderNumber] = useState("");
   const [savedOrderAmount, setSavedOrderAmount] = useState(0);
@@ -2071,16 +2071,13 @@ app_link: String(item.app_link ?? ""),
                         <strong>{savedPaymentMethod}</strong>
                       </p>
 
-                      <p>
-                        Product Subtotal:{" "}
-                        <strong>{money(savedOrderAmount)}</strong>
-                      </p>
+                    <p>
+  Total Payable (including delivery and applicable tax):{" "}
+  <strong>{money(savedOrderAmount)}</strong>
+</p>
+                      
 
-                      <p style={{ fontSize: 13 }}>
-                        Delivery charges are not included in this amount.
-                        Our business will confirm delivery charges and
-                        final payable amount separately.
-                      </p>
+                  
                     </div>
 
                     {isCashOnDelivery(savedPaymentMethod) ? (
@@ -2123,7 +2120,21 @@ app_link: String(item.app_link ?? ""),
                         <h3 style={{ color: "#123F42" }}>
                           Payment Instructions
                         </h3>
-
+                       <div
+  style={{
+    background: "#123F42",
+    color: "#FFF8EA",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    textAlign: "center",
+  }}
+>
+  <p style={{ margin: 0 }}>Exact Amount to Transfer</p>
+  <h2 style={{ color: "#E6BD6C", margin: "8px 0 0" }}>
+    {money(savedOrderAmount)}
+  </h2>
+</div>
                         {savedPaymentInstructions && (
                           <p>{savedPaymentInstructions}</p>
                         )}
@@ -2133,58 +2144,38 @@ app_link: String(item.app_link ?? ""),
                             <div
                               key={String(account.id)}
                               style={{
-                                border: "1px solid #D8C59F",
-                                padding: 14,
-                                marginTop: 14,
-                                borderRadius: 6,
-                                background: "#FFFDF7",
+                               border: "1px solid #D8B66A",
+                                padding: 20,
+                                marginTop: 16,
+                                borderRadius: 12,
+                                background: "linear-gradient(145deg, #123F42, #1B5555)",
+                                color: "#FFF8EA",
+                        boxShadow: "0 8px 22px rgba(18, 63, 66, 0.16)",
                               }}
                             >
-                              <p>
-                                <strong>
-                                  {account.account_name || account.provider}
-                                </strong>
+                             
+                          
+                             <div style={{ lineHeight: 1.8 }}>
+                             <p style={{ margin: "8px 0", color: "#FFF8EA" }}>
+                              Account Title:{" "}
+                                  <strong>{account.account_title}</strong>
+                                  </p>
 
-                                {account.is_primary && (
-                                  <span
-                                    style={{
-                                      marginLeft: 8,
-                                      fontSize: 11,
-                                      color: "#237A4B",
-                                    }}
-                                  >
-                                    PRIMARY ACCOUNT
-                                  </span>
-                                )}
-                              </p>
+                                  <p style={{ margin: "8px 0", color: "#E6BD6C" }}>
+                            Amount to Transfer:{" "}
+                    <strong>{money(savedOrderAmount)}</strong>
+                   </p>
 
-                              <p>
-                                Account Provider:{" "}
-                                <strong>{account.provider}</strong>
-                              </p>
-
-                              <p>
-                                Account Type:{" "}
-                                <strong>
-                                  {account.wallet_owner_type || "Personal"}
-                                </strong>
-                              </p>
-
-                              <p>
-                                Account Title:{" "}
-                                <strong>{account.account_title}</strong>
-                              </p>
-
-                              <p>
-                                Account Number:{" "}
-                                <strong style={{ overflowWrap: "anywhere" }}>
-                                  {account.account_number}
-                                </strong>
-                              </p>
-
+                  <p style={{ margin: "8px 0", color: "#FFF8EA" }}>
+               Account Number:{" "}
+                <strong style={{ overflowWrap: "anywhere" }}>
+                   {account.account_number}
+                      </strong>
+                          </p>
+                         </div>
                               <button
                                 type="button"
-                                className="mm-gold-button"
+                           className="mm-buy-button"
                                 onClick={() =>
                                   copyPaymentDetail(
                                     account.account_number,
@@ -2222,29 +2213,36 @@ app_link: String(item.app_link ?? ""),
                                 </>
                               )}
 
-                              <p>
-                                Currency:{" "}
-                                <strong>{account.currency || "PKR"}</strong>
-                              </p>
-
+                       
                     {account.qr_image_url && (
-  <div style={{ marginTop: 16 }}>
-    <p><strong>Scan QR to Pay</strong></p>
+                            <div
+                             style={{
+                             marginTop: 18,
+                            padding: 16,
+                        background: "#FFF8EA",
+                       border: "1px solid #D8B66A",
+                         borderRadius: 10,
+                     textAlign: "center",
+                 }}
+                           >   
+                              <p><strong>Scan QR to Pay</strong></p>
 
     <img
       src={account.qr_image_url}
       alt={`${account.provider} payment QR code`}
       loading="lazy"
-      style={{
-        display: "block",
-        width: "100%",
-        maxWidth: 260,
-        height: "auto",
-        margin: "10px auto",
-        border: "1px solid #D8C59F",
-        padding: 8,
-        background: "#FFFFFF",
-      }}
+    style={{
+  display: "block",
+  width: "100%",
+  maxWidth: 260,
+  height: "auto",
+  margin: "10px auto",
+  border: "1px solid #D8B66A",
+  borderRadius: 8,
+  padding: 12,
+  background: "#FFFFFF",
+  boxShadow: "0 4px 14px rgba(18, 63, 66, 0.12)",
+}}
     />
   </div>
 )}
@@ -2255,10 +2253,17 @@ app_link: String(item.app_link ?? ""),
       href={account.app_link}
       target="_blank"
       rel="noopener noreferrer"
-      style={{
-        ...goldButton,
-        marginTop: 12,
-      }}
+     style={{
+  display: "inline-block",
+  padding: "12px 20px",
+  marginTop: 12,
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 9,
+  fontWeight: 700,
+}}
     >
       Open {account.provider}
     </a>
@@ -2287,7 +2292,16 @@ app_link: String(item.app_link ?? ""),
                               href="https://www.jazzcash.com.pk/deeplink/"
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={goldButton}
+                             style={{
+  display: "inline-block",
+  padding: "12px 20px",
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 9,
+  fontWeight: 700,
+}}
                             >
                               Open JazzCash
                             </a>
@@ -2303,13 +2317,14 @@ app_link: String(item.app_link ?? ""),
 
                         <div
                           style={{
-                            borderTop: "1px solid #D8C59F",
-                            marginTop: 20,
-                            paddingTop: 15,
+                           borderTop: "1px solid #D8B66A",
+                          marginTop: 24,
+                       paddingTop: 20,
                           }}
                         >
-                          <h3>Payment Verification</h3>
-
+                 <h3 style={{ color: "#E6BD6C", marginTop: 0 }}>
+                 Payment Verification
+                   </h3>
                           <p>
                             Payment karne ke baad screenshot WhatsApp par
                             bhejein. Admin apne payment account mein amount
@@ -2334,18 +2349,27 @@ app_link: String(item.app_link ?? ""),
                                 /\D/g,
                                 ""
                               )}?text=${encodeURIComponent(
-                                `Assalam-o-Alaikum Multani Mithas. My order number is ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Product subtotal: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot for verification.`
+                                `Assalam-o-Alaikum Multani Mithas. My order number is ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Total payable: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot for verification.`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                ...goldButton,
-                                width: "100%",
-                                textAlign: "center",
-                                marginTop: 12,
-                              }}
+                         style={{
+  display: "block",
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "15px 18px",
+  marginTop: 16,
+  textAlign: "center",
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 10,
+  fontWeight: 700,
+  boxShadow: "0 6px 18px rgba(18, 63, 66, 0.18)",
+}}
                             >
-                              Send Payment Screenshot on WhatsApp
+                             Open WhatsApp & Attach Payment Screenshot
                             </a>
                           )}
 
@@ -2454,24 +2478,21 @@ app_link: String(item.app_link ?? ""),
                 })}
 
                 <div className="mm-cart-totals">
-                  <div><span>Subtotal</span><strong>{money(total)}</strong></div>
-                  <div><span>Delivery charges</span><strong>Confirmed separately</strong></div>
-                  <p>Final payable amount delivery charges confirm hone ke baad bataya jayega.</p>
-                </div>
-                <h3 style={{ textAlign: "right", color: "#123F42" }}>
-                  Subtotal: {money(total)}
-                </h3>
+  <div>
+    <span>Product Subtotal</span>
+    <strong>{money(total)}</strong>
+  </div>
+  <p>
+    Delivery charges and applicable taxes are calculated
+    in the final order total.
+  </p>
+</div>
 
-                <p style={{ fontSize: 14 }}>
-                  Delivery charges are not included. Final delivery cost
-                  and payment arrangements must be confirmed by the business.
-                </p>
-
-                <form
-                  onSubmit={placeOrder}
-                  style={{ display: "grid", gap: 15, marginTop: 25 }}
-                >
-                  <h3>Delivery & Checkout Details</h3>
+<form
+  onSubmit={placeOrder}
+  style={{ display: "grid", gap: 15, marginTop: 25 }}
+>
+  <h3>Delivery & Checkout Details</h3>
 
                   <label>
                     Customer Name
@@ -2520,58 +2541,58 @@ app_link: String(item.app_link ?? ""),
                     />
                   </label>
 
-                  <label>
-                    Payment Method
-                    <select
-                      className="mm-input"
-                      value={paymentMethod}
-                      onChange={(event) =>
-                        setPaymentMethod(event.target.value)
-                      }
-                      required
-                    >
-                      {availablePaymentMethods.map((method) => (
-                        <option
-                          key={String(method.id)}
-                          value={method.name}
-                        >
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+               <div>
+  <button
+    type="button"
+    className="mm-gold-button"
+    onClick={() => setPaymentMethodOpen((open) => !open)}
+    style={{ width: "100%" }}
+  >
+    Payment Method: {paymentMethod} {paymentMethodOpen ? "▲" : "▼"}
+  </button>
 
-                  {getSelectedPaymentMethod(paymentMethod)?.description && (
-                    <p style={{ fontSize: 13, marginTop: -8 }}>
-                      {getSelectedPaymentMethod(paymentMethod)?.description}
-                    </p>
-                  )}
+  {paymentMethodOpen && (
+    <div
+      style={{
+  marginTop: 14,
+  padding: 18,
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  border: "1px solid #D8B66A",
+  borderRadius: 12,
+  boxShadow: "0 8px 22px rgba(18, 63, 66, 0.16)",
+}}
+    >
+      {availablePaymentMethods.map((method) => (
+        <button
+          key={String(method.id)}
+          type="button"
+          className="mm-buy-button"
+style={{
+  width: "100%",
+  marginBottom: 8,
+  padding: "13px 16px",
+  borderRadius: 8,
+  border: paymentMethod === method.name
+    ? "2px solid #E6BD6C"
+    : "1px solid rgba(255,255,255,0.35)",
+  background: paymentMethod === method.name
+    ? "#E6BD6C"
+    : "rgba(255,255,255,0.08)",
+  color: paymentMethod === method.name ? "#123F42" : "#FFF8EA",
+  fontWeight: 600,
+}}          onClick={() => {
+            setPaymentMethod(method.name);
+            setPaymentMethodOpen(false);
+          }}
+        >
+          {method.name}
+        </button>
+      ))}
+    </div>
+  )}
+</div> 
 
-                  {!isCashOnDelivery(paymentMethod) && (
-                    <div
-                      style={{
-                        padding: 15,
-                        border: "1px solid #D8C59F",
-                        background: "#FFFDF7",
-                        borderRadius: 6,
-                      }}
-                    >
-                      <h3 style={{ marginTop: 0, color: "#123F42" }}>
-                        Selected Payment Method
-                      </h3>
-
-                      <p>
-                        {paymentMethod} select kiya gaya hai. Order submit
-                        karne ke baad payment instructions aur available
-                        account details show hongi.
-                      </p>
-
-                      <p style={{ fontSize: 13 }}>
-                        Payment order submit hone ke baad karein. Payment
-                        verification admin manually karega.
-                      </p>
-                    </div>
-                  )}
+        
 
                   {isCashOnDelivery(paymentMethod) && (
                     <p style={{ fontSize: 13 }}>
@@ -2580,12 +2601,7 @@ app_link: String(item.app_link ?? ""),
                     </p>
                   )}
 
-                  <p style={{ fontSize: 14 }}>
-                    Online payment is not processed automatically. Payment
-                    verification and delivery charges will be confirmed
-                    by the business.
-                  </p>
-
+                 
                   <button
                     type="submit"
                     className="mm-gold-button"
