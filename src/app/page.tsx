@@ -83,7 +83,7 @@ type PaymentAccount = {
   app_link?: string;
 };
 
-const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
+const WEIGHT_OPTIONS = [0.5, 1, 1.5, 2, 5];
 
 const cartKey = (productId: number, weight: number) =>
   `${productId}-${weight}`;
@@ -272,9 +272,8 @@ const normalizePaymentName = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export default function Home() {
- const [products, setProducts] = useState<Product[]>([]);
-const [productsLoading, setProductsLoading] = useState(true);
-const [productsError, setProductsError] = useState("");
+  const [products, setProducts] =
+    useState<Product[]>(defaultProducts);
 
   const [cart, setCart] =
     useState<Record<string, CartItem>>({});
@@ -321,32 +320,32 @@ const [productsError, setProductsError] = useState("");
   useEffect(() => {
     let cancelled = false;
 
-    const loadProducts = async () => {
-      try {
-        const response = await fetch("/api/products", {
-          cache: "no-store",
-        });
-
+    fetch("/api/products", { cache: "no-store" })
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error("Products load nahi huay.");
+          throw new Error("Products load nahi huay");
         }
-
-        const result: unknown = await response.json();
-
-        if (!result || typeof result !== "object") {
-          throw new Error("Products ka response valid nahi hai.");
+        return response.json();
+      })
+      .then((result: unknown) => {
+        if (
+          !result ||
+          typeof result !== "object" ||
+          cancelled
+        ) {
+          return;
         }
 
         const payload = result as {
           success?: boolean;
           products?: unknown;
-          message?: string;
         };
 
-        if (!payload.success || !Array.isArray(payload.products)) {
-          throw new Error(
-            payload.message || "Products database se nahi milay."
-          );
+        if (
+          !payload.success ||
+          !Array.isArray(payload.products)
+        ) {
+          return;
         }
 
         const databaseProducts: Product[] = payload.products
@@ -369,10 +368,6 @@ const [productsError, setProductsError] = useState("");
                 ? item.image_url
                 : "";
 
-            const isInactive =
-              String(item.status ?? "").toLowerCase() === "inactive" ||
-              item.is_active === false;
-
             return {
               id: Number(item.id),
               name,
@@ -393,7 +388,11 @@ const [productsError, setProductsError] = useState("");
               description: String(item.description ?? ""),
               ingredients: String(item.ingredients ?? ""),
               rating: Number(item.rating ?? 5),
-              status: isInactive ? "Inactive" : "Active",
+              status: (
+                String(item.status ?? "").toLowerCase() === "inactive"
+                  ? "Inactive"
+                  : "Active"
+              ) as "Active" | "Inactive",
             };
           })
           .filter(
@@ -401,37 +400,54 @@ const [productsError, setProductsError] = useState("");
               Number.isSafeInteger(product.id) &&
               product.id > 0 &&
               Number.isFinite(product.price) &&
-              product.price >= 0 &&
-              product.status === "Active"
+              product.price >= 0
           );
 
-        if (!cancelled) {
+        if (!cancelled && databaseProducts.length > 0) {
           setProducts(databaseProducts);
-          setProductsError(
-            databaseProducts.length === 0
-              ? "Abhi koi active product available nahi hai."
-              : ""
-          );
         }
-      } catch (error: unknown) {
+      })
+      .catch((error: unknown) => {
         console.error("Products load error:", error);
+      });
 
-        if (!cancelled) {
-          setProducts([]);
-          setProductsError(
-            error instanceof Error
-              ? error.message
-              : "Products load nahi ho sakay. Dobara try karein."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setProductsLoading(false);
-        }
-      }
+    return () => {
+      cancelled = true;
     };
+  }, []);
 
-    loadProducts();
+  // Website media settings load karein.
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/site-media", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Media settings load nahi huin");
+        }
+        return response.json();
+      })
+      .then((result: unknown) => {
+        if (
+          cancelled ||
+          !result ||
+          typeof result !== "object"
+        ) {
+          return;
+        }
+
+        const payload = result as {
+          success?: boolean;
+          settings?: PublishedSettings;
+        };
+
+        if (payload.success && payload.settings) {
+          setPublishedSettings(payload.settings);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Media settings error:", error);
+      });
 
     return () => {
       cancelled = true;
@@ -662,7 +678,7 @@ app_link: String(item.app_link ?? ""),
     getProductSetting(product)?.enabled !== false;
 
   const getProductBackground = (product: Product) =>
-    getProductSetting(product)?.background || "#FFF8EA";
+    "#FFF8EA";
 
   const getProductImage = (product: Product) =>
     findPublishedMedia(
@@ -783,42 +799,54 @@ app_link: String(item.app_link ?? ""),
   };
 
   // Product ko selected weight ke saath cart mein add karein.
-const addToCart = (id: number, weight = 1) => {
-  const product = products.find((item) => item.id === id);
+  const addToCart = (id: number, weight = 1) => {
+    setSavedOrderNumber("");
 
-  if (!product || product.status !== "Active") {
-    setMessage("Yeh product filhal available nahi hai.");
-    return;
-  }
+    const key = cartKey(id, weight);
 
-  if (product.stock <= 0) {
-    setMessage("Yeh product out of stock hai.");
-    return;
-  }
+    setCart((old) => ({
+      ...old,
+      [key]: {
+        productId: id,
+        weight,
+        quantity: (old[key]?.quantity || 0) + 1,
+      },
+    }));
 
-  const key = cartKey(id, weight);
-  const currentQuantity = cart[key]?.quantity || 0;
+    setMessage("");
+    setCartOpen(true);
+  };
 
-  if (currentQuantity >= product.stock) {
-    setMessage(`Sirf ${product.stock} quantity available hai.`);
-    return;
-  }
+  // Buy Now: selected item cart mein add karke checkout kholein.
+  const buyNow = (id: number, weight = 1) => {
+    setSavedOrderNumber("");
+    const key = cartKey(id, weight);
+    setCart({
+      [key]: { productId: id, weight, quantity: 1 },
+    });
+    setMessage("");
+    setCartOpen(true);
+  };
 
-  setSavedOrderNumber("");
-  setCart((old) => ({
-    ...old,
-    [key]: {
-      productId: id,
-      weight,
-      quantity: currentQuantity + 1,
-    },
-  }));
+  // Quantity ko plus karein.
+  const increaseCartItem = (key: string) => {
+    setCart((old) => {
+      const item = old[key];
+      if (!item || item.quantity >= 100) return old;
+      return { ...old, [key]: { ...item, quantity: item.quantity + 1 } };
+    });
+  };
 
-  setMessage("Product cart mein add ho gaya!");
-  setCartOpen(true);
-};
+  // Cart se item bilkul remove karein.
+  const deleteCartItem = (key: string) => {
+    setCart((old) => {
+      const next = { ...old };
+      delete next[key];
+      return next;
+    });
+  };
 
-  // Cart se selected product/weight remove karein.
+  // Cart se selected product/weight ki quantity kam karein.
   const removeFromCart = (key: string) => {
     setSavedOrderNumber("");
 
@@ -850,24 +878,16 @@ const addToCart = (id: number, weight = 1) => {
     0
   );
 
-   const total = cartItems.reduce((sum, item) => {
+  const total = cartItems.reduce((sum, item) => {
     const product = products.find(
       (p) => p.id === item.productId
     );
 
     if (!product) return sum;
 
-    const discount = Math.min(
-      100,
-      Math.max(0, Number(product.discount) || 0)
-    );
-
-    const discountedPrice =
-      product.price * (1 - discount / 100);
-
     return (
       sum +
-      discountedPrice *
+      product.price *
         (isGiftProduct(product) ? 1 : item.weight) *
         item.quantity
     );
@@ -875,14 +895,12 @@ const addToCart = (id: number, weight = 1) => {
 
   const regularProducts = products.filter(
     (product) =>
-      product.status === "Active" &&
       product.category !== "Gift Boxes" &&
       isProductEnabled(product)
   );
 
   const giftProducts = products.filter(
     (product) =>
-      product.status === "Active" &&
       product.category === "Gift Boxes" &&
       isProductEnabled(product)
   );
@@ -933,41 +951,11 @@ const addToCart = (id: number, weight = 1) => {
       return;
     }
 
-  
     setSubmittingOrder(true);
     setSavedOrderNumber("");
     setMessage("");
 
-    const stockIssue = cartItems.find((item) => {
-      const product = products.find(
-        (p) => p.id === item.productId
-      );
-
-      return (
-        !product ||
-        product.status !== "Active" ||
-        product.stock < item.quantity ||
-        product.stock <= 0
-      );
-    });
-
-    if (stockIssue) {
-      const product = products.find(
-        (p) => p.id === stockIssue.productId
-      );
-
-      setMessage(
-        !product || product.status !== "Active"
-          ? "Cart mein ek product ab available nahi hai. Cart update karein."
-          : `${product.name} ki available stock ${product.stock} hai. Quantity update karein.`
-      );
-
-      setSubmittingOrder(false);
-      return;
-    }
-
     try {
-
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -991,12 +979,14 @@ const addToCart = (id: number, weight = 1) => {
       if (!result || typeof result !== "object") {
         throw new Error("Server se valid response nahi mila.");
       }
+
       const data = result as {
         success?: boolean;
         message?: string;
         order?: {
           orderNumber?: string;
-          total?: number | string;
+          subtotal?: number;
+          total?: number;
         };
       };
 
@@ -1011,9 +1001,7 @@ const addToCart = (id: number, weight = 1) => {
       const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
       setSavedOrderNumber(orderNumber);
-      setSavedOrderAmount(
-        Number(data.order?.total ?? total)
-      );
+      setSavedOrderAmount(Number(data.order?.total ?? data.order?.subtotal ?? total));
       setSavedPaymentMethod(paymentMethod);
       setSavedCustomerPhone(customerPhone.trim());
       setSavedPaymentAccounts(matchingAccounts);
@@ -1298,6 +1286,17 @@ const addToCart = (id: number, weight = 1) => {
 
         .mm-gold-button:hover { background: #E7C77F; }
         .mm-gold-button:disabled { cursor: wait; opacity: .65; }
+        .mm-buy-button { display:block; width:100%; margin-top:9px; padding:11px 18px; border:1px solid #173F3E; border-radius:2px; background:#103F3D; color:#FFF4DE; font:inherit; font-weight:700; cursor:pointer; }
+        .mm-buy-button:hover { background:#1B5B55; }
+        .mm-product-rating { margin:5px 0; color:#9A7132; font-weight:700; font-size:13px; }
+        .mm-stock-note { margin:5px 0 10px; color:#42645B; font-size:12px; }
+        .mm-discount-note { color:#A13D2D; font-size:12px; font-weight:700; }
+        .mm-quantity-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+        .mm-quantity-controls button { min-width:36px; min-height:36px; border:1px solid #C8B48C; background:#F3E8D4; color:#173639; border-radius:6px; cursor:pointer; font-weight:700; }
+        .mm-quantity-controls .mm-remove-button { padding:0 10px; width:auto; color:#8B342B; }
+        .mm-cart-totals { margin:20px 0; padding:16px; background:#F7EEDC; border:1px solid #D8C59F; border-radius:8px; }
+        .mm-cart-totals > div { display:flex; justify-content:space-between; gap:12px; padding:5px 0; }
+        .mm-cart-totals p { margin:8px 0 0; font-size:12px; color:#665A45; }
 
         .mm-heritage {
           display: grid;
@@ -1432,8 +1431,8 @@ const addToCart = (id: number, weight = 1) => {
           inset: 0;
           z-index: 99999;
           display: flex;
-          justify-content: center;
-          align-items: flex-start;
+          justify-content: flex-end;
+          align-items: stretch;
           overflow-y: auto;
           overscroll-behavior: contain;
           background: rgba(4, 24, 26, .88);
@@ -1441,14 +1440,19 @@ const addToCart = (id: number, weight = 1) => {
         }
 
         .mm-cart-panel {
-          max-width: 850px;
-          width: 100%;
-          margin: 0 auto;
+          max-width: 760px;
+          width: min(760px, 100%);
+          height: 100%;
+          overflow-y: auto;
+          margin: 0;
           padding: 25px;
           background: #F3E8D4;
-          border: 2px solid #D8AC55;
+          border-left: 2px solid #D8AC55;
           box-shadow: 0 15px 50px rgba(0,0,0,.35);
-          border-radius: 4px;
+          border-radius: 14px 0 0 14px;
+          animation: mm-slide-in .22s ease-out;
+        }
+        @keyframes mm-slide-in { from { transform: translateX(24px); opacity:.7; } to { transform:translateX(0); opacity:1; }
         }
 
         .mm-cart-close-row {
@@ -1477,8 +1481,8 @@ const addToCart = (id: number, weight = 1) => {
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
-          .mm-cart-overlay { padding: 10px; }
-          .mm-cart-panel { padding: 16px; }
+          .mm-cart-overlay { padding: 0; align-items: flex-end; }
+          .mm-cart-panel { width:100%; max-width:none; max-height:92dvh; height:auto; padding:16px; border-radius:18px 18px 0 0; border:2px solid #D8AC55; border-bottom:0; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1655,7 +1659,7 @@ const addToCart = (id: number, weight = 1) => {
           </div>
         </section>
       )}
-           <section
+      <section
         id="products"
         style={{ ...sectionStyle, background: "#FFF8EA" }}
       >
@@ -1666,249 +1670,98 @@ const addToCart = (id: number, weight = 1) => {
           are displayed in Pakistani rupees.
         </p>
 
-        {productsLoading && (
-          <p style={{ textAlign: "center", padding: 25 }}>
-            Products load ho rahe hain...
-          </p>
-        )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 22,
+          }}
+        >
+          {regularProducts.map((product) => {
+            const selectedWeight = getSelectedWeight(product.id);
 
-        {!productsLoading && productsError && (
-          <p
-            role="alert"
-            style={{
-              textAlign: "center",
-              padding: 20,
-              color: "#9B3028",
-            }}
-          >
-            {productsError}
-          </p>
-        )}
+            return (
+              <article
+                key={product.id}
+                className="mm-card"
+                style={{ background: getProductBackground(product) }}
+              >
+                <img
+                  className="mm-product-image"
+                  src={getProductImage(product)}
+                  alt={product.name}
+                  loading="lazy"
+                />
+<div className="mm-card-body">
+                  <span className="mm-card-category">
+                    {product.category}
+                  </span>
 
-        {!productsLoading &&
-          !productsError &&
-          regularProducts.length === 0 && (
-            <p style={{ textAlign: "center", padding: 25 }}>
-              Filhal koi product available nahi hai.
-            </p>
-          )}
+                  <h3 className="mm-card-title">{product.name}</h3>
 
-        {!productsLoading && !productsError && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 22,
-            }}
-          >
-            {regularProducts.map((product) => {
-              const selectedWeight = getSelectedWeight(product.id);
-              const discount = Math.min(
-                100,
-                Math.max(0, Number(product.discount) || 0)
-              );
+                  {product.weight && <p>{product.weight}</p>}
+                  <p className="mm-product-rating" aria-label={`Rated ${product.rating} out of 5`}>
+                    ★ {Number.isFinite(product.rating) ? product.rating.toFixed(1) : "5.0"} / 5
+                  </p>
+                  {product.discount > 0 && (
+                    <p className="mm-discount-note">{product.discount}% discount</p>
+                  )}
+                  <p className="mm-stock-note">
+                    {product.stock > 0 ? "Available to order" : "Availability confirmed after order"}
+                  </p>
 
-              const regularPrice = product.price * selectedWeight;
-              const discountedPrice =
-                regularPrice * (1 - discount / 100);
-
-              const outOfStock = product.stock <= 0;
-
-              return (
-                <article
-                  key={product.id}
-                  className="mm-card"
-                  style={{ background: getProductBackground(product) }}
-                >
-                  <img
-                    className="mm-product-image"
-                    src={getProductImage(product)}
-                    alt={product.name}
-                    loading="lazy"
-                  />
-
-                  <div className="mm-card-body">
-                    <span className="mm-card-category">
-                      {product.category}
-                    </span>
-
-                    <h3 className="mm-card-title">{product.name}</h3>
-
-                    {product.weight && <p>{product.weight}</p>}
-
-                    <label
-                      style={{
-                        display: "block",
-                        textAlign: "left",
-                        fontSize: 13,
-                        marginTop: 12,
-                      }}
-                    >
-                      Select Weight
-                      <select
-                        className="mm-input"
-                        value={selectedWeight}
-                        onChange={(event) =>
-                          setSelectedWeights((old) => ({
-                            ...old,
-                            [product.id]: Number(event.target.value),
-                          }))
-                        }
-                      >
-                        {WEIGHT_OPTIONS.map((weight) => (
-                          <option key={weight} value={weight}>
-                            {weight} kg
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <p className="mm-price">
-                      {money(discountedPrice)}
-                    </p>
-
-                    {discount > 0 && (
-                      <p
-                        style={{
-                          fontSize: 13,
-                          textDecoration: "line-through",
-                          color: "#777",
-                          marginTop: -12,
-                        }}
-                      >
-                        {money(regularPrice)}
-                      </p>
-                    )}
-
-                    <p style={{ fontSize: 12, marginTop: -12 }}>
-                      {money(product.price * (1 - discount / 100))} per kg
-                    </p>
-
-                    {outOfStock && (
-                      <p style={{ color: "#A12E27", fontWeight: "bold" }}>
-                        Out of Stock
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      className="mm-gold-button"
-                      disabled={outOfStock}
-                      onClick={() =>
-                        addToCart(product.id, selectedWeight)
+                  <label
+                    style={{
+                      display: "block",
+                      textAlign: "left",
+                      fontSize: 13,
+                      marginTop: 12,
+                    }}
+                  >
+                    Select Weight
+                    <select
+                      className="mm-input"
+                      value={selectedWeight}
+                      onChange={(event) =>
+                        setSelectedWeights((old) => ({
+                          ...old,
+                          [product.id]: Number(event.target.value),
+                        }))
                       }
                     >
-                      {outOfStock ? "Currently Unavailable" : "Add to Cart +"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section> 
-            {giftProducts.length > 0 && (
-        <section
-          id="gift-boxes"
-          style={{ ...sectionStyle, background: "#F5EBDD" }}
-        >
-          <div className="mm-ornament">✦ ❖ ✦</div>
+                      {WEIGHT_OPTIONS.map((weight) => (
+                        <option key={weight} value={weight}>
+                          {weight} kg
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-          <h2 className="mm-section-heading">
-            Premium Gift Boxes
-          </h2>
+                  <p className="mm-price">
+                    {money(product.price * selectedWeight)}
+                  </p>
 
-          <p className="mm-section-intro">
-            Share the traditional sweetness of Multan with your loved ones.
-          </p>
+                  <p style={{ fontSize: 12, marginTop: -12 }}>
+                    {money(product.price)} per kg
+                  </p>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 22,
-            }}
-          >
-            {giftProducts.map((product) => {
-              const discount = Math.min(
-                100,
-                Math.max(0, Number(product.discount) || 0)
-              );
+                  <button
+                    type="button"
+                    className="mm-gold-button"
+                    onClick={() =>
+                      addToCart(product.id, selectedWeight)
+                    }
+                  >
+                    Add to Cart +
+                  </button>
+                  <button type="button" className="mm-buy-button" onClick={() => buyNow(product.id, selectedWeight)}>Buy Now →</button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
-              const regularPrice = product.price;
-              const discountedPrice =
-                regularPrice * (1 - discount / 100);
-
-              const outOfStock = product.stock <= 0;
-
-              return (
-                <article
-                  key={product.id}
-                  className="mm-card"
-                  style={{
-                    background: getProductBackground(product),
-                  }}
-                >
-                  <img
-                    className="mm-product-image"
-                    src={getProductImage(product)}
-                    alt={product.name}
-                    loading="lazy"
-                  />
-
-                  <div className="mm-card-body">
-                    <h3 className="mm-card-title">
-                      {product.name}
-                    </h3>
-
-                    <p className="mm-price">
-                      {money(discountedPrice)}
-                    </p>
-
-                    {discount > 0 && (
-                      <p
-                        style={{
-                          fontSize: 13,
-                          textDecoration: "line-through",
-                          color: "#777",
-                        }}
-                      >
-                        {money(regularPrice)}
-                      </p>
-                    )}
-
-                    <p style={{ fontSize: 12 }}>
-                      Fixed price gift box
-                    </p>
-
-                    {outOfStock && (
-                      <p
-                        style={{
-                          color: "#A12E27",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        Out of Stock
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      className="mm-gold-button"
-                      disabled={outOfStock}
-                      onClick={() => addToCart(product.id, 1)}
-                    >
-                      {outOfStock
-                        ? "Currently Unavailable"
-                        : "Add to Cart +"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
       <section
         id="about"
         className="mm-heritage"
@@ -1993,7 +1846,6 @@ const addToCart = (id: number, weight = 1) => {
             </article>
           ))}
         </div>
-        
       </section>
 
       <section
@@ -2092,9 +1944,69 @@ const addToCart = (id: number, weight = 1) => {
             margin: "auto",
           }}
         >
-         
+          {giftProducts.map((product) => (
+            <article
+              key={product.id}
+              className="mm-card"
+              style={{ background: getProductBackground(product) }}
+            >
+              <img
+                className="mm-product-image"
+                src={getProductImage(product)}
+                alt={product.name}
+                loading="lazy"
+              />
+              <div className="mm-card-body">
+                <h3 className="mm-card-title">{product.name}</h3>
+                <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
+                <p className="mm-stock-note">Availability confirmed after order</p>
+                <p className="mm-price">{money(product.price)}</p>
+                <p style={{ fontSize: 12 }}>Fixed price gift box</p>
+                <button
+                  type="button"
+                  className="mm-gold-button"
+                  onClick={() => addToCart(product.id, 1)}
+                >
+                  Add to Cart +
+                </button>
+                <button
+                  type="button"
+                  className="mm-buy-button"
+                  onClick={() => buyNow(product.id, 1)}
+                >
+                  Buy Now →
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-          
+      {/* Cart and checkout popup */}
+      {cartOpen && (
+        <div
+          className="mm-cart-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mm-cart-heading"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setCartOpen(false);
+            }
+          }}
+        >
+          <section className="mm-cart-panel">
+            <div className="mm-cart-close-row">
+              <button
+                type="button"
+                className="mm-gold-button"
+                onClick={() => setCartOpen(false)}
+                aria-label="Close shopping cart"
+              >
+                Close ✕
+              </button>
+            </div>
+
             <div className="mm-ornament">❖ ✦ ❖</div>
             <h2
               id="mm-cart-heading"
@@ -2491,19 +2403,10 @@ const addToCart = (id: number, weight = 1) => {
                   if (!product) return null;
 
                   const gift = isGiftProduct(product);
-                 const discount = Math.min(
-  100,
-  Math.max(0, Number(product.discount) || 0)
-);
-
-const originalLineTotal =
-  product.price *
-  (gift ? 1 : item.weight) *
-  item.quantity;
-
-const lineTotal =
-  originalLineTotal * (1 - discount / 100);
-                
+                  const lineTotal =
+                    product.price *
+                    (gift ? 1 : item.weight) *
+                    item.quantity;
 
                   const key = cartKey(
                     item.productId,
@@ -2537,46 +2440,24 @@ const lineTotal =
                         </div>
                       </div>
 
-                    <div>
-  {discount > 0 && (
-    <div
-      style={{
-        fontSize: 13,
-        color: "#777",
-        textDecoration: "line-through",
-      }}
-    >
-      {money(originalLineTotal)}
-    </div>
-  )}
-
-  <strong>{money(lineTotal)}</strong>
-
-  {discount > 0 && (
-    <div style={{ fontSize: 12, color: "#287A45" }}>
-      {discount}% discount
-    </div>
-  )}
-
-  <button
-    
-                          type="button"
-                          onClick={() => removeFromCart(key)}
-                          style={{
-                            padding: "7px 10px",
-                            marginLeft: 8,
-                            cursor: "pointer",
-                            border: "1px solid #C8B48C",
-                            background: "#F3E8D4",
-                          }}
-                        >
-                          − Remove
-                        </button>
+                      <div>
+                        <strong>{money(lineTotal)}</strong>
+                        <div className="mm-quantity-controls" aria-label={`Quantity for ${product.name}`}>
+                          <button type="button" onClick={() => removeFromCart(key)} aria-label="Decrease quantity">−</button>
+                          <strong>{item.quantity}</strong>
+                          <button type="button" onClick={() => increaseCartItem(key)} aria-label="Increase quantity">+</button>
+                          <button type="button" className="mm-remove-button" onClick={() => deleteCartItem(key)}>Remove</button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
 
+                <div className="mm-cart-totals">
+                  <div><span>Subtotal</span><strong>{money(total)}</strong></div>
+                  <div><span>Delivery charges</span><strong>Confirmed separately</strong></div>
+                  <p>Final payable amount delivery charges confirm hone ke baad bataya jayega.</p>
+                </div>
                 <h3 style={{ textAlign: "right", color: "#123F42" }}>
                   Subtotal: {money(total)}
                 </h3>
