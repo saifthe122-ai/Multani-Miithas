@@ -13,44 +13,48 @@ export const metadata: Metadata = {
 
 const sections = [
   {
-    title: "1. Our Commitment to Quality",
-    text: "At Multani Mithas, we take care in preparing, packaging and delivering our traditional sweets, Sohan Halwa, bakery products and gift hampers. If your order arrives with a genuine problem, we want to help resolve it.",
+    title: "No Return & No Refund Policy",
+    text: "All sales of mithai, sweets, bakery products and other perishable food items are generally final. We do not accept returns or offer refunds for change of mind, personal taste preference or orders no longer wanted by the customer once preparation or dispatch has taken place. This policy helps protect food hygiene, product freshness and customer safety. Genuine complaints involving damaged, incorrect, missing or defective products will be reviewed under the conditions below.",
   },
   {
-    title: "2. When Can You Request a Refund or Replacement?",
-    text: "You may contact us if you receive a damaged, spoiled or expired product, an incorrect item, a missing product, or an order that does not match your confirmed purchase. Genuine product quality concerns will also be reviewed individually.",
+    title: "Damaged, Incorrect or Missing Items",
+    text: "If you receive a damaged product, an incorrect item, a missing item or a product with a genuine quality issue, please contact us within 2 hours of delivery. For missing items, please check your order and report the issue as soon as possible within this period. Our team will review verified complaints individually.",
   },
   {
-    title: "3. Reporting a Problem",
-    text: "Please contact us within 24 hours of receiving your order. Share your order number, a brief description of the issue and clear photographs or video of the product and packaging. Please keep the product and its packaging until our team has reviewed your complaint.",
+    title: "How to Report a Problem",
+    text: "Please provide your order number, a brief description of the issue and clear photographs or video showing the product and its packaging. Keep the affected product and packaging until our team has reviewed your complaint. Please do not consume the affected product before reporting a suspected defect or quality issue.",
   },
   {
-    title: "4. Food Safety and Non-Returnable Items",
-    text: "For food safety and hygiene reasons, we generally cannot accept returns for a change of mind, personal taste preference or an order no longer wanted by the customer. Products that have been opened, consumed, improperly stored or damaged after delivery are generally not eligible for return. Genuine quality concerns will still be considered.",
+    title: "Resolution of Verified Complaints",
+    text: "After reviewing the available evidence, Multani Mithas may offer a replacement of the affected item, store credit for a future purchase or an appropriate refund. The resolution will depend on the nature of the complaint, verification of the issue and product availability. Refunds or replacements are not automatic and will be considered on a case-by-case basis, subject to applicable consumer protection laws.",
   },
   {
-    title: "5. Refunds and Replacements",
-    text: "After reviewing an eligible complaint, Multani Mithas may offer a replacement, refund for the affected item or another mutually agreed resolution. If a replacement is unavailable, an appropriate refund may be arranged. The resolution will depend on the nature of the issue and the available product.",
+    title: "Food Safety and Product Storage",
+    text: "Our products are prepared and packed with care. Customers should follow any storage and consumption instructions provided with the product. We cannot accept responsibility for quality deterioration caused by improper storage, handling or consumption after delivery. Products that have been opened, consumed or damaged after delivery are generally not eligible for return, except where a genuine product defect or applicable consumer rights require a different outcome.",
   },
   {
-    title: "6. Refund Processing",
-    text: "Approved refunds will normally be initiated within 3–5 working days. Where possible, refunds will be sent through the original payment method. For Cash on Delivery or manual payments, an appropriate bank or mobile wallet transfer may be arranged with the customer. Bank and payment provider processing times may vary.",
+    title: "Return Shipping & Courier Charges",
+    text: "Where a return is exceptionally approved by Multani Mithas, the customer may be required to arrange and pay the courier charges for sending the item back to us. Please do not send any product back without first receiving instructions from our support team. For damaged, incorrect, missing or verified quality-related complaints caused by an issue on our side, we will review the appropriate return arrangements and courier costs fairly. Customers will not automatically be charged for return shipping when the issue is our responsibility.",
   },
   {
-    title: "7. Delivery Charges",
-    text: "Where an order problem is confirmed to be our responsibility, applicable delivery charges will also be considered for refund. Delivery charges for other situations will be reviewed according to the circumstances of the order.",
+    title: "Refund Processing",
+    text: "If a refund is approved, it will normally be initiated within 3–5 working days after confirmation. Where possible, refunds will be sent through the original payment method. For Cash on Delivery or manual payments, an appropriate bank or mobile wallet transfer may be arranged after payment details are verified. The time taken for the amount to appear in your account may depend on the bank or payment provider.",
   },
   {
-    title: "8. Order Verification",
-    text: "Our team may contact you to verify order details, payment information and the reported issue before approving a refund or replacement. This helps us handle every complaint fairly.",
+    title: "Delivery Delays and Failed Delivery",
+    text: "Delivery times are estimates and may vary due to traffic, weather, courier operations or high order volume. If delivery fails because of an incorrect address or customer unavailability, please contact our team to discuss available options. A redelivery may involve additional delivery charges, which will be communicated before arranging it. Any refund request will be reviewed according to the circumstances and applicable consumer protection laws.",
   },
   {
-    title: "9. Contact and Support",
-    text: "For refund, replacement or product quality enquiries, please contact Multani Mithas through the contact details provided on our website. Please include your order number so our team can assist you efficiently.",
+    title: "Order Verification",
+    text: "Our team may contact you to verify your order number, delivery details, payment information and reported issue before approving a replacement, store credit or refund. This helps us investigate complaints and handle each case fairly.",
   },
   {
-    title: "10. Customer Rights and Policy Updates",
-    text: "This policy does not limit any rights available to customers under applicable consumer protection laws. Multani Mithas may update this policy when its products or business practices change. The latest version will be published on this page.",
+    title: "Contact and Support",
+    text: "For a complaint, refund request or product quality concern, contact Multani Mithas through the official contact details displayed on our website. Please include your order number and report the issue within 2 hours of delivery so our team can review it promptly.",
+  },
+  {
+    title: "Customer Rights and Policy Updates",
+    text: "Nothing in this policy is intended to exclude or restrict any rights or protections available to customers under applicable consumer protection laws. If any part of this policy conflicts with applicable law, the legal requirements will apply. Multani Mithas may update this policy when its products or business practices change. The latest version will be published on this page.",
   },
 ];
 
@@ -112,11 +116,12 @@ export default function RefundReturnPage() {
         </p>
 
         <p>
-          Your satisfaction matters to us. We believe every
-          order should reflect the care, quality and tradition
-          associated with Multani Mithas. This policy explains
-          how we handle product complaints, returns,
-          replacements and refunds.
+          At Multani Mithas, we take pride in delivering traditional
+          Pakistani sweets, Sohan Halwa and bakery products with care.
+          Because our products are perishable food items, this policy
+          explains how we handle returns, product complaints,
+          replacements and refunds while maintaining food hygiene
+          and customer safety.
         </p>
 
         {sections.map((section, index) => (
