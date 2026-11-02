@@ -1,5 +1,6 @@
 
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Multani Mithas",
@@ -153,7 +154,7 @@ export default function PrivacyPolicyPage() {
             Last updated: 2 November 2026
           </p>
 
-          <a
+          <Link
             href="/"
             style={{
               display: "inline-block",
@@ -165,7 +166,7 @@ export default function PrivacyPolicyPage() {
             }}
           >
             ← Return to Multani Mithas
-          </a>
+          </Link>
         </div>
       </article>
     </main>
