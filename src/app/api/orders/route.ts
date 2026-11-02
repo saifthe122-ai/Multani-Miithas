@@ -48,113 +48,243 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
+
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return NextResponse.json({ success: false, message: "Invalid order details." }, { status: 400 });
     }
+
     const data = body as Record<string, unknown>;
     const customerName = typeof data.customerName === "string" ? data.customerName.trim() : "";
     const phone = typeof data.phone === "string" ? data.phone.trim() : "";
     const address = typeof data.address === "string" ? data.address.trim() : "";
     const submittedPayment = typeof data.paymentMethod === "string" ? data.paymentMethod.trim() : "";
-    const paymentMethod = PAYMENT_METHODS.find((method) => method.toLowerCase() === submittedPayment.toLowerCase());
+    const paymentMethod = PAYMENT_METHODS.find(
+      (method) => method.toLowerCase() === submittedPayment.toLowerCase()
+    );
 
     if (!customerName || customerName.length > 150 || !phone || phone.length > 40 || !address || address.length > 2000) {
       return NextResponse.json({ success: false, message: "Name, phone aur delivery address sahi enter karein." }, { status: 400 });
     }
+
     if (!paymentMethod) {
       return NextResponse.json({ success: false, message: "Payment method valid nahi hai." }, { status: 400 });
     }
+
     if (!Array.isArray(data.items) || data.items.length === 0 || data.items.length > 50) {
       return NextResponse.json({ success: false, message: "Cart mein valid products nahi hain." }, { status: 400 });
     }
 
     const combinedItems = new Map<string, CartItem>();
+
     for (const item of data.items) {
       if (!item || typeof item !== "object" || Array.isArray(item)) {
         return NextResponse.json({ success: false, message: "Cart item valid nahi hai." }, { status: 400 });
       }
+
       const cartItem = item as Record<string, unknown>;
       const productId = String(cartItem.productId ?? "");
       const quantity = cartItem.quantity;
       const weight = cartItem.weight;
-      if (!/^\d+$/.test(productId) || !Number.isSafeInteger(Number(productId)) || Number(productId) <= 0 ||
-        typeof quantity !== "number" || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100 ||
-        typeof weight !== "number" || !ALLOWED_WEIGHTS.includes(weight)) {
+
+      if (
+        !/^\d+$/.test(productId) ||
+        !Number.isSafeInteger(Number(productId)) ||
+        Number(productId) <= 0 ||
+        typeof quantity !== "number" ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 100 ||
+        typeof weight !== "number" ||
+        !ALLOWED_WEIGHTS.includes(weight)
+      ) {
         return NextResponse.json({ success: false, message: "Product ID, weight ya quantity valid nahi." }, { status: 400 });
       }
+
       const id = String(Number(productId));
       const key = `${id}:${weight}`;
       const combinedQuantity = (combinedItems.get(key)?.quantity ?? 0) + quantity;
+
       if (combinedQuantity > 100) {
         return NextResponse.json({ success: false, message: "Product quantity limit se zyada hai." }, { status: 400 });
       }
+
       combinedItems.set(key, { productId: id, weight, quantity: combinedQuantity });
     }
 
     const items = Array.from(combinedItems.values());
     const orderNumber = `MM-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
 
+    // Ensure checkout settings exist before calculating the order.
+    await sql`
+      CREATE TABLE IF NOT EXISTS checkout_settings (
+        id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        delivery_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
+        free_delivery_minimum numeric(12,2) NOT NULL DEFAULT 0 CHECK (free_delivery_minimum >= 0),
+        sales_tax_enabled boolean NOT NULL DEFAULT false,
+        sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0 CHECK (sales_tax_rate >= 0 AND sales_tax_rate <= 100),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
+      INSERT INTO checkout_settings (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING
+    `;
+
     const result = await sql`
       WITH requested_items AS MATERIALIZED (
-        SELECT (item->>'productId')::bigint AS product_id,
+        SELECT
+          (item->>'productId')::bigint AS product_id,
           (item->>'weight')::numeric AS weight,
           (item->>'quantity')::integer AS quantity
         FROM jsonb_array_elements(${JSON.stringify(items)}::jsonb) AS entry(item)
       ),
       valid_products AS MATERIALIZED (
-        SELECT p.id AS product_id, p.name AS product_name,
-          p.price * r.weight AS unit_price, r.weight, r.quantity,
+        SELECT
+          p.id AS product_id,
+          p.name AS product_name,
+          p.price * r.weight AS unit_price,
+          r.weight,
+          r.quantity,
           p.price * r.weight * r.quantity AS line_total
         FROM requested_items r
         INNER JOIN products p ON p.id = r.product_id
         WHERE p.is_active = true
       ),
-      totals AS (
-        SELECT (SELECT COUNT(*)::integer FROM requested_items) AS requested_count,
-          (SELECT COUNT(*)::integer FROM valid_products) AS valid_count,
-          COALESCE((SELECT SUM(line_total) FROM valid_products), 0) AS subtotal
+      settings AS MATERIALIZED (
+        SELECT delivery_fee, free_delivery_minimum, sales_tax_enabled, sales_tax_rate
+        FROM checkout_settings
+        WHERE id = 1
       ),
-      existing_customer AS (SELECT id FROM customers WHERE phone = ${phone} LIMIT 1),
+      totals AS (
+        SELECT
+          (SELECT COUNT(*)::integer FROM requested_items) AS requested_count,
+          (SELECT COUNT(*)::integer FROM valid_products) AS valid_count,
+          COALESCE((SELECT SUM(line_total) FROM valid_products), 0) AS subtotal,
+          s.delivery_fee,
+          s.free_delivery_minimum,
+          s.sales_tax_enabled,
+          s.sales_tax_rate
+        FROM settings s
+      ),
+      calculated AS (
+        SELECT
+          *,
+          CASE
+            WHEN free_delivery_minimum > 0 AND subtotal >= free_delivery_minimum THEN 0
+            ELSE delivery_fee
+          END AS final_delivery_fee,
+          CASE
+            WHEN sales_tax_enabled THEN ROUND(subtotal * sales_tax_rate / 100, 2)
+            ELSE 0
+          END AS tax_amount
+        FROM totals
+      ),
+      existing_customer AS (
+        SELECT id FROM customers WHERE phone = ${phone} LIMIT 1
+      ),
       new_customer AS (
         INSERT INTO customers (name, phone)
-        SELECT ${customerName}, ${phone} FROM totals t
-        WHERE t.requested_count > 0 AND t.requested_count = t.valid_count
+        SELECT ${customerName}, ${phone}
+        FROM calculated t
+        WHERE t.requested_count > 0
+          AND t.requested_count = t.valid_count
           AND NOT EXISTS (SELECT 1 FROM existing_customer)
         RETURNING id
       ),
       resolved_customer AS (
-        SELECT id FROM existing_customer UNION ALL SELECT id FROM new_customer LIMIT 1
+        SELECT id FROM existing_customer
+        UNION ALL
+        SELECT id FROM new_customer
+        LIMIT 1
       ),
       new_order AS (
-        INSERT INTO orders (order_number, customer_id, customer_name, customer_phone,
-          delivery_address, status, payment_method, payment_status, subtotal, delivery_fee, total)
-        SELECT ${orderNumber}, c.id, ${customerName}, ${phone}, ${address},
-          'pending', ${paymentMethod}, 'pending', t.subtotal, 0, t.subtotal
-        FROM resolved_customer c CROSS JOIN totals t
-        WHERE t.requested_count > 0 AND t.requested_count = t.valid_count
-        RETURNING id, order_number, subtotal, total
+        INSERT INTO orders (
+          order_number, customer_id, customer_name, customer_phone,
+          delivery_address, status, payment_method, payment_status,
+          subtotal, delivery_fee, tax_amount, total
+        )
+        SELECT
+          ${orderNumber}, c.id, ${customerName}, ${phone},
+          ${address}, 'pending', ${paymentMethod}, 'pending',
+          t.subtotal, t.final_delivery_fee, t.tax_amount,
+          t.subtotal + t.final_delivery_fee + t.tax_amount
+        FROM resolved_customer c
+        CROSS JOIN calculated t
+        WHERE t.requested_count > 0
+          AND t.requested_count = t.valid_count
+        RETURNING id, order_number, subtotal, delivery_fee, tax_amount, total
       ),
       inserted_items AS (
-        INSERT INTO order_items (order_id, product_id, product_name, quantity, weight, unit_price, line_total)
-        SELECT o.id, p.product_id, p.product_name, p.quantity, p.weight, p.unit_price, p.line_total
-        FROM new_order o CROSS JOIN valid_products p RETURNING order_id
+        INSERT INTO order_items (
+          order_id, product_id, product_name, quantity,
+          weight, unit_price, line_total
+        )
+        SELECT
+          o.id, p.product_id, p.product_name, p.quantity,
+          p.weight, p.unit_price, p.line_total
+        FROM new_order o
+        CROSS JOIN valid_products p
+        RETURNING order_id
       )
-      SELECT o.id AS order_id, o.order_number, o.subtotal, o.total,
-        t.requested_count, t.valid_count, (SELECT COUNT(*) FROM inserted_items) AS saved_item_count
-      FROM totals t LEFT JOIN new_order o ON true
+      SELECT
+        o.id AS order_id,
+        o.order_number,
+        o.subtotal,
+        o.delivery_fee,
+        o.tax_amount,
+        o.total,
+        t.requested_count,
+        t.valid_count,
+        (SELECT COUNT(*) FROM inserted_items) AS saved_item_count
+      FROM calculated t
+      LEFT JOIN new_order o ON true
     `;
 
-    const saved = result[0] as { order_id: number | string | null; order_number: string | null; subtotal: number | string; total: number | string; requested_count: number; valid_count: number; saved_item_count: number } | undefined;
-    if (!saved || saved.order_id == null || Number(saved.requested_count) !== Number(saved.valid_count) || Number(saved.saved_item_count) !== Number(saved.valid_count)) {
-      return NextResponse.json({ success: false, message: "Cart ke kuch products available nahi hain. Page refresh karke dobara try karein." }, { status: 400 });
+    const saved = result[0] as {
+      order_id: number | string | null;
+      order_number: string | null;
+      subtotal: number | string;
+      delivery_fee: number | string;
+      tax_amount: number | string;
+      total: number | string;
+      requested_count: number;
+      valid_count: number;
+      saved_item_count: number;
+    } | undefined;
+
+    if (
+      !saved ||
+      saved.order_id == null ||
+      Number(saved.requested_count) !== Number(saved.valid_count) ||
+      Number(saved.saved_item_count) !== Number(saved.valid_count)
+    ) {
+      return NextResponse.json({
+        success: false,
+        message: "Cart ke kuch products available nahi hain. Page refresh karke dobara try karein."
+      }, { status: 400 });
     }
+
     return NextResponse.json({
-      success: true, message: "Order successfully save ho gaya.",
-      order: { orderNumber: saved.order_number, subtotal: Number(saved.subtotal), deliveryFee: 0, total: Number(saved.total), paymentStatus: "pending" },
+      success: true,
+      message: "Order successfully save ho gaya.",
+      order: {
+        orderNumber: saved.order_number,
+        subtotal: Number(saved.subtotal),
+        deliveryFee: Number(saved.delivery_fee),
+        taxAmount: Number(saved.tax_amount),
+        total: Number(saved.total),
+        paymentStatus: "pending"
+      }
     }, { status: 201 });
+
   } catch (error) {
     console.error("Customer order save failed:", error);
-    return NextResponse.json({ success: false, message: "Order save nahi ho saka. Dobara try karein." }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "Order save nahi ho saka. Dobara try karein."
+    }, { status: 500 });
   }
 }
 
