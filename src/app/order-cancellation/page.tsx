@@ -5,229 +5,228 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Order Cancellation Policy | Multani Mithas",
   description:
-    "Read the Multani Mithas order cancellation policy for Sohan Halwa, traditional sweets, bakery products and gift hampers.",
+    "Understand when Multani Mithas orders can be cancelled, including preparation, packing, dispatch and prepaid order refund conditions.",
   alternates: { canonical: "/order-cancellation" },
 };
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#F8F4EA",
-    color: "#263B36",
-    padding: "48px 20px 64px",
-    fontFamily: "Georgia, serif",
-  } as const,
-  article: {
-    maxWidth: "820px",
-    margin: "0 auto",
-  } as const,
-  back: {
-    display: "inline-block",
-    color: "#80602F",
-    textDecoration: "none",
-    fontSize: "14px",
-    marginBottom: "30px",
-  } as const,
-  label: {
-    color: "#9A7338",
-    fontSize: "12px",
-    letterSpacing: "2px",
-    textTransform: "uppercase" as const,
-    marginBottom: "12px",
+const sections = [
+  {
+    title: "1. Requesting an Order Cancellation",
+    paragraphs: [
+      "If you need to cancel an order, contact Multani Mithas as soon as possible through the official WhatsApp or phone details displayed on our website.",
+      "Please provide your order number, name and contact number. A cancellation request is not confirmed until our team reviews it and communicates the decision to you.",
+    ],
   },
-  heading: {
-    color: "#233D39",
-    fontSize: "clamp(32px, 6vw, 48px)",
-    lineHeight: 1.15,
-    margin: "0 0 16px",
-    fontWeight: 500,
-  } as const,
-  intro: {
-    fontSize: "17px",
-    lineHeight: 1.8,
-    color: "#59645D",
-    borderBottom: "1px solid #D9CFBA",
-    paddingBottom: "28px",
-    marginBottom: "30px",
-  } as const,
-  section: {
-    marginBottom: "28px",
-  } as const,
-  subheading: {
-    color: "#233D39",
-    fontSize: "21px",
-    fontWeight: 500,
-    margin: "0 0 10px",
-  } as const,
-  paragraph: {
-    fontSize: "15px",
-    lineHeight: 1.85,
-    color: "#4F5B55",
-    margin: "0 0 12px",
-  } as const,
-  list: {
-    paddingLeft: "22px",
-    margin: "10px 0",
-    color: "#4F5B55",
-    fontSize: "15px",
-    lineHeight: 1.9,
-  } as const,
-  footer: {
-    borderTop: "1px solid #D9CFBA",
-    marginTop: "42px",
-    paddingTop: "22px",
-    fontSize: "13px",
-    color: "#73776E",
-  } as const,
-};
+  {
+    title: "2. Cancellation Before Preparation",
+    paragraphs: [
+      "You may request cancellation before preparation of your order has started. Requests received at this stage can generally be accepted after confirmation by our team.",
+      "If payment has already been made, an eligible refund will be processed according to our Refund & Return Policy.",
+    ],
+  },
+  {
+    title: "3. After Preparation Begins",
+    paragraphs: [
+      "Our mithai, Sohan Halwa, bakery products and gift hampers may be freshly prepared, packed or arranged specifically for each order. Once preparation or packing has started, cancellation is generally not accepted.",
+      "Customised, personalised or specially prepared gift hampers may have additional restrictions once work has begun. Exceptional requests may be reviewed individually.",
+    ],
+  },
+  {
+    title: "4. Ready for Packing, Dispatch and Delivery",
+    paragraphs: [
+      "Once an order reaches Ready for Packing, Shipped or Out for Delivery status, cancellation is generally no longer available.",
+      "After an order has been handed over to the courier or delivery service, it cannot normally be stopped through our cancellation process. If you have an urgent concern, contact our team immediately.",
+      "This cancellation restriction does not remove any applicable customer rights or protections relating to damaged, incorrect, missing or defective products.",
+    ],
+  },
+  {
+    title: "5. Cash on Delivery Orders",
+    paragraphs: [
+      "Customers who select Cash on Delivery (COD) should contact us immediately if they wish to cancel. We will check the preparation and dispatch status before confirming whether cancellation is possible.",
+      "Please do not assume that an order has been cancelled until our team confirms it.",
+    ],
+  },
+  {
+    title: "6. Prepaid Orders and Refunds",
+    paragraphs: [
+      "If a prepaid order is approved for cancellation, an eligible refund will normally be initiated within 3–5 working days after confirmation.",
+      "Where possible, refunds will be returned through the original payment method. For manual payments, including bank transfers or mobile wallet payments, an appropriate refund method may be arranged after transaction verification.",
+      "The time taken for the amount to appear in your account may depend on the bank or payment provider.",
+    ],
+  },
+  {
+    title: "7. Changes to an Existing Order",
+    paragraphs: [
+      "If you need to change a product, quantity, delivery address or contact number, contact us as soon as possible.",
+      "Changes depend on preparation and dispatch status and cannot always be guaranteed. Our team will confirm whether the requested change can be accommodated.",
+    ],
+  },
+  {
+    title: "8. Failed Delivery and Customer Unavailability",
+    paragraphs: [
+      "Please provide an accurate delivery address and an active contact number when placing your order. If delivery fails because of an incorrect address or customer unavailability, contact our team to discuss the available options.",
+      "A redelivery may involve additional delivery charges. Any applicable charges will be communicated before arranging another delivery attempt.",
+    ],
+  },
+  {
+    title: "9. Damaged, Incorrect or Missing Products",
+    paragraphs: [
+      "If your order arrives damaged, incorrect, incomplete or with a genuine quality issue, please report it within 2 hours of delivery with your order number and clear photographs or video.",
+      "Such complaints are handled under our Refund & Return Policy and are separate from ordinary order cancellation requests.",
+    ],
+  },
+  {
+    title: "10. Customer Rights and Policy Updates",
+    paragraphs: [
+      "Nothing in this policy is intended to exclude or restrict any rights or protections available to customers under applicable consumer protection laws.",
+      "Multani Mithas may update this policy when business practices or applicable requirements change. The latest version will be published on this page.",
+    ],
+  },
+];
 
 export default function OrderCancellationPage() {
   return (
-    <main style={styles.page}>
-      <article style={styles.article}>
-        <Link href="/" style={styles.back}>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#F8F4EA",
+        color: "#263B36",
+        padding: "48px 20px 64px",
+        fontFamily: "Georgia, serif",
+      }}
+    >
+      <article
+        style={{
+          maxWidth: "820px",
+          margin: "0 auto",
+          background: "#FFFEFA",
+          padding: "clamp(24px, 5vw, 54px)",
+          border: "1px solid #E5D6B8",
+          borderRadius: "5px",
+          lineHeight: 1.85,
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            display: "inline-block",
+            color: "#80602F",
+            textDecoration: "none",
+            fontSize: "14px",
+            marginBottom: "30px",
+          }}
+        >
           ← Back to Multani Mithas
         </Link>
 
-        <p style={styles.label}>Customer Information</p>
-        <h1 style={styles.heading}>Order Cancellation Policy</h1>
-
-        <p style={styles.intro}>
-          At Multani Mithas, we prepare and pack our traditional sweets,
-          bakery products and gift hampers with care. Our cancellation policy
-          explains when an order can be cancelled and how eligible payments
-          are handled.
+        <p
+          style={{
+            color: "#9A7338",
+            fontSize: "12px",
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            marginBottom: "12px",
+          }}
+        >
+          Customer Information
         </p>
 
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>1. Requesting a Cancellation</h2>
-          <p style={styles.paragraph}>
-            If you need to cancel an order, contact our customer support as
-            soon as possible. Please provide your order number, name and
-            contact number so we can locate your order.
-          </p>
-          <p style={styles.paragraph}>
-            A cancellation request is not confirmed until our team reviews
-            it and communicates the decision to you.
-          </p>
-        </section>
+        <h1
+          style={{
+            color: "#233D39",
+            fontSize: "clamp(32px, 6vw, 48px)",
+            lineHeight: 1.15,
+            margin: "0 0 16px",
+            fontWeight: 500,
+          }}
+        >
+          Order Cancellation Policy
+        </h1>
 
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>2. Before Preparation Begins</h2>
-          <p style={styles.paragraph}>
-            Cancellation requests received before preparation or packing
-            begins can generally be accepted. If you have already paid,
-            an eligible refund will be arranged after confirmation.
-          </p>
-        </section>
+        <p
+          style={{
+            fontSize: "17px",
+            lineHeight: 1.8,
+            color: "#59645D",
+            borderBottom: "1px solid #D9CFBA",
+            paddingBottom: "28px",
+            marginBottom: "30px",
+          }}
+        >
+          At Multani Mithas, we prepare and pack our traditional
+          Pakistani sweets, Sohan Halwa, bakery products and gift
+          hampers with care. Because many of our products are
+          perishable and prepared for individual orders, cancellation
+          requests depend on the preparation and dispatch stage.
+        </p>
 
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>3. After Preparation Begins</h2>
-          <p style={styles.paragraph}>
-            Our sweets and bakery products may be freshly prepared,
-            packed or arranged specifically for your order. Once preparation
-            has started, cancellation may not be possible.
-          </p>
-          <p style={styles.paragraph}>
-            Specially prepared, personalised or custom gift hampers may
-            have additional limitations after work has begun. We will
-            review genuine exceptional requests individually.
-          </p>
-        </section>
+        {sections.map((section) => (
+          <section
+            key={section.title}
+            style={{ marginBottom: "28px" }}
+          >
+            <h2
+              style={{
+                color: "#233D39",
+                fontSize: "21px",
+                fontWeight: 500,
+                margin: "0 0 10px",
+              }}
+            >
+              {section.title}
+            </h2>
 
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>4. After Dispatch</h2>
-          <p style={styles.paragraph}>
-            Once an order has been handed over to the delivery service,
-            it generally cannot be cancelled through our normal process.
-            Please contact us immediately if there is an urgent issue.
-          </p>
-          <p style={styles.paragraph}>
-            If an order is damaged, incorrect, missing or has a genuine
-            quality issue, please refer to our Refund & Return Policy.
-          </p>
-        </section>
+            {section.paragraphs.map((paragraph, index) => (
+              <p
+                key={index}
+                style={{
+                  fontSize: "15px",
+                  lineHeight: 1.85,
+                  color: "#4F5B55",
+                  margin: "0 0 12px",
+                }}
+              >
+                {paragraph}
+              </p>
+            ))}
+          </section>
+        ))}
 
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>5. Cash on Delivery Orders</h2>
-          <p style={styles.paragraph}>
-            If you selected Cash on Delivery (COD), contact us as early
-            as possible if you no longer want the order. We will check
-            whether preparation or dispatch has started and confirm
-            whether cancellation is possible.
-          </p>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>6. Prepaid Orders and Refunds</h2>
-          <p style={styles.paragraph}>
-            If a prepaid order is approved for cancellation, the eligible
-            refund will be initiated within 3–5 working days after
-            confirmation.
-          </p>
-          <p style={styles.paragraph}>
-            Refunds will normally be returned through the original
-            payment method where possible. For manual payments, such as
-            bank transfer or mobile wallet payments, we may arrange an
-            appropriate refund method after verifying the transaction.
-          </p>
-          <p style={styles.paragraph}>
-            The time taken for the refunded amount to appear in your
-            account may depend on the bank or payment provider.
-          </p>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>7. Changes to an Existing Order</h2>
-          <p style={styles.paragraph}>
-            If you need to change a product, quantity, delivery address
-            or contact number, contact us immediately. Changes depend
-            on order preparation and dispatch status and cannot always
-            be guaranteed.
-          </p>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>8. How to Contact Us</h2>
-          <p style={styles.paragraph}>
-            For cancellation requests or questions about an existing
-            order, contact Multani Mithas through the official contact
-            details displayed on our website. Include your order number
-            to help us assist you.
-          </p>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>9. Customer Rights</h2>
-          <p style={styles.paragraph}>
-            Nothing in this policy is intended to limit any rights or
-            protections available to customers under applicable consumer
-            protection laws.
-          </p>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.subheading}>10. Policy Updates</h2>
-          <p style={styles.paragraph}>
-            Multani Mithas may update this policy when business practices
-            or applicable requirements change. The latest version will
-            be published on this page.
-          </p>
-        </section>
-
-        <div style={styles.footer}>
+        <div
+          style={{
+            borderTop: "1px solid #D9CFBA",
+            marginTop: "42px",
+            paddingTop: "22px",
+            fontSize: "13px",
+            color: "#73776E",
+          }}
+        >
           <p style={{ margin: "0 0 12px" }}>
             Last updated: 2 November 2026
           </p>
+
           <p style={{ margin: 0 }}>
             © {new Date().getFullYear()} Multani Mithas. All rights reserved.
           </p>
+
           <p style={{ margin: "14px 0 0" }}>
-            <Link href="/privacy-policy" style={styles.back}>
+            <Link
+              href="/privacy-policy"
+              style={{
+                color: "#9A7338",
+                textDecoration: "none",
+              }}
+            >
               Privacy Policy
             </Link>
             {" · "}
-            <Link href="/refund-return" style={styles.back}>
+            <Link
+              href="/refund-return"
+              style={{
+                color: "#9A7338",
+                textDecoration: "none",
+              }}
+            >
               Refund & Return Policy
             </Link>
           </p>
