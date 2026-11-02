@@ -30,8 +30,8 @@ export async function GET(request: Request) {
     const orders = await sql`
       SELECT o.id, o.order_number, o.customer_id, o.customer_name, o.customer_phone,
         o.delivery_address, o.status, o.payment_method, o.payment_status,
-        o.subtotal, o.delivery_fee, o.total, o.created_at,
-        COALESCE((SELECT json_agg(json_build_object(
+o.subtotal, o.delivery_fee, o.tax_amount, o.total, o.created_at,
+COALESCE((SELECT json_agg(json_build_object(
           'productId', oi.product_id, 'productName', oi.product_name,
           'quantity', oi.quantity, 'weight', oi.weight,
           'unitPrice', oi.unit_price, 'lineTotal', oi.line_total
