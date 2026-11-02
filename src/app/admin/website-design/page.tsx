@@ -25,7 +25,13 @@ type OfferItem = {
   buttonLink: string;
   enabled: boolean;
 };
-
+type SocialLinks = {
+  facebook?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
+  whatsapp?: string;
+};
 type PublishedSettings = {
   heroTitle?: string;
   heroSubtitle?: string;
@@ -34,6 +40,7 @@ type PublishedSettings = {
   products?: ProductStyle[];
   media?: MediaItem[];
   offers?: OfferItem[];
+  socialLinks?: SocialLinks;
 };
 type MediaLibraryResponse = {
   success?: boolean;
@@ -71,6 +78,13 @@ export default function WebsiteDesignPage() {
 const [media, setMedia] = useState<MediaItem[]>([]);
 const [products, setProducts] = useState<ProductStyle[]>(initialProducts);
 const [offers, setOffers] = useState<OfferItem[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>({
+  facebook: "",
+  instagram: "",
+  tiktok: "",
+  youtube: "",
+  whatsapp: "",
+});
 const [offerTitle, setOfferTitle] = useState("");
 const [offerDescription, setOfferDescription] = useState("");
 const [offerButtonText, setOfferButtonText] = useState("Shop Now");
@@ -120,6 +134,15 @@ const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
 if (Array.isArray(savedSettings.offers)) {
   setOffers(savedSettings.offers);
 }
+  if (savedSettings.socialLinks) {
+  setSocialLinks({
+    facebook: savedSettings.socialLinks.facebook || "",
+    instagram: savedSettings.socialLinks.instagram || "",
+    tiktok: savedSettings.socialLinks.tiktok || "",
+    youtube: savedSettings.socialLinks.youtube || "",
+    whatsapp: savedSettings.socialLinks.whatsapp || "",
+  });
+} 
           }
         }
       } catch {
@@ -357,7 +380,7 @@ if (Array.isArray(savedSettings.offers)) {
   async function publishSettings() {
     setBusy(true);
 
-  const settings: PublishedSettings = {
+const settings: PublishedSettings = {
   heroTitle,
   heroSubtitle,
   brandColor,
@@ -365,8 +388,8 @@ if (Array.isArray(savedSettings.offers)) {
   products,
   media: media.map(({ name, url, type }) => ({ name, url, type })),
   offers,
+  socialLinks,
 };
-
     try {
       const response = await fetch("/api/site-media", {
         method: "POST",
@@ -471,7 +494,8 @@ if (Array.isArray(savedSettings.offers)) {
   ["media", "Images & Videos"],
   ["products", "Product Backgrounds"],
   ["homepage", "Homepage Design"],
-  ["offers", "Offers & Promotions"],
+   ["offers", "Offers & Promotions"],
+  ["social", "Social Media"],
   ["theme", "Theme & Colors"],
 ].map(([id, label]) => (
             <button
@@ -902,6 +926,7 @@ if (Array.isArray(savedSettings.offers)) {
                   style={{
                     width: "100%",
                     maxHeight: 250,
+                    
                     objectFit: "cover",
                     borderRadius: 10,
                   }}
@@ -1173,6 +1198,58 @@ if (Array.isArray(savedSettings.offers)) {
     </div>
   </section>
 )}
+           {activeTab === "social" && (
+          <section style={{ display: "grid", gap: 18 }}>
+            <div style={panelStyle}>
+              <h2 style={{ marginTop: 0 }}>Social Media Links</h2>
+
+              <p style={{ color: "#75676b", lineHeight: 1.6 }}>
+                Apne official social media profile links yahan add karein.
+                Khali field customer website par show nahi hogi.
+              </p>
+
+              {([
+                ["facebook", "Facebook", "https://www.facebook.com/your-page"],
+                ["instagram", "Instagram", "https://www.instagram.com/your-account"],
+                ["tiktok", "TikTok", "https://www.tiktok.com/@your-account"],
+                ["youtube", "YouTube", "https://www.youtube.com/@your-channel"],
+                ["whatsapp", "WhatsApp", "https://wa.me/923001234567"],
+              ] as const).map(([key, label, placeholder]) => (
+                <label
+                  key={key}
+                  style={{
+                    display: "block",
+                    marginBottom: 16,
+                    fontWeight: 700,
+                  }}
+                >
+                  {label}
+                  <input
+                    type="url"
+                    value={socialLinks[key] || ""}
+                    onChange={(event) =>
+                      setSocialLinks((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
+                    placeholder={placeholder}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: 12,
+                      marginTop: 7,
+                      border: "1px solid #d9c8c8",
+                      borderRadius: 8,
+                      fontWeight: 400,
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        )}
         
         {activeTab === "theme" && (
           <section
