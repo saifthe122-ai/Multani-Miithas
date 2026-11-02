@@ -32,6 +32,13 @@ type PublishedSettings = {
   heroSubtitle?: string;
   backgroundColor?: string;
   brandColor?: string;
+  socialLinks?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    whatsapp?: string;
+  };
 };
 
 type Product = {
@@ -2765,6 +2772,71 @@ style={{
           <a href="#contact">Contact</a>
           <a href="#home">Back to Top ↑</a>
         </div>
+        {publishedSettings?.socialLinks && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      flexWrap: "wrap",
+      gap: 14,
+      margin: "20px 0 25px",
+    }}
+  >
+    {[
+      {
+        name: "Facebook",
+        label: "f",
+        url: publishedSettings.socialLinks.facebook,
+      },
+      {
+        name: "Instagram",
+        label: "◎",
+        url: publishedSettings.socialLinks.instagram,
+      },
+      {
+        name: "TikTok",
+        label: "♪",
+        url: publishedSettings.socialLinks.tiktok,
+      },
+      {
+        name: "YouTube",
+        label: "▶",
+        url: publishedSettings.socialLinks.youtube,
+      },
+      {
+        name: "WhatsApp",
+        label: "☏",
+        url: publishedSettings.socialLinks.whatsapp,
+      },
+    ]
+      .filter((social) => social.url?.trim())
+      .map((social) => (
+        <a
+          key={social.name}
+          href={social.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={social.name}
+          title={social.name}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 42,
+            height: 42,
+            border: "1px solid #E6BD6C",
+            borderRadius: "50%",
+            color: "#E6BD6C",
+            fontSize: 20,
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          {social.label}
+        </a>
+      ))}
+  </div>
+)}
         <div
           style={{
             borderTop: "1px solid rgba(216,172,85,.4)",
