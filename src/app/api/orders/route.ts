@@ -297,32 +297,12 @@ export async function POST(request: Request) {
           p.weight_options,
           r.weight,
           r.quantity,
+          COALESCE(NULLIF(selected_weight_option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
+          COALESCE(NULLIF(selected_weight_option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
+          COALESCE(NULLIF(selected_weight_option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
 
           (
-            SELECT
-              CASE
-                WHEN normalized.normalized_weight ~
-                  '^[0-9]+(\\.[0-9]+)?$'
-                THEN normalized.normalized_weight::numeric
-
-                WHEN normalized.normalized_weight ~
-                  '^[0-9]+(\\.[0-9]+)?kg$'
-                THEN regexp_replace(
-                  normalized.normalized_weight,
-                  'kg$',
-                  ''
-                )::numeric
-
-                WHEN normalized.normalized_weight ~
-                  '^[0-9]+(\\.[0-9]+)?g$'
-                THEN regexp_replace(
-                  normalized.normalized_weight,
-                  'g$',
-                  ''
-                )::numeric / 1000
-
-                ELSE NULL
-              END
+            SELECT option_item.option
             FROM jsonb_array_elements(
               CASE
                 WHEN jsonb_typeof(p.weight_options) = 'array'
@@ -367,7 +347,7 @@ export async function POST(request: Request) {
               AND (option_item.option->>'price') ~
                 '^[0-9]+(\\.[0-9]+)?$'
             LIMIT 1
-          ) AS selected_option_price
+          ) AS selected_weight_option
 
         FROM requested_items r
         INNER JOIN products p
@@ -383,12 +363,12 @@ export async function POST(request: Request) {
           weight,
           quantity,
 
-          ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) AS unit_price,
+          ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) AS unit_price,
           unit_delivery_fee,
           unit_packaging_fee,
           unit_sales_tax_rate,
-          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2) AS unit_tax_amount,
-          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee + ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2)) * quantity, 2) AS line_total
+          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2) AS unit_tax_amount,
+          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee + ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2)) * quantity, 2) AS line_total
 
         FROM product_prices
         WHERE
@@ -397,7 +377,7 @@ export async function POST(request: Request) {
           AND discount <= 100
           AND (
             price_type <> 'fixed'
-            OR selected_option_price IS NOT NULL
+            OR (selected_weight_option->>'price')::numeric IS NOT NULL
           )
           AND (
             price_type = 'fixed'
