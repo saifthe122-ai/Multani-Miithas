@@ -1100,12 +1100,12 @@ const total = cartItems.reduce((sum, item) => {
       const selectedMethod = getSelectedPaymentMethod(paymentMethod);
       const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
-      setSavedOrderNumber(orderNumber);
-      setCheckoutRequestKey("");
       if (typeof data.order?.total !== "number" || !Number.isFinite(data.order.total)) {
         throw new Error("Server ne final order total return nahi kiya. Support se rabta karein.");
       }
+      setSavedOrderNumber(orderNumber);
       setSavedOrderAmount(data.order.total);
+      setCheckoutRequestKey("");
       setSavedPaymentMethod(paymentMethod);
       setSavedCustomerPhone(customerPhone.trim());
       setSavedPaymentAccounts(matchingAccounts);
@@ -2139,7 +2139,12 @@ const total = cartItems.reduce((sum, item) => {
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
                 <p className="mm-stock-note">{product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}</p>
-                <p className="mm-price">{money(product.price)}</p>
+                <p className="mm-price">
+                  {money(Math.round(product.price * (1 - Math.min(100, Math.max(0, Number(product.discount) || 0)) / 100))}
+                </p>
+                {product.discount > 0 && (
+                  <p className="mm-discount-note">{product.discount}% discount</p>
+                )}
                 <p style={{ fontSize: 12 }}>Fixed price gift box</p>
                 <button
                   type="button"
