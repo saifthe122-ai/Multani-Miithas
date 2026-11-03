@@ -14,10 +14,12 @@ async function ensureSettingsTable() {
     id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     delivery_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
     free_delivery_minimum numeric(12,2) NOT NULL DEFAULT 0 CHECK (free_delivery_minimum >= 0),
+    packaging_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (packaging_fee >= 0),
     sales_tax_enabled boolean NOT NULL DEFAULT false,
     sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0 CHECK (sales_tax_rate >= 0 AND sales_tax_rate <= 100),
     updated_at timestamptz NOT NULL DEFAULT now()
   )`;
+  await sql`ALTER TABLE checkout_settings ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (packaging_fee >= 0)`;
   await sql`INSERT INTO checkout_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
   return sql;
 }
@@ -26,6 +28,7 @@ function present(row: Record<string, unknown>) {
   return {
     deliveryFee: Number(row.delivery_fee) || 0,
     freeDeliveryMinimum: Number(row.free_delivery_minimum) || 0,
+    packagingFee: Number(row.packaging_fee) || 0,
     salesTaxEnabled: Boolean(row.sales_tax_enabled),
     salesTaxRate: Number(row.sales_tax_rate) || 0,
     updatedAt: row.updated_at,
@@ -35,7 +38,7 @@ function present(row: Record<string, unknown>) {
 export async function GET(request: Request) {
   try {
     const sql = await ensureSettingsTable();
-    const [row] = await sql`SELECT delivery_fee, free_delivery_minimum, sales_tax_enabled, sales_tax_rate, updated_at FROM checkout_settings WHERE id = 1`;
+    const [row] = await sql`SELECT delivery_fee, free_delivery_minimum, packaging_fee, sales_tax_enabled, sales_tax_rate, updated_at FROM checkout_settings WHERE id = 1`;
     if (!row) throw new Error("Checkout settings row missing");
     return NextResponse.json({ success: true, settings: present(row as Record<string, unknown>) }, {
       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
@@ -58,10 +61,12 @@ export async function PUT(request: Request) {
     const data = body as Record<string, unknown>;
     const deliveryFee = Number(data.deliveryFee);
     const freeDeliveryMinimum = Number(data.freeDeliveryMinimum);
+    const packagingFee = Number(data.packagingFee);
     const salesTaxRate = Number(data.salesTaxRate);
     const salesTaxEnabled = data.salesTaxEnabled;
     if (!Number.isFinite(deliveryFee) || deliveryFee < 0 || deliveryFee > 1000000 ||
         !Number.isFinite(freeDeliveryMinimum) || freeDeliveryMinimum < 0 || freeDeliveryMinimum > 100000000 ||
+        !Number.isFinite(packagingFee) || packagingFee < 0 || packagingFee > 1000000 ||
         !Number.isFinite(salesTaxRate) || salesTaxRate < 0 || salesTaxRate > 100 ||
         typeof salesTaxEnabled !== "boolean") {
       return NextResponse.json({ success: false, message: "Charges aur tax rate ki values valid enter karein." }, { status: 400 });
@@ -71,11 +76,12 @@ export async function PUT(request: Request) {
       UPDATE checkout_settings SET
         delivery_fee = ${deliveryFee},
         free_delivery_minimum = ${freeDeliveryMinimum},
+        packaging_fee = ${packagingFee},
         sales_tax_enabled = ${salesTaxEnabled},
         sales_tax_rate = ${salesTaxRate},
         updated_at = now()
       WHERE id = 1
-      RETURNING delivery_fee, free_delivery_minimum, sales_tax_enabled, sales_tax_rate, updated_at
+      RETURNING delivery_fee, free_delivery_minimum, packaging_fee, sales_tax_enabled, sales_tax_rate, updated_at
     `;
     return NextResponse.json({ success: true, message: "Checkout settings save ho gayi.", settings: present(row as Record<string, unknown>) });
   } catch (error) {
