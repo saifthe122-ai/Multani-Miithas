@@ -307,28 +307,22 @@ export async function POST(request: Request) {
         INNER JOIN products p
           ON p.id = r.product_id
         LEFT JOIN LATERAL (
-            SELECT option_item.option
-            FROM jsonb_array_elements(
-              CASE
-                WHEN jsonb_typeof(p.weight_options) = 'array'
-                THEN p.weight_options
-                ELSE '[]'::jsonb
-              END
-            ) AS option_item(option)
-            CROSS JOIN LATERAL (
-              SELECT regexp_replace(
-                lower(
-                  trim(option_item.option->>'weight')
-                ),
-                '\\s+',
-                '',
-                'g'
-              ) AS normalized_weight
-            ) normalized
-            WHERE
-              CASE
-                WHEN normalized.normalized_weight ~
-                  '^[0-9]+(\\.[0-9]+)?
+          SELECT option_item.option
+          FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(p.weight_options) = 'array' THEN p.weight_options ELSE '[]'::jsonb END
+          ) AS option_item(option)
+          CROSS JOIN LATERAL (
+            SELECT regexp_replace(lower(trim(option_item.option->>'weight')), '\\s+', '', 'g') AS normalized_weight
+          ) normalized
+          WHERE CASE
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?$' THEN normalized.normalized_weight::numeric
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?kg$' THEN regexp_replace(normalized.normalized_weight, 'kg$', '')::numeric
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?g$' THEN regexp_replace(normalized.normalized_weight, 'g$', '')::numeric / 1000
+            ELSE NULL
+          END = r.weight
+          AND (option_item.option->>'price') ~ '^[0-9]+(\\.[0-9]+)?$'
+          LIMIT 1
+        ) selected_weight_option ON true
         WHERE p.is_active = true
         FOR UPDATE OF p
       ),
