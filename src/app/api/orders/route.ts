@@ -31,6 +31,8 @@ export async function GET(request: Request) {
     await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS tax_amount numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS packaging_type text NOT NULL DEFAULT ''`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sales_tax_base text NOT NULL DEFAULT 'product'`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
     const orders = await sql`
       SELECT
@@ -63,6 +65,8 @@ export async function GET(request: Request) {
                 'packagingFee', oi.packaging_fee,
                 'taxAmount', oi.tax_amount,
                 'salesTaxRate', oi.sales_tax_rate,
+                'packagingType', oi.packaging_type,
+                'salesTaxBase', oi.sales_tax_base,
                 'lineTotal', oi.line_total
               )
               ORDER BY oi.id
@@ -304,6 +308,8 @@ export async function POST(request: Request) {
           COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
           COALESCE(NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
+          COALESCE(NULLIF(selected_weight_option.option->>'salesTaxBase', ''), 'product') AS unit_sales_tax_base,
+          COALESCE(NULLIF(selected_weight_option.option->>'packagingType', ''), '') AS unit_packaging_type,
 
           selected_weight_option.option AS selected_weight_option
 
@@ -342,8 +348,10 @@ export async function POST(request: Request) {
           unit_delivery_fee,
           unit_packaging_fee,
           unit_sales_tax_rate,
-          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2) AS unit_tax_amount,
-          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee + ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2)) * quantity, 2) AS line_total
+          unit_sales_tax_base,
+          unit_packaging_type,
+          ROUND((CASE WHEN unit_sales_tax_base = 'all_charges' THEN (ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) ELSE ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) END) * unit_sales_tax_rate / 100, 2) AS unit_tax_amount,
+          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee + ROUND((CASE WHEN unit_sales_tax_base = 'all_charges' THEN (ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) ELSE ROUND((CASE WHEN price_type = 'fixed' THEN (selected_weight_option->>'price')::numeric ELSE price * weight END) * (1 - discount / 100), 2) END) * unit_sales_tax_rate / 100, 2)) * quantity, 2) AS line_total
 
         FROM product_prices
         WHERE
@@ -505,7 +513,9 @@ export async function POST(request: Request) {
           delivery_fee,
           packaging_fee,
           tax_amount,
-          sales_tax_rate
+          sales_tax_rate,
+          packaging_type,
+          sales_tax_base
         )
 
         SELECT
@@ -519,7 +529,9 @@ export async function POST(request: Request) {
           p.unit_delivery_fee * p.quantity,
           p.unit_packaging_fee * p.quantity,
           p.unit_tax_amount * p.quantity,
-          p.unit_sales_tax_rate
+          p.unit_sales_tax_rate,
+          p.unit_packaging_type,
+          p.unit_sales_tax_base
 
         FROM new_order o
         CROSS JOIN valid_products p
