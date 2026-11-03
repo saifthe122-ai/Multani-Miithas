@@ -1677,7 +1677,7 @@ const total = cartItems.reduce((sum, item) => {
           {categories.map((category) => (
             <button key={category} type="button" onClick={() => {
               setSelectedCategory(category);
-              document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById(category === "Gift Boxes" ? "gift-products" : "products")?.scrollIntoView({ behavior: "smooth" });
             }} className="mm-category" aria-pressed={selectedCategory === category}
               style={{ cursor: "pointer", font: "inherit", border: selectedCategory === category ? "2px solid #D8AC55" : "1px solid transparent", background: selectedCategory === category ? "#092F32" : undefined, color: selectedCategory === category ? "#FFF8EA" : undefined }}>
               <span className="mm-category-symbol">{category === "All" ? "✦" : "❖"}</span>
@@ -1842,31 +1842,16 @@ const total = cartItems.reduce((sum, item) => {
   ★ {Number.isFinite(product.rating) ? product.rating.toFixed(1) : "5.0"} / 5
 </p>
 
-  {product.price_type !== "fixed" && (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      gap: 12,
-      flexWrap: "wrap",
-      margin: "12px 0",
-    }}
-  >
-    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
-      <strong>500g</strong>
-      <div style={{ color: "#8A5630", fontWeight: 700 }}>
-        {money(getProductPrice(product, 0.5) ?? 0)}
+  <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", margin: "12px 0" }}>
+    {getProductWeightOptions(product).map((weight) => (
+      <div key={weight} style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8, border: selectedWeight === weight ? "1px solid #B58A43" : "1px solid transparent" }}>
+        <strong>{weight < 1 ? weight * 1000 + "g" : weight + "kg"}</strong>
+        <div style={{ color: "#8A5630", fontWeight: 700 }}>
+          {getProductPrice(product, weight) === null ? "Price unavailable" : money(getProductPrice(product, weight) as number)}
+        </div>
       </div>
-    </div>
-
-    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
-      <strong>1kg</strong>
-      <div style={{ color: "#8A5630", fontWeight: 700 }}>
-        {money(getProductPrice(product, 1) ?? 0)}
-      </div>
-    </div>
+    ))}
   </div>
-)}
   
                   {product.discount > 0 && (
                     <p className="mm-discount-note">{product.discount}% discount</p>
