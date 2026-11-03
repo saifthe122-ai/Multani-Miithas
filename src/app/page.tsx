@@ -1882,6 +1882,14 @@ const total = cartItems.reduce((sum, item) => {
     ))}
   </div>
   
+                  <div style={{ textAlign: "left", background: "#F8F0E2", border: "1px solid #D8C59F", borderRadius: 10, padding: 12, margin: "12px 0", fontSize: 13 }}>
+                    <strong>Price breakdown · {selectedWeight < 1 ? selectedWeight * 1000 + "g" : selectedWeight + "kg"}</strong>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Product price</span><strong>{money(getUnitCharges(product, selectedWeight).unitPrice)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Delivery</span><strong>{money(getUnitCharges(product, selectedWeight).deliveryFee)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Packaging</span><strong>{money(getUnitCharges(product, selectedWeight).packagingFee)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Sales tax ({getUnitCharges(product, selectedWeight).salesTaxRate}%)</span><strong>{money(getUnitCharges(product, selectedWeight).taxAmount)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, borderTop: "1px solid #D8C59F", marginTop: 7, paddingTop: 7 }}><strong>Price per selected pack</strong><strong>{money(getUnitCharges(product, selectedWeight).unitTotal)}</strong></div>
+                  </div>
                   {product.discount > 0 && (
                     <p className="mm-discount-note">{product.discount}% discount</p>
                   )}
@@ -2682,10 +2690,8 @@ const unitPrice = gift
     )
   : getProductPrice(product, item.weight);
 
-const lineTotal =
-  unitPrice === null
-    ? 0
-    : unitPrice * item.quantity;
+const itemCharges = getUnitCharges(product, item.weight, unitPrice ?? 0);
+const lineTotal = itemCharges.unitTotal * item.quantity;
 
 const key = cartKey(
   item.productId,
@@ -2717,6 +2723,10 @@ const key = cartKey(
                             ? "Gift box price"
                             : `${money(product.price)} per kg`}
                         </div>
+                        <div style={{ fontSize: 12, marginTop: 7, lineHeight: 1.7 }}>
+                          Product {money(itemCharges.unitPrice)} · Delivery {money(itemCharges.deliveryFee)} · Packaging {money(itemCharges.packagingFee)} · Tax ({itemCharges.salesTaxRate}%) {money(itemCharges.taxAmount)}
+                          <br /><strong>Per item total: {money(itemCharges.unitTotal)}</strong>
+                        </div>
                       </div>
 
                       <div>
@@ -2736,10 +2746,10 @@ const key = cartKey(
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Products subtotal</span><strong>{money(total)}</strong></div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Delivery fee</span><strong>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</strong></div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Packaging</span><strong>{money(packagingFee)}</strong></div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Sales tax {checkoutPricing.salesTaxEnabled ? "(" + checkoutPricing.salesTaxRate + "%)" : "(not applied)"}</span><strong>{money(taxAmount)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Sales tax (product-specific rates)</span><strong>{money(taxAmount)}</strong></div>
                   {!checkoutPricingLoaded && <p role="status" style={{ fontSize: 12, color: "#8A5630" }}>Loading current delivery, packaging and tax charges…</p>}
                   <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #D8C59F", paddingTop: 12, fontSize: 18 }}><strong>Estimated total</strong><strong>{money(estimatedGrandTotal)}</strong></div>
-                  <p style={{ fontSize: 12, margin: 0 }}>Final charges are recalculated securely when the order is submitted.</p>
+                  <p style={{ fontSize: 12, margin: 0 }}>Each product weight has its own editable delivery, packaging and tax rate. Final charges are recalculated securely when the order is submitted.</p>
                 </div>
 
 <form
