@@ -504,3 +504,52 @@ Do not rely on one global delivery, packaging or tax amount for new orders. Admi
 - About Us, Contact Us, policies, social links, WhatsApp and footer actions must be editable in Admin and connected to customer pages.
 - Preserve existing approved product photography; improve typography, spacing, cards, form layout and responsive behavior without replacing approved product images.
 - Mobile-first layout: no horizontal overflow, clear touch targets, readable fee breakdowns and wallet details that fit narrow screens.
+
+## 18. VARIABLE PRICING FOR PAKISTAN'S CHANGING MARKET
+- Every product has independently editable weight/pack-size options.
+- Each product weight option must store its own selling price, delivery charge, packaging fee, packaging type, sales-tax rate, and tax basis.
+- Admin can change any rate at any time; the customer storefront must read the latest saved values without relying on a hard-coded/global default.
+- Customer product cards must show an itemised per-selected-pack breakdown and exact unit total before Add to Cart / Buy Now.
+- Gift boxes must use the same transparent charge breakdown as sweets.
+- Cart and checkout must show item-level charges, quantities, subtotal, delivery, packaging, tax and final amount.
+- Wallet/account panel must display the same server-confirmed payable amount after the order is created.
+- Server order creation is the source of truth; the browser's estimated total must never be trusted for payment or order storage.
+- Every order item must preserve a snapshot of the exact weight, product price, delivery, packaging type/fee, tax rate/basis/amount and line total at purchase time. Later admin price changes must not rewrite historical orders.
+- Currency is PKR for Pakistan orders. Do not invent delivery, packaging or tax rates; business admin enters current values.
+
+## 19. PRODUCT RANGE AND STORE MANAGEMENT
+- Catalogue categories must be admin-managed and include sweets, bakery, desi ghee, honey, gift boxes and future product categories.
+- Products must support different units and pack types where appropriate (g, kg, jar, tin, box, bottle).
+- Product imagery is existing brand content and must be preserved unless the owner explicitly asks to replace it.
+- Admin must manage product status, stock, category, image, price, weight/pack options, packaging and tax configuration.
+
+## 20. PAYMENT WALLET EXPERIENCE
+- Selecting a payment method expands that method's own configured wallet/account panel in the checkout, not a generic unrelated screen.
+- Display configured account title, wallet number/IBAN, QR image, provider/app link and exact payable amount.
+- Never show fake wallet numbers, QR codes, or placeholder account links as live payment instructions.
+- After an order is successfully created, provide a method-specific WhatsApp screenshot submission link directly beneath payment instructions.
+- Screenshot submission is only a customer notification; admin must verify funds in the actual business account before marking Paid.
+- COD is paid only after actual cash collection on delivery.
+
+## 21. ABOUT US, BRAND AND CUSTOMER SUPPORT
+- About Us content (heading, story, mission and customer promise) must be editable in Admin > Website Design and published to the customer Our Story section and footer.
+- Brand logo must be selectable from the existing uploaded image library and shown in the customer header/product shopping experience and order confirmation/thank-you screen.
+- Preserve existing product, heritage and banner images. Use a refined European-inspired layout, not copied competitor artwork.
+- Customer-facing social links (Facebook, Instagram, TikTok, YouTube, WhatsApp) must be editable and clickable.
+- WhatsApp entry points: product enquiry, checkout help, manual-payment screenshot submission, Contact Us and footer.
+- Forms and buttons must be mobile responsive and connected to their actual admin/API workflows.
+
+## 22. CANCELLATIONS, REFUNDS AND COMPLAINTS
+- Customers must be able to request cancellation using their order reference and phone/email verification; show whether the order is still cancellable based on its preparation/dispatch status.
+- Admin must approve/reject cancellation requests and record the reason and time; cancellation must update the real order and inventory exactly once.
+- Refund requests must be created against a real order/payment, with reason, amount, evidence, status, reviewer and audit history.
+- Refund status labels (Requested, Under Review, Approved, Rejected, Processing, Refunded) must be database-backed and visible to the customer and admin.
+- Marking a refund as Refunded must not imply money has been sent automatically. Admin must record the real transfer reference and date; live gateway refunds require a supported gateway integration.
+- Keep existing customer policy pages but ensure their wording is consistent with actual operational workflows and applicable consumer law.
+
+## 23. RESPONSIVE DESIGN AND RELEASE CHECKS
+- Mobile first: no horizontal page overflow, comfortable touch targets, readable itemised totals and forms that fit narrow screens.
+- Keep the existing approved product images and brand logo; only improve layout, typography, spacing, hierarchy and usability.
+- Verify customer product selection → cart → checkout → method-specific wallet → order confirmation → WhatsApp evidence submission → admin order/payment verification.
+- Verify admin price edits update new customer quotations/orders while historical order snapshots remain unchanged.
+- Verify cancellation/refund requests, status transitions, stock restoration, and audit logs before declaring launch readiness.
