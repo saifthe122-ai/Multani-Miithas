@@ -819,7 +819,7 @@ export async function PATCH(request: Request) {
 
     const result = await sql`
       WITH prior_order AS MATERIALIZED (
-        SELECT id, payment_status, status, stock_restocked_at
+        SELECT id, payment_status, status, payment_method, stock_restocked_at
         FROM orders
         WHERE order_number = ${orderNumber}
         FOR UPDATE
@@ -857,6 +857,30 @@ export async function PATCH(request: Request) {
           END
         FROM prior_order previous
         WHERE current_order.id = previous.id
+          AND (
+            NOT ${hasPaymentStatus}
+            OR ${normalizedPaymentStatus} <> 'paid'
+            OR (
+              (
+                regexp_replace(
+                  lower(COALESCE(previous.payment_method, '')),
+                  '[^a-z0-9]',
+                  '',
+                  'g'
+                ) IN ('cashondelivery', 'cod')
+                AND previous.status = 'completed'
+              )
+              OR (
+                regexp_replace(
+                  lower(COALESCE(previous.payment_method, '')),
+                  '[^a-z0-9]',
+                  '',
+                  'g'
+                ) NOT IN ('cashondelivery', 'cod')
+                AND ${paymentReference} <> ''
+              )
+            )
+          )
         RETURNING
           current_order.order_number,
           current_order.status,
@@ -906,9 +930,45 @@ export async function PATCH(request: Request) {
     `;
 
     if (result.length === 0) {
+      const currentOrder = await sql`
+        SELECT status, payment_method
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        LIMIT 1
+      `;
+
+      if (!currentOrder.length) {
+        return NextResponse.json(
+          { success: false, message: "Order nahi mila." },
+          { status: 404 }
+        );
+      }
+
+      if (hasPaymentStatus && normalizedPaymentStatus === "paid") {
+        const method = String(currentOrder[0].payment_method ?? "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+        const isCashOnDelivery =
+          method === "cashondelivery" || method === "cod";
+
+        if (isCashOnDelivery && String(currentOrder[0].status).toLowerCase() !== "completed") {
+          return NextResponse.json(
+            { success: false, message: "COD payment ko Paid sirf delivery complete hone ke baad mark kar sakte hain." },
+            { status: 409 }
+          );
+        }
+
+        if (!isCashOnDelivery && !paymentReference) {
+          return NextResponse.json(
+            { success: false, message: "Paid mark karne se pehle verified bank/wallet transaction reference zaroori hai." },
+            { status: 400 }
+          );
+        }
+      }
+
       return NextResponse.json(
-        { success: false, message: "Order nahi mila." },
-        { status: 404 }
+        { success: false, message: "Order update nahi ho saka. Refresh karke dobara try karein." },
+        { status: 409 }
       );
     }
 
