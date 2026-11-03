@@ -463,13 +463,22 @@ export async function POST(request: Request) {
         FROM totals
       ),
 
+      matching_customer AS MATERIALIZED (
+        SELECT id
+        FROM customers
+        WHERE phone = ${phone}
+        ORDER BY id
+        LIMIT 1
+      ),
+
       existing_customer AS (
-        UPDATE customers
+        UPDATE customers customer
         SET name = ${customerName},
             address = ${address},
             updated_at = NOW()
-        WHERE phone = ${phone}
-        RETURNING id
+        FROM matching_customer matched
+        WHERE customer.id = matched.id
+        RETURNING customer.id AS id
       ),
 
       new_customer AS (
