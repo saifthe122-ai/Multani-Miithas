@@ -162,6 +162,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
+  const [previewSeedLoading, setPreviewSeedLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -339,6 +340,31 @@ export default function ProductsPage() {
         (_, optionIndex) => optionIndex !== index
       ),
     }));
+  }
+
+  async function seedPreviewProducts() {
+    const confirmed = window.confirm(
+      "Sirf Preview database mein 6 clearly labelled test products add honge. Sample prices/stock real business values nahi hain. Continue?"
+    );
+    if (!confirmed) return;
+
+    setPreviewSeedLoading(true);
+    try {
+      const response = await fetch("/api/admin/preview-seed", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Preview seed nahi ho saka.");
+      }
+      await loadProducts();
+      alert(result.message);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Preview seed fail ho gaya.");
+    } finally {
+      setPreviewSeedLoading(false);
+    }
   }
 
   async function uploadProductImage(file: File | undefined) {
@@ -595,6 +621,18 @@ export default function ProductsPage() {
             <Link href="/admin" style={dashboardLinkStyle}>
               ← Dashboard
             </Link>
+            {typeof window !== "undefined" &&
+              window.location.hostname !== "multani-mithas.vercel.app" &&
+              window.location.hostname !== "www.multani-mithas.vercel.app" && (
+                <button
+                  onClick={seedPreviewProducts}
+                  disabled={previewSeedLoading}
+                  style={outlineGoldButtonStyle}
+                  title="Only works when Preview seeding is explicitly enabled in Vercel"
+                >
+                  {previewSeedLoading ? "Preparing Preview..." : "Prepare Preview Products"}
+                </button>
+              )}
             <button onClick={openAddProduct} style={goldButtonStyle}>
               ＋ Add Product
             </button>
