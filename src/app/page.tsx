@@ -975,7 +975,14 @@ app_link: String(item.app_link ?? ""),
     setMessage("Cart update ho gaya.");
   };
 
-  const cartItems = Object.values(cart);
+  const getCartUnitCharges = (product: Product, weight: number) => {
+  const giftPrice = isGiftProduct(product)
+    ? Math.round(product.price * (1 - Math.min(100, Math.max(0, Number(product.discount) || 0)) / 100) * 100) / 100
+    : getProductPrice(product, weight);
+  return getUnitCharges(product, weight, giftPrice ?? 0);
+};
+
+const cartItems = Object.values(cart);
 
   const cartCount = cartItems.reduce(
     (sum, item) => sum + item.quantity,
@@ -1008,15 +1015,15 @@ const total = cartItems.reduce((sum, item) => {
 
   const deliveryFee = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
-    return sum + (product ? getUnitCharges(product, item.weight).deliveryFee * item.quantity : 0);
+    return sum + (product ? getCartUnitCharges(product, item.weight).deliveryFee * item.quantity : 0);
   }, 0);
   const packagingFee = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
-    return sum + (product ? getUnitCharges(product, item.weight).packagingFee * item.quantity : 0);
+    return sum + (product ? getCartUnitCharges(product, item.weight).packagingFee * item.quantity : 0);
   }, 0);
   const taxAmount = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
-    return sum + (product ? getUnitCharges(product, item.weight).taxAmount * item.quantity : 0);
+    return sum + (product ? getCartUnitCharges(product, item.weight).taxAmount * item.quantity : 0);
   }, 0);
   const estimatedGrandTotal = total + deliveryFee + packagingFee + taxAmount;
 
@@ -2673,7 +2680,7 @@ const unitPrice = gift
     )
   : getProductPrice(product, item.weight);
 
-const itemCharges = getUnitCharges(product, item.weight, unitPrice ?? 0);
+const itemCharges = getCartUnitCharges(product, item.weight);
 const lineTotal = itemCharges.unitTotal * item.quantity;
 
 const key = cartKey(
