@@ -7,6 +7,7 @@ import type { CSSProperties, FormEvent } from "react";
 type CheckoutSettings = {
   deliveryFee: number;
   freeDeliveryMinimum: number;
+  packagingFee: number;
   salesTaxEnabled: boolean;
   salesTaxRate: number;
 };
@@ -45,6 +46,7 @@ export default function CheckoutSettingsPage() {
   const [settings, setSettings] = useState<CheckoutSettings>({
     deliveryFee: 0,
     freeDeliveryMinimum: 0,
+    packagingFee: 0,
     salesTaxEnabled: false,
     salesTaxRate: 0,
   });
@@ -345,6 +347,23 @@ export default function CheckoutSettingsPage() {
               margin: "28px 0",
             }}
           />
+
+          <section>
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ color: colors.gold, fontSize: "11px", fontWeight: 800, letterSpacing: "1.5px" }}>
+                PACKAGING MANAGEMENT
+              </div>
+              <h2 style={{ color: colors.green, fontSize: "20px", fontWeight: 800, margin: "7px 0" }}>Packaging Cost</h2>
+              <p style={{ color: colors.muted, fontSize: "13px", margin: 0 }}>A fixed packaging charge applied once per order.</p>
+            </div>
+            <div style={{ maxWidth: "420px" }}>
+              <label htmlFor="packagingFee" style={labelStyle}>Packaging Fee (PKR)</label>
+              <input id="packagingFee" type="number" min="0" max="1000000" step="0.01" value={settings.packagingFee} onChange={(event) => updateSetting("packagingFee", Number(event.target.value))} style={inputStyle} required />
+              <p style={{ color: colors.muted, fontSize: "11px" }}>0 rakhne par packaging charge apply nahi hoga.</p>
+            </div>
+          </section>
+
+          <div style={{ height: "1px", background: colors.border, margin: "28px 0" }} />
 
           <section>
             <div style={{ marginBottom: "20px" }}>
