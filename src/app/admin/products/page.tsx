@@ -163,6 +163,7 @@ export default function ProductsPage() {
   const [databaseError, setDatabaseError] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const [previewSeedLoading, setPreviewSeedLoading] = useState(false);
+  const [isPreviewHost, setIsPreviewHost] = useState(false);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -239,6 +240,11 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    const host = window.location.hostname;
+    setIsPreviewHost(
+      host !== "multani-mithas.vercel.app" &&
+      host !== "www.multani-mithas.vercel.app"
+    );
     void loadProducts();
   }, [loadProducts]);
 
@@ -621,9 +627,7 @@ export default function ProductsPage() {
             <Link href="/admin" style={dashboardLinkStyle}>
               ← Dashboard
             </Link>
-            {typeof window !== "undefined" &&
-              window.location.hostname !== "multani-mithas.vercel.app" &&
-              window.location.hostname !== "www.multani-mithas.vercel.app" && (
+            {isPreviewHost && (
                 <button
                   onClick={seedPreviewProducts}
                   disabled={previewSeedLoading}
