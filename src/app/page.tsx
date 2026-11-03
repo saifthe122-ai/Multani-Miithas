@@ -1752,12 +1752,52 @@ const total = cartItems.reduce((sum, item) => {
                     {product.category}
                   </span>
 
-                  <h3 className="mm-card-title">{product.name}</h3>
+         <h3 className="mm-card-title">{product.name}</h3>
 
-                  {product.weight && <p>{product.weight}</p>}
-                  <p className="mm-product-rating" aria-label={`Rated ${product.rating} out of 5`}>
-                    ★ {Number.isFinite(product.rating) ? product.rating.toFixed(1) : "5.0"} / 5
-                  </p>
+{product.description && (
+  <p
+    style={{
+      color: "#665B4A",
+      fontSize: 13,
+      lineHeight: 1.6,
+      margin: "8px 0",
+    }}
+  >
+    {product.description}
+  </p>
+)}
+
+{product.weight && <p>{product.weight}</p>}
+<p className="mm-product-rating" aria-label={`Rated ${product.rating} out of 5`}>
+  ★ {Number.isFinite(product.rating) ? product.rating.toFixed(1) : "5.0"} / 5
+</p>
+
+  {product.price_type !== "fixed" && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: 12,
+      flexWrap: "wrap",
+      margin: "12px 0",
+    }}
+  >
+    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
+      <strong>500g</strong>
+      <div style={{ color: "#8A5630", fontWeight: 700 }}>
+        {money(getProductPrice(product, 0.5) ?? 0)}
+      </div>
+    </div>
+
+    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
+      <strong>1kg</strong>
+      <div style={{ color: "#8A5630", fontWeight: 700 }}>
+        {money(getProductPrice(product, 1) ?? 0)}
+      </div>
+    </div>
+  </div>
+)}
+  
                   {product.discount > 0 && (
                     <p className="mm-discount-note">{product.discount}% discount</p>
                   )}
@@ -1786,7 +1826,7 @@ const total = cartItems.reduce((sum, item) => {
                     >
                       {WEIGHT_OPTIONS.map((weight) => (
                         <option key={weight} value={weight}>
-                          {weight} kg
+{weight < 1 ? `${weight * 1000}g` : `${weight}kg`}                     
                         </option>
                       ))}
                     </select>
@@ -2030,6 +2070,7 @@ const total = cartItems.reduce((sum, item) => {
                 src={getProductImage(product)}
                 alt={product.name}
                 loading="lazy"
+                decoding="async"
               />
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{product.name}</h3>
@@ -2584,8 +2625,9 @@ const key = cartKey(
     <strong>{money(total)}</strong>
   </div>
   <p>
-    Delivery charges and applicable taxes are calculated
-    in the final order total.
+     Delivery charges and applicable taxes will be included
+  in your final payable amount after placing the order.
+</p>
   </p>
 </div>
 
