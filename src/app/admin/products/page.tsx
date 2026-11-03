@@ -1113,8 +1113,7 @@ export default function ProductsPage() {
                       key={index}
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "minmax(120px, 1fr) minmax(120px, 1fr) auto",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
                         gap: 10,
                         alignItems: "end",
                         padding: 12,
@@ -1198,7 +1197,7 @@ export default function ProductsPage() {
                         </Field>
                       )}
 
-                      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 8 }}>
+                      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 8 }}>
                         {([
                           ["deliveryFee", "Delivery charge (Rs.)"],
                           ["packagingFee", "Packaging charge (Rs.)"],
