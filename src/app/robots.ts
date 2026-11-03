@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/admin/"],
     },
-    sitemap: "https://multani-miithas.vercel.app/sitemap.xml",
+    sitemap: "https://multani-mithas.vercel.app/sitemap.xml",
   };
 }
