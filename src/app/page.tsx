@@ -2182,9 +2182,14 @@ const total = cartItems.reduce((sum, item) => {
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
                 <p className="mm-stock-note">{product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}</p>
-                <p className="mm-price">
-                  {money(Math.round(product.price * (1 - Math.min(100, Math.max(0, Number(product.discount) || 0)) / 100)))}
-                </p>
+                <div style={{ background: "#F8F0E2", border: "1px solid #D8C59F", borderRadius: 10, padding: 12, margin: "12px 0", fontSize: 13, textAlign: "left" }}>
+                  <strong>Exact gift box price breakdown</strong>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Product price</span><strong>{money(getCartUnitCharges(product, 1).unitPrice)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Delivery</span><strong>{money(getCartUnitCharges(product, 1).deliveryFee)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Packaging {getCartUnitCharges(product, 1).packagingType ? "· " + getCartUnitCharges(product, 1).packagingType : ""}</span><strong>{money(getCartUnitCharges(product, 1).packagingFee)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Sales tax ({getCartUnitCharges(product, 1).salesTaxRate}%)</span><strong>{money(getCartUnitCharges(product, 1).taxAmount)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #D8C59F", paddingTop: 7, marginTop: 7 }}><strong>Final price</strong><strong>{money(getCartUnitCharges(product, 1).unitTotal)}</strong></div>
+                </div>
                 {product.discount > 0 && (
                   <p className="mm-discount-note">{product.discount}% discount</p>
                 )}
