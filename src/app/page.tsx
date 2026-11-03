@@ -69,6 +69,8 @@ type CartItem = {
   quantity: number;
 };
 
+type CheckoutPricing = { deliveryFee: number; freeDeliveryMinimum: number; packagingFee: number; salesTaxEnabled: boolean; salesTaxRate: number; };
+
 type PaymentMethod = {
   id: string | number;
   method_key: string;
@@ -275,6 +277,8 @@ export default function Home() {
   const [products, setProducts] =
     useState<Product[]>([]);
   const [productsLoadError, setProductsLoadError] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [checkoutPricing, setCheckoutPricing] = useState<CheckoutPricing>({ deliveryFee: 0, freeDeliveryMinimum: 0, packagingFee: 0, salesTaxEnabled: false, salesTaxRate: 0 });
 
   const [cart, setCart] =
     useState<Record<string, CartItem>>({});
@@ -429,6 +433,18 @@ weight_options: Array.isArray(item.weight_options)
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Load business-configured checkout charges.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/checkout-settings', { cache: 'no-store' }).then(async (response) => {
+      if (!response.ok) throw new Error('Checkout pricing unavailable');
+      return response.json();
+    }).then((result: { success?: boolean; settings?: CheckoutPricing }) => {
+      if (!cancelled && result.success && result.settings) setCheckoutPricing(result.settings);
+    }).catch((error) => console.error('Checkout pricing load failed:', error));
+    return () => { cancelled = true; };
   }, []);
 
   // Website media settings load karein.
@@ -987,11 +1003,12 @@ const total = cartItems.reduce((sum, item) => {
   return sum + unitPrice * item.quantity;
 }, 0);
 
-  const regularProducts = products.filter(
-    (product) =>
-      product.category !== "Gift Boxes" &&
-      isProductEnabled(product)
-  );
+  const deliveryFee = checkoutPricing.freeDeliveryMinimum > 0 && total >= checkoutPricing.freeDeliveryMinimum ? 0 : checkoutPricing.deliveryFee;
+  const packagingFee = cartItems.length > 0 ? checkoutPricing.packagingFee : 0;
+  const taxAmount = checkoutPricing.salesTaxEnabled ? Math.round(total * checkoutPricing.salesTaxRate) / 100 : 0;
+  const estimatedGrandTotal = total + deliveryFee + packagingFee + taxAmount;
+
+  const regularProducts = products.filter((product) => product.category !== "Gift Boxes" && isProductEnabled(product) && (selectedCategory === "All" || product.category === selectedCategory));
 
   const giftProducts = products.filter(
     (product) =>
@@ -1140,15 +1157,7 @@ const total = cartItems.reduce((sum, item) => {
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  const categories = [
-    { name: "Sohan Halwa", symbol: "✦" },
-    { name: "Barfi", symbol: "❖" },
-    { name: "Gulab Jamun", symbol: "✧" },
-    { name: "Ladoo", symbol: "❋" },
-    { name: "Patisa", symbol: "✦" },
-    { name: "Cakes & Bakery", symbol: "❖" },
-    { name: "Gift Boxes", symbol: "✧" },
-  ];
+  const categories = ["All", ...Array.from(new Set(products.filter(isProductEnabled).map((product) => product.category))).sort((a, b) => a.localeCompare(b))];
 
   return (
     <main
