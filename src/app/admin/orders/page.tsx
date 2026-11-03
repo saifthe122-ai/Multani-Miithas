@@ -23,6 +23,7 @@ type Order = {
   quantity: number;
 subtotal: number;
 deliveryFee: number;
+packagingFee: number;
 taxAmount: number;
 amount: number;
   paymentMethod: string;
@@ -104,6 +105,7 @@ function mapOrder(row: Record<string, unknown>): Order {
     quantity,
      subtotal: Number(row.subtotal ?? 0),
     deliveryFee: Number(row.delivery_fee ?? 0),
+    packagingFee: Number(row.packaging_fee ?? 0),
     taxAmount: Number(row.tax_amount ?? 0),
     amount: Number(row.total ?? row.subtotal ?? 0),
     paymentMethod: method,
@@ -856,6 +858,10 @@ export default function OrdersDashboard() {
   label="Sales Tax"
   value={`Rs. ${selectedOrder.taxAmount.toLocaleString()}`}
 />
+<Detail
+   label="Packaging Fee"
+   value={`Rs. ${selectedOrder.packagingFee.toLocaleString()}`}
+ />
 <Detail
   label="Total"
   value={`Rs. ${selectedOrder.amount.toLocaleString()}`}
