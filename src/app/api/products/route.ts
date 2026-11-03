@@ -226,7 +226,8 @@ export async function GET(request: Request) {
     const products = rows.map((row) => {
       const product = formatProduct(row as Record<string, unknown>);
       if (adminView) return product;
-      const { cost_price: _privateCostPrice, ...publicProduct } = product;
+      const publicProduct = { ...product };
+      Reflect.deleteProperty(publicProduct, "cost_price");
       return publicProduct;
     });
 
