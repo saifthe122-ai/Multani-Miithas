@@ -25,6 +25,7 @@ type PublishedOffer = {
 };
 
 type PublishedSettings = {
+  aboutUs?: { heading?: string; story?: string; mission?: string; promise?: string };
   media?: PublishedMedia[];
   products?: PublishedProductSetting[];
   offers?: PublishedOffer[];
@@ -607,6 +608,7 @@ app_link: String(item.app_link ?? ""),
 
   const activeWhatsAppNumber = WHATSAPP_NUMBER || (publishedSettings?.socialLinks?.whatsapp || "").replace(/\D/g, "");
   const brandLogo = publishedSettings?.media?.find((media) => /logo/i.test(media.name || ""))?.url || "";
+  const aboutUs = publishedSettings?.aboutUs;
 
   const publishedMedia = Array.isArray(
     publishedSettings?.media
@@ -1989,16 +1991,10 @@ const total = cartItems.reduce((sum, item) => {
         <div>
           <p className="mm-eyebrow">Our Heritage</p>
           <h2>From the Heart of Multan</h2>
-          <p>
-            Multani Mithas is more than sweets. It is a celebration of
-            tradition, family, hospitality and the cultural richness
-            of South Punjab.
-          </p>
-          <p>
-            Inspired by Multan&apos;s iconic blue tilework, historic
-            architecture and the warmth of the Saraiki Wasib, we bring
-            a taste of heritage to every special moment.
-          </p>
+          <h2>{aboutUs?.heading || "From the Heart of Multan"}</h2>
+          <p>{aboutUs?.story || "Multani Mithas is more than sweets. It is a celebration of tradition, family, hospitality and the cultural richness of South Punjab."}</p>
+          <p>{aboutUs?.mission || "Inspired by Multan’s iconic blue tilework, historic architecture and the warmth of the Saraiki Wasib, we bring a taste of heritage to every special moment."}</p>
+          {aboutUs?.promise && <p>{aboutUs.promise}</p>}
           <a href="#video" style={goldButton}>Watch Our Story →</a>
         </div>
       </section>
@@ -3054,6 +3050,7 @@ style={{
             fontSize: 13,
           }}
         >
+          <a href="#about">About Us</a>
           <a href="#about">About Us</a>
           <a href="#policies">Customer Policies</a>
           <a href="#delivery">Delivery</a>
