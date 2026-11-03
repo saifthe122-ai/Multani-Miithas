@@ -432,3 +432,45 @@ Keep the project organized and scalable.
 Every major feature should be developed and tested before moving to the next feature.
 
 The final system should be suitable for a real sweets business, not only a demonstration website.
+
+
+## 16. CUSTOMER SHOP, PRICING & CHECKOUT EXPERIENCE
+
+### Product Catalogue
+- Display the full active product catalogue from the database, not hard-coded demo products.
+- Organize products by their actual admin-managed categories.
+- Each product card must show a real product image, product name, category, description, available stock, discount and price.
+- Show the actual configured weight/pack-size options and the corresponding price for each option.
+- Keep Add to Cart and Buy Now actions connected to the selected product, weight and quantity.
+- Product images and selected options must remain visible in the cart/checkout summary.
+
+### Transparent Checkout Pricing
+- Show product subtotal, delivery fee, packaging fee, sales tax (when enabled), and final payable amount before order submission.
+- Delivery, packaging and tax values must be controlled through admin settings and recalculated on the server when an order is saved.
+- The same charge breakdown must be stored with the order and visible in Admin Orders.
+- Packaging fee is currently implemented as one fixed charge per order; confirm whether the business requires a per-product/per-item packaging charge before launch.
+- Do not invent or hard-code tax rates, delivery charges, packaging prices or free-delivery thresholds.
+
+### Checkout Form
+- Use a polished, mobile-first, premium checkout layout inspired by high-quality European ecommerce forms without copying another brand.
+- Show selected product image, name, selected weight/pack, quantity, item price and order totals.
+- Collect customer name, phone, email (optional unless business policy changes), and complete delivery address.
+- Show available enabled payment methods and clear payment instructions.
+- For manual payments, show the payment screenshot WhatsApp action after order submission; clearly state that a screenshot is not proof of payment and admin must verify receipt.
+
+### WhatsApp Contact Placements
+- Product card enquiry button.
+- Checkout help button below the order submission action.
+- Payment screenshot / verification button after placing a manual-payment order.
+- Contact Us section button.
+- Separate footer WhatsApp button.
+- Every button must open the official business WhatsApp account with a useful prefilled message.
+
+### Social Accounts
+- Footer must show clickable official Facebook, Instagram, YouTube and WhatsApp links (TikTok may also be shown).
+- Links must be configured in Admin > Website Design > Social Media and published to the customer website.
+- Never use invented or placeholder account URLs as live links.
+
+## 17. COMPETITOR REFERENCE
+- Suleman Sweets & Bakers is a catalogue/category and product-pricing reference only.
+- Build an original Multani Mithas visual identity and a more polished customer checkout; do not copy competitor branding or layouts.
