@@ -60,6 +60,9 @@ type Product = {
   weight_options?: Array<{
     weight: number | string;
     price: number | string;
+    deliveryFee?: number | string;
+    packagingFee?: number | string;
+    salesTaxRate?: number | string;
   }>;
 };
 
@@ -777,6 +780,19 @@ app_link: String(item.app_link ?? ""),
 
     return Math.round(basePrice * (1 - discount / 100) * 100) / 100;
   };
+  const getWeightOption = (product: Product, weight: number) =>
+    product.weight_options?.find((option) => parseWeightKg(option.weight) === weight);
+
+  const getUnitCharges = (product: Product, weight: number, priceOverride?: number) => {
+    const option = getWeightOption(product, weight);
+    const unitPrice = priceOverride ?? getProductPrice(product, weight) ?? 0;
+    const deliveryFee = Math.max(0, Number(option?.deliveryFee ?? 0) || 0);
+    const packagingFee = Math.max(0, Number(option?.packagingFee ?? 0) || 0);
+    const salesTaxRate = Math.min(100, Math.max(0, Number(option?.salesTaxRate ?? 0) || 0));
+    const taxAmount = Math.round((unitPrice + deliveryFee + packagingFee) * salesTaxRate) / 100;
+    return { unitPrice, deliveryFee, packagingFee, salesTaxRate, taxAmount, unitTotal: unitPrice + deliveryFee + packagingFee + taxAmount };
+  };
+
   const isCashOnDelivery = (methodName: string) => {
     const method = normalizePaymentName(methodName);
 
@@ -1006,9 +1022,18 @@ const total = cartItems.reduce((sum, item) => {
   return sum + unitPrice * item.quantity;
 }, 0);
 
-  const deliveryFee = checkoutPricing.freeDeliveryMinimum > 0 && total >= checkoutPricing.freeDeliveryMinimum ? 0 : checkoutPricing.deliveryFee;
-  const packagingFee = cartItems.length > 0 ? checkoutPricing.packagingFee : 0;
-  const taxAmount = checkoutPricing.salesTaxEnabled ? Math.round(total * checkoutPricing.salesTaxRate) / 100 : 0;
+  const deliveryFee = cartItems.reduce((sum, item) => {
+    const product = products.find((entry) => entry.id === item.productId);
+    return sum + (product ? getUnitCharges(product, item.weight).deliveryFee * item.quantity : 0);
+  }, 0);
+  const packagingFee = cartItems.reduce((sum, item) => {
+    const product = products.find((entry) => entry.id === item.productId);
+    return sum + (product ? getUnitCharges(product, item.weight).packagingFee * item.quantity : 0);
+  }, 0);
+  const taxAmount = cartItems.reduce((sum, item) => {
+    const product = products.find((entry) => entry.id === item.productId);
+    return sum + (product ? getUnitCharges(product, item.weight).taxAmount * item.quantity : 0);
+  }, 0);
   const estimatedGrandTotal = total + deliveryFee + packagingFee + taxAmount;
 
   const regularProducts = products.filter((product) => product.category !== "Gift Boxes" && isProductEnabled(product) && (selectedCategory === "All" || product.category === selectedCategory));
