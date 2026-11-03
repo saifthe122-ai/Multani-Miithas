@@ -170,6 +170,51 @@ export async function PATCH(request: Request) {
     if (row.request_type === "refund" && status === "approved") {
       // Approval records the decision only; it never claims money was transferred.
     }
+    if (row.request_type === "cancellation" && status === "approved") {
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
+      const cancelled = await sql`
+        WITH request_row AS MATERIALIZED (
+          SELECT id, order_number FROM order_service_requests
+          WHERE request_reference = ${reference} AND request_type = 'cancellation'
+          FOR UPDATE
+        ),
+        prior_order AS MATERIALIZED (
+          SELECT o.id, o.order_number, o.status, o.stock_restocked_at
+          FROM orders o JOIN request_row r ON r.order_number = o.order_number
+          FOR UPDATE OF o
+        ),
+        changed_order AS (
+          UPDATE orders o
+          SET status = 'cancelled',
+              stock_restocked_at = CASE WHEN p.stock_restocked_at IS NULL THEN NOW() ELSE p.stock_restocked_at END
+          FROM prior_order p
+          WHERE o.id = p.id AND lower(p.status) IN ('pending','confirmed')
+          RETURNING o.id, o.order_number, p.stock_restocked_at AS was_restocked
+        ),
+        restocked AS (
+          UPDATE products p
+          SET stock = p.stock + quantities.quantity, updated_at = NOW()
+          FROM (
+            SELECT oi.product_id, SUM(oi.quantity)::integer AS quantity
+            FROM order_items oi JOIN changed_order co ON co.id = oi.order_id
+            WHERE co.was_restocked IS NULL
+            GROUP BY oi.product_id
+          ) quantities
+          WHERE p.id = quantities.product_id
+          RETURNING p.id
+        ),
+        request_update AS (
+          UPDATE order_service_requests r
+          SET status = 'approved', admin_note = ${note}, reviewed_by = 'admin', updated_at = NOW()
+          FROM request_row rr JOIN changed_order co ON co.order_number = rr.order_number
+          WHERE r.id = rr.id
+          RETURNING r.*
+        )
+        SELECT * FROM request_update
+      `;
+      if (!cancelled.length) return NextResponse.json({ success: false, message: "Order ab cancellation ke liye eligible nahi. Order status check karein." }, { status: 409 });
+      return NextResponse.json({ success: true, request: cancelled[0], message: "Order cancelled and stock restored exactly once." });
+    }
     const updated = await sql`
       UPDATE order_service_requests
       SET status = ${status},
