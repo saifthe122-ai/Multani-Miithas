@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   try {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
     const orders = await sql`
       SELECT
         o.id,
@@ -788,6 +789,7 @@ export async function PATCH(request: Request) {
 
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at timestamptz`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
     await sql`
       CREATE TABLE IF NOT EXISTS payment_status_events (
         id bigserial PRIMARY KEY,
@@ -802,7 +804,7 @@ export async function PATCH(request: Request) {
 
     const result = await sql`
       WITH prior_order AS MATERIALIZED (
-        SELECT id, payment_status
+        SELECT id, payment_status, status, stock_restocked_at
         FROM orders
         WHERE order_number = ${orderNumber}
         FOR UPDATE
@@ -813,6 +815,14 @@ export async function PATCH(request: Request) {
           status = CASE
             WHEN ${hasStatus} THEN ${status}
             ELSE current_order.status
+          END,
+          stock_restocked_at = CASE
+            WHEN ${hasStatus}
+              AND ${status} = 'cancelled'
+              AND previous.status <> 'cancelled'
+              AND previous.stock_restocked_at IS NULL
+            THEN NOW()
+            ELSE current_order.stock_restocked_at
           END,
           payment_status = CASE
             WHEN ${hasPaymentStatus} THEN ${normalizedPaymentStatus}
@@ -837,7 +847,28 @@ export async function PATCH(request: Request) {
           current_order.status,
           current_order.payment_status,
           current_order.payment_reference,
-          previous.payment_status AS previous_payment_status
+          previous.payment_status AS previous_payment_status,
+          previous.status AS previous_order_status,
+          previous.stock_restocked_at AS previous_stock_restocked_at
+      ),
+      restocked_products AS (
+        UPDATE products product
+        SET stock = product.stock + restock.quantity,
+            updated_at = NOW()
+        FROM (
+          SELECT
+            item.product_id,
+            SUM(item.quantity)::integer AS quantity
+          FROM order_items item
+          INNER JOIN updated_order changed
+            ON changed.order_number = ${orderNumber}
+          WHERE changed.status = 'cancelled'
+            AND changed.previous_order_status <> 'cancelled'
+            AND changed.previous_stock_restocked_at IS NULL
+          GROUP BY item.product_id
+        ) restock
+        WHERE product.id = restock.product_id
+        RETURNING product.id
       ),
       payment_audit AS (
         INSERT INTO payment_status_events (
@@ -854,7 +885,8 @@ export async function PATCH(request: Request) {
         RETURNING id
       )
       SELECT
-        order_number, status, payment_status, payment_reference
+        order_number, status, payment_status, payment_reference,
+        (SELECT COUNT(*) FROM restocked_products) AS restocked_product_count
       FROM updated_order
     `;
 
