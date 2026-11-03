@@ -72,8 +72,6 @@ type CartItem = {
   quantity: number;
 };
 
-type CheckoutPricing = { deliveryFee: number; freeDeliveryMinimum: number; packagingFee: number; salesTaxEnabled: boolean; salesTaxRate: number; };
-
 type PaymentMethod = {
   id: string | number;
   method_key: string;
@@ -281,8 +279,6 @@ export default function Home() {
     useState<Product[]>([]);
   const [productsLoadError, setProductsLoadError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [checkoutPricing, setCheckoutPricing] = useState<CheckoutPricing>({ deliveryFee: 0, freeDeliveryMinimum: 0, packagingFee: 0, salesTaxEnabled: false, salesTaxRate: 0 });
-  const [checkoutPricingLoaded, setCheckoutPricingLoaded] = useState(false);
 
   const [cart, setCart] =
     useState<Record<string, CartItem>>({});
@@ -437,18 +433,6 @@ weight_options: Array.isArray(item.weight_options)
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // Load business-configured checkout charges.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/checkout-settings', { cache: 'no-store' }).then(async (response) => {
-      if (!response.ok) throw new Error('Checkout pricing unavailable');
-      return response.json();
-    }).then((result: { success?: boolean; settings?: CheckoutPricing }) => {
-      if (!cancelled && result.success && result.settings) { setCheckoutPricing(result.settings); setCheckoutPricingLoaded(true); }
-    }).catch((error) => console.error('Checkout pricing load failed:', error));
-    return () => { cancelled = true; };
   }, []);
 
   // Website media settings load karein.
@@ -1051,7 +1035,6 @@ const total = cartItems.reduce((sum, item) => {
     event.preventDefault();
 
     if (submittingOrder) return;
-    if (!checkoutPricingLoaded) { setMessage("Checkout charges load ho rahi hain. Thori dair baad dobara try karein."); return; }
 
     if (cartCount === 0) {
       setMessage("Pehle cart mein product add karein.");
@@ -2747,7 +2730,6 @@ const key = cartKey(
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Delivery fee</span><strong>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</strong></div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Packaging</span><strong>{money(packagingFee)}</strong></div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span>Sales tax (product-specific rates)</span><strong>{money(taxAmount)}</strong></div>
-                  {!checkoutPricingLoaded && <p role="status" style={{ fontSize: 12, color: "#8A5630" }}>Loading current delivery, packaging and tax charges…</p>}
                   <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #D8C59F", paddingTop: 12, fontSize: 18 }}><strong>Estimated total</strong><strong>{money(estimatedGrandTotal)}</strong></div>
                   <p style={{ fontSize: 12, margin: 0 }}>Each product weight has its own editable delivery, packaging and tax rate. Final charges are recalculated securely when the order is submitted.</p>
                 </div>
