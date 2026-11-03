@@ -826,7 +826,7 @@ export default function ProductsPage() {
                             onClick={() => setDeleteProduct(product)}
                             style={deleteButtonStyle}
                           >
-                            Delete
+                            Deactivate
                           </button>
                         </div>
                       </td>
