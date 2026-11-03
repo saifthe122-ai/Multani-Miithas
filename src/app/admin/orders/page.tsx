@@ -337,7 +337,7 @@ export default function OrdersDashboard() {
       alert(
         error instanceof Error
           ? error.message
-          : "Order delete nahi ho saka."
+          : "Order archive nahi ho saka."
       );
     }
   }
@@ -714,7 +714,7 @@ export default function OrdersDashboard() {
                           style={styles.deleteButton}
                           onClick={() => void deleteOrder(order.id)}
                         >
-                          Delete
+                          Archive
                         </button>
                       </div>
                     </td>
