@@ -195,9 +195,15 @@ export default function CheckoutSettingsPage() {
               margin: "9px 0 0",
             }}
           >
-            Manage delivery charges and sales tax for customer orders.
+            Legacy global defaults only. New customer orders use the delivery, packaging and sales-tax settings saved on each product weight option.
           </p>
         </header>
+
+        <div style={{ ...cardStyle, marginBottom: 22, borderLeft: "5px solid #b58a43" }}>
+          <strong style={{ color: colors.green }}>Where to edit live customer prices</strong>
+          <p style={{ color: colors.text, marginBottom: 8 }}>Open <strong>Admin → Products → Edit Product → Weight & Price Options</strong>. Har weight par product price, delivery fee, packaging type, packaging fee, sales-tax rate aur tax calculation basis set karein. Customer cards, cart, wallet amount aur saved order total isi data se calculate hote hain.</p>
+          <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Neeche ke global fields purane orders/legacy settings ke liye hain; new checkout in values ko apply nahi karta.</p>
+        </div>
 
         <div
           style={{
