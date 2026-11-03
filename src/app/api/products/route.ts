@@ -455,7 +455,8 @@ export async function DELETE(request: Request) {
     const sql = getDatabase();
 
     const rows = await sql`
-      DELETE FROM products
+      UPDATE products
+      SET is_active = false, updated_at = NOW()
       WHERE id = ${id}
       RETURNING id
     `;
@@ -469,14 +470,14 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({
       success: true,
-      deleted: true,
+      deactivated: true,
       id: String(rows[0].id),
     });
   } catch (error) {
     console.error("Products DELETE failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "Could not delete the product" },
+      { success: false, message: "Could not deactivate the product" },
       { status: 500 }
     );
   }
