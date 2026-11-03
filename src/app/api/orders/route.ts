@@ -396,7 +396,7 @@ export async function POST(request: Request) {
           AND stock >= (
             SELECT COALESCE(SUM(requested.quantity), 0)
             FROM requested_items requested
-            WHERE requested.product_id = valid_products.product_id
+            WHERE requested.product_id = product_prices.product_id
           )
       ),
 
