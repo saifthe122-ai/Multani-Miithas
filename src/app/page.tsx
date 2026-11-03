@@ -643,25 +643,25 @@ app_link: String(item.app_link ?? ""),
   const heroImage = findPublishedMedia(
     ["hero", "banner"],
     "image",
-    "/images/multan-hero.jpg"
+    defaultProducts[0].image
   );
 
   const heritageImage = findPublishedMedia(
     ["shrine", "heritage", "story"],
     "image",
-    "/images/multan-shrine-story.jpg"
+    defaultProducts[6].image
   );
 
   const giftBannerImage = findPublishedMedia(
     ["gift banner", "gift hamper", "hamper"],
     "image",
-    "/images/multan-gift-hamper.jpg"
+    defaultProducts[4].image
   );
 
   const promoVideo = findPublishedMedia(
     ["promo", "brand film", "homepage video", "multani mithas"],
     "video",
-    "/videos/multani-mithas-promo.mp4"
+    ""
   );
 
   const promoVideoType = /\.webm(?:$|[?#])/i.test(promoVideo)
@@ -2042,16 +2042,33 @@ const total = cartItems.reduce((sum, item) => {
           and the city that inspires our story.
         </p>
         <div style={{ maxWidth: 950, margin: "auto" }}>
-          <video
-            className="mm-video"
-            controls
-            playsInline
-            preload="metadata"
-            poster={heritageImage}
-          >
-            <source src={promoVideo} type={promoVideoType} />
-            Your browser does not support video playback.
-          </video>
+          {promoVideo ? (
+            <video
+              className="mm-video"
+              controls
+              playsInline
+              preload="metadata"
+              poster={heritageImage}
+            >
+              <source src={promoVideo} type={promoVideoType} />
+              Your browser does not support video playback.
+            </video>
+          ) : (
+            <div
+              role="status"
+              style={{
+                minHeight: 220,
+                display: "grid",
+                placeItems: "center",
+                padding: 24,
+                textAlign: "center",
+                border: "1px solid rgba(230,189,108,.35)",
+                background: "rgba(255,255,255,.04)",
+              }}
+            >
+              Our Multani Mithas brand film is coming soon.
+            </div>
+          )}
           <p style={{ textAlign: "center", fontSize: 13 }}>
             Our Multani Mithas brand film.
           </p>
