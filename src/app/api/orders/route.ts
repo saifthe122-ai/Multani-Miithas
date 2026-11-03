@@ -536,6 +536,7 @@ export async function POST(request: Request) {
         o.subtotal,
         o.delivery_fee,
         o.tax_amount,
+        o.packaging_fee,
         o.total,
         t.requested_count,
         t.valid_count,
