@@ -559,7 +559,11 @@ export default function ProductsPage() {
       }
 
       setProducts((current) =>
-        current.filter((product) => product.id !== deleteProduct.id)
+        current.map((product) =>
+          product.id === deleteProduct.id
+            ? { ...product, status: "Inactive" }
+            : product
+        )
       );
 
       setDeleteProduct(null);
