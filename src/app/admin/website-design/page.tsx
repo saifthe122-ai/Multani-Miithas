@@ -33,6 +33,7 @@ type SocialLinks = {
   whatsapp?: string;
 };
 type PublishedSettings = {
+  aboutUs?: { heading?: string; story?: string; mission?: string; promise?: string };
   heroTitle?: string;
   heroSubtitle?: string;
   brandColor?: string;
@@ -96,6 +97,10 @@ const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   );
   const [brandColor, setBrandColor] = useState("#D8AC55");
   const [backgroundColor, setBackgroundColor] = useState("#F3E8D4");
+  const [aboutHeading, setAboutHeading] = useState("Our Story");
+  const [aboutStory, setAboutStory] = useState("Multani Mithas brings the sweet heritage of Multan to families through traditional favourites, gift collections, desi ghee and honey.");
+  const [aboutMission, setAboutMission] = useState("Celebrate the food traditions of Multan while making every order clear, convenient and dependable.");
+  const [aboutPromise, setAboutPromise] = useState("Customers can see the selected product, weight, packaging, delivery and applicable tax before placing an order.");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -123,6 +128,10 @@ const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
             );
             setBrandColor(savedSettings.brandColor || "#D8AC55");
             setBackgroundColor(savedSettings.backgroundColor || "#F3E8D4");
+            setAboutHeading(savedSettings.aboutUs?.heading || "Our Story");
+            setAboutStory(savedSettings.aboutUs?.story || "Multani Mithas brings the sweet heritage of Multan to families through traditional favourites, gift collections, desi ghee and honey.");
+            setAboutMission(savedSettings.aboutUs?.mission || "Celebrate the food traditions of Multan while making every order clear, convenient and dependable.");
+            setAboutPromise(savedSettings.aboutUs?.promise || "Customers can see the selected product, weight, packaging, delivery and applicable tax before placing an order.");
 
          if (
   Array.isArray(savedSettings.products) &&
@@ -359,6 +368,7 @@ if (Array.isArray(savedSettings.offers)) {
       | "homepage-video"
       | "heritage-story"
       | "gift-banner"
+      | "brand-logo"
   ) {
     const extension =
       item.name.match(/\.[a-z0-9]+$/i)?.[0] ||
@@ -381,6 +391,7 @@ if (Array.isArray(savedSettings.offers)) {
     setBusy(true);
 
 const settings: PublishedSettings = {
+  aboutUs: { heading: aboutHeading.trim(), story: aboutStory.trim(), mission: aboutMission.trim(), promise: aboutPromise.trim() },
   heroTitle,
   heroSubtitle,
   brandColor,
@@ -496,6 +507,7 @@ const settings: PublishedSettings = {
   ["homepage", "Homepage Design"],
    ["offers", "Offers & Promotions"],
   ["social", "Social Media"],
+  ["about", "About Us"],
   ["theme", "Theme & Colors"],
 ].map(([id, label]) => (
             <button
@@ -693,6 +705,11 @@ const settings: PublishedSettings = {
                             >
                               Set as Gift Banner
                             </button>
+                            {item.type === "image" && (
+                              <button type="button" disabled={busy} style={buttonStyle} onClick={() => assignMediaRole(item, "brand-logo")}>
+                                Set as Brand Logo
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <button
@@ -1251,6 +1268,26 @@ const settings: PublishedSettings = {
           </section>
         )}
         
+        {activeTab === "about" && (
+          <section style={{ display: "grid", gap: 18 }}>
+            <div style={panelStyle}>
+              <h2 style={{ marginTop: 0 }}>Customer-facing About Us</h2>
+              <p style={{ color: "#75676b", lineHeight: 1.6 }}>Yahan ki hui tabdeeli customer website ke Our Story section aur footer About Us link par nazar aayegi. Save & Publish zaroor dabayein.</p>
+              <label style={{ display: "block", fontWeight: 700, marginBottom: 14 }}>About Us Heading
+                <input value={aboutHeading} onChange={(event) => setAboutHeading(event.target.value)} maxLength={100} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 12, border: "1px solid #d9c8c8", borderRadius: 8, marginTop: 7 }} />
+              </label>
+              <label style={{ display: "block", fontWeight: 700, marginBottom: 14 }}>Our Story
+                <textarea value={aboutStory} onChange={(event) => setAboutStory(event.target.value)} maxLength={2000} rows={5} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 12, border: "1px solid #d9c8c8", borderRadius: 8, marginTop: 7, font: "inherit" }} />
+              </label>
+              <label style={{ display: "block", fontWeight: 700, marginBottom: 14 }}>Our Mission
+                <textarea value={aboutMission} onChange={(event) => setAboutMission(event.target.value)} maxLength={1000} rows={3} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 12, border: "1px solid #d9c8c8", borderRadius: 8, marginTop: 7, font: "inherit" }} />
+              </label>
+              <label style={{ display: "block", fontWeight: 700 }}>Customer Promise
+                <textarea value={aboutPromise} onChange={(event) => setAboutPromise(event.target.value)} maxLength={1000} rows={3} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 12, border: "1px solid #d9c8c8", borderRadius: 8, marginTop: 7, font: "inherit" }} />
+              </label>
+            </div>
+          </section>
+        )}
         {activeTab === "theme" && (
           <section
             style={{
