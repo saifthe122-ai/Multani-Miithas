@@ -12,7 +12,7 @@ function database() {
   return neon(url);
 }
 
-async function ensureSchema(sql: ReturnType<typeof neon>) {
+async function ensureSchema(sql: ReturnType<typeof neon<false, false>>) {
   await sql`
     CREATE TABLE IF NOT EXISTS order_service_requests (
       id bigserial PRIMARY KEY,
