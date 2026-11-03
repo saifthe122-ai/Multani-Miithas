@@ -59,6 +59,10 @@ export async function GET(request: Request) {
                 'quantity', oi.quantity,
                 'weight', oi.weight,
                 'unitPrice', oi.unit_price,
+                'deliveryFee', oi.delivery_fee,
+                'packagingFee', oi.packaging_fee,
+                'taxAmount', oi.tax_amount,
+                'salesTaxRate', oi.sales_tax_rate,
                 'lineTotal', oi.line_total
               )
               ORDER BY oi.id
