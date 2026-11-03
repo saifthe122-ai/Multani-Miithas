@@ -48,6 +48,16 @@ type PaymentRecord = {
   date: string;
 };
 
+type PaymentEvent = {
+  id: string;
+  orderNumber: string;
+  previousStatus: string;
+  newStatus: string;
+  reference: string;
+  changedBy: string;
+  createdAt: string;
+};
+
 const cardStyle = {
   background: "#ffffff",
   border: "1px solid #e5e7eb",
@@ -80,6 +90,7 @@ export default function PaymentsDashboard() {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [paymentEvents, setPaymentEvents] = useState<PaymentEvent[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -144,6 +155,20 @@ const [currency, setCurrency] = useState("PKR");
           walletOwnerType: String(item.wallet_owner_type ?? "personal"),
 qrImageUrl: String(item.qr_image_url ?? ""),
 appLink: String(item.app_link ?? ""),
+          })
+        )
+      );
+
+      setPaymentEvents(
+        (Array.isArray(payload.paymentEvents) ? payload.paymentEvents : []).map(
+          (item: Record<string, unknown>) => ({
+            id: String(item.id ?? ""),
+            orderNumber: String(item.order_number ?? ""),
+            previousStatus: String(item.previous_status ?? "—"),
+            newStatus: String(item.new_status ?? ""),
+            reference: String(item.payment_reference ?? "—"),
+            changedBy: String(item.changed_by ?? "admin"),
+            createdAt: String(item.created_at ?? "—"),
           })
         )
       );
@@ -1137,6 +1162,41 @@ setNotice("Account settings database mein save ho gayi hain.");
                       Koi payment transaction nahi mili.
                     </td>
                   </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section style={{ ...cardStyle, marginTop: 24 }}>
+          <h2 style={{ marginTop: 0 }}>Payment Verification History</h2>
+          <p style={{ color: "#6b7280", fontSize: 13 }}>
+            Admin ke payment status changes aur verified transaction references ka audit record.
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 720, borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Order", "Previous", "New Status", "Reference", "Changed By", "Date"].map((heading) => (
+                    <th key={heading} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e5e7eb", color: "#6b7280", fontSize: 12 }}>
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paymentEvents.map((event) => (
+                  <tr key={event.id}>
+                    <td style={{ padding: 10 }}>{event.orderNumber}</td>
+                    <td style={{ padding: 10 }}>{event.previousStatus}</td>
+                    <td style={{ padding: 10 }}>{event.newStatus}</td>
+                    <td style={{ padding: 10 }}>{event.reference || "—"}</td>
+                    <td style={{ padding: 10 }}>{event.changedBy}</td>
+                    <td style={{ padding: 10 }}>{event.createdAt}</td>
+                  </tr>
+                ))}
+                {paymentEvents.length === 0 && (
+                  <tr><td colSpan={6} style={{ padding: 16, color: "#6b7280" }}>Abhi koi payment status change record nahi hua.</td></tr>
                 )}
               </tbody>
             </table>
