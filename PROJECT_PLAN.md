@@ -474,3 +474,33 @@ The final system should be suitable for a real sweets business, not only a demon
 ## 17. COMPETITOR REFERENCE
 - Suleman Sweets & Bakers is a catalogue/category and product-pricing reference only.
 - Build an original Multani Mithas visual identity and a more polished customer checkout; do not copy competitor branding or layouts.
+
+
+
+## 18. DAILY-EDITABLE PRODUCT-WEIGHT PRICING (ACTIVE REQUIREMENT)
+
+Every sellable product weight/pack option must store its own editable values:
+- Selling price for that exact weight/pack.
+- Delivery fee for that exact product/weight.
+- Packaging type (e.g. tin, gift box, jar, pouch) and packaging fee.
+- Sales-tax percentage.
+- Sales-tax basis: product price only, or product + delivery + packaging.
+
+Customer product cards and checkout must show the same per-unit breakdown and exact payable amount. Quantity multiplies each per-unit charge. The server recalculates all values from the database at order submission and stores a snapshot per order item so future price edits never alter an existing order. Admin Orders must display the saved item-level charge snapshot.
+
+Do not rely on one global delivery, packaging or tax amount for new orders. Admin > Products > Edit Product > Weight & Price Options is the live pricing control. Old global checkout defaults are legacy-only and must not be represented as active customer pricing.
+
+## 19. PAYMENT WALLET EXPERIENCE
+- Selecting JazzCash, Easypaisa, Raast or bank transfer must open that method's configured business wallet/account details, QR code and app link (when configured) inside checkout.
+- Show the estimated payable amount before order submission and the server-confirmed exact amount after order creation.
+- Do not allow a customer to mistake an unconfigured payment method for a payable wallet. Show a clear warning if no active account exists.
+- After a manual-payment order is created, show a WhatsApp action directly in the payment confirmation area with order number and exact amount prefilled so the customer can attach the screenshot.
+- Screenshot is only a payment claim; admin verifies actual funds before marking Paid.
+
+## 20. PRODUCT RANGE & PAKISTAN-READY OPERATIONS
+- Product catalogue must support traditional sweets, bakery, gift boxes, Desi Ghee and Honey.
+- Every product/pack option must allow price, stock, discount, delivery, packaging and tax changes without code changes.
+- Cancellation, refund, partial refund, order amendment and payment reversal workflows must be wired to real order/payment records with an audit trail and clear customer communication.
+- About Us, Contact Us, policies, social links, WhatsApp and footer actions must be editable in Admin and connected to customer pages.
+- Preserve existing approved product photography; improve typography, spacing, cards, form layout and responsive behavior without replacing approved product images.
+- Mobile-first layout: no horizontal overflow, clear touch targets, readable fee breakdowns and wallet details that fit narrow screens.
