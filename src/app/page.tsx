@@ -3027,6 +3027,7 @@ style={{
 </section>
 
       <footer className="mm-footer">
+        {brandLogo && <img src={brandLogo} alt="Multani Mithas" style={{ display: "block", width: 120, height: 70, objectFit: "contain", margin: "0 auto 10px" }} />}
         <div className="mm-ornament">✦ ❖ ✦</div>
         <h2
           style={{
@@ -3053,6 +3054,7 @@ style={{
             fontSize: 13,
           }}
         >
+          <a href="#about">About Us</a>
           <a href="#policies">Customer Policies</a>
           <a href="#delivery">Delivery</a>
           <a href="#payments">Payments</a>
