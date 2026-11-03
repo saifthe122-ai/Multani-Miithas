@@ -2673,18 +2673,6 @@ const total = cartItems.reduce((sum, item) => {
 
 const gift = isGiftProduct(product);
 
-const unitPrice = gift
-  ? Math.round(
-      product.price *
-        (1 -
-          Math.min(
-            100,
-            Math.max(0, Number(product.discount) || 0)
-          ) /
-            100)
-    )
-  : getProductPrice(product, item.weight);
-
 const itemCharges = getCartUnitCharges(product, item.weight);
 const lineTotal = itemCharges.unitTotal * item.quantity;
 
