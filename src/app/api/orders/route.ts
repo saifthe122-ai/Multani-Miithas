@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   try {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
     const orders = await sql`
       SELECT
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
         o.subtotal,
         o.delivery_fee,
         o.tax_amount,
+        o.packaging_fee,
         o.total,
         o.created_at,
         COALESCE(
@@ -225,6 +227,7 @@ export async function POST(request: Request) {
       .slice(0, 12)
       .toUpperCase()}`;
 
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
@@ -236,12 +239,16 @@ export async function POST(request: Request) {
           CHECK (delivery_fee >= 0),
         free_delivery_minimum numeric(12,2) NOT NULL DEFAULT 0
           CHECK (free_delivery_minimum >= 0),
+        packaging_fee numeric(12,2) NOT NULL DEFAULT 0
+          CHECK (packaging_fee >= 0),
         sales_tax_enabled boolean NOT NULL DEFAULT false,
         sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0
           CHECK (sales_tax_rate >= 0 AND sales_tax_rate <= 100),
         updated_at timestamptz NOT NULL DEFAULT now()
       )
     `;
+
+    await sql`ALTER TABLE checkout_settings ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
 
     await sql`
       INSERT INTO checkout_settings (id)
@@ -418,6 +425,7 @@ export async function POST(request: Request) {
         SELECT
           delivery_fee,
           free_delivery_minimum,
+          packaging_fee,
           sales_tax_enabled,
           sales_tax_rate
         FROM checkout_settings
@@ -443,6 +451,7 @@ export async function POST(request: Request) {
 
           s.delivery_fee,
           s.free_delivery_minimum,
+          s.packaging_fee,
           s.sales_tax_enabled,
           s.sales_tax_rate
 
@@ -458,6 +467,7 @@ export async function POST(request: Request) {
             THEN 0
             ELSE delivery_fee
           END AS final_delivery_fee,
+          packaging_fee,
 
           CASE
             WHEN sales_tax_enabled
@@ -524,6 +534,7 @@ export async function POST(request: Request) {
           subtotal,
           delivery_fee,
           tax_amount,
+          packaging_fee,
           total
         )
 
@@ -540,7 +551,8 @@ export async function POST(request: Request) {
           t.subtotal,
           t.final_delivery_fee,
           t.tax_amount,
-          t.subtotal + t.final_delivery_fee + t.tax_amount
+          t.packaging_fee,
+          t.subtotal + t.final_delivery_fee + t.packaging_fee + t.tax_amount
 
         FROM resolved_customer c
         CROSS JOIN calculated t
@@ -631,6 +643,7 @@ export async function POST(request: Request) {
           subtotal: number | string;
           delivery_fee: number | string;
           tax_amount: number | string;
+          packaging_fee: number | string;
           total: number | string;
           requested_count: number;
           valid_count: number;
@@ -641,7 +654,7 @@ export async function POST(request: Request) {
 
     if (saved?.order_id == null) {
       const existing = await sql`
-        SELECT order_number, subtotal, delivery_fee, tax_amount, total
+        SELECT order_number, subtotal, delivery_fee, tax_amount, packaging_fee, total
         FROM orders
         WHERE idempotency_key = ${requestKey}
         LIMIT 1
@@ -653,6 +666,7 @@ export async function POST(request: Request) {
           subtotal: Number(previous.subtotal),
           deliveryFee: Number(previous.delivery_fee),
           taxAmount: Number(previous.tax_amount),
+          packagingFee: Number(previous.packaging_fee),
           total: Number(previous.total),
           paymentStatus: "pending",
         };
@@ -688,6 +702,7 @@ export async function POST(request: Request) {
       subtotal: Number(saved.subtotal),
       deliveryFee: Number(saved.delivery_fee),
       taxAmount: Number(saved.tax_amount),
+      packagingFee: Number(saved.packaging_fee),
       total: Number(saved.total),
       paymentStatus: "pending",
     };
