@@ -107,6 +107,7 @@ export async function POST(request: Request) {
       SELECT name
       FROM payment_methods
       WHERE is_enabled = true
+        AND payment_type = 'manual'
     `;
     const paymentMethod = enabledPaymentMethods
       .map((row) => String(row.name ?? ""))
