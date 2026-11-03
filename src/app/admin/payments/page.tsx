@@ -201,7 +201,7 @@ appLink: String(item.app_link ?? ""),
               order.payment_method ?? order.paymentMethod ?? "Unknown"
             ),
             status: statusMap[paymentStatus] ?? "Pending",
-            transactionId: "—",
+            transactionId: String(order.payment_reference ?? "—"),
             date: String(order.created_at ?? order.createdAt ?? "—"),
           };
         })
@@ -404,12 +404,29 @@ setNotice("Account settings database mein save ho gayi hain.");
     };
 
     try {
+      let paymentReference = "";
+      if (
+        status === "Paid" &&
+        !payment.method.toLowerCase().replace(/[^a-z0-9]/g, "").includes("cashondelivery") &&
+        payment.method.toLowerCase() !== "cod"
+      ) {
+        const enteredReference = window.prompt(
+          "Payment ko apne bank/wallet account mein verify karne ke baad transaction/reference ID enter karein. Sirf screenshot ko payment proof na samjhein."
+        );
+        if (!enteredReference?.trim()) {
+          setNotice("Paid mark karne ke liye verified transaction reference zaroori hai.");
+          return;
+        }
+        paymentReference = enteredReference.trim();
+      }
+
       const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNumber: payment.orderId,
           paymentStatus: paymentStatusMap[status],
+          paymentReference,
         }),
       });
 
