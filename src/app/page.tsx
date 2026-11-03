@@ -1684,7 +1684,7 @@ const total = cartItems.reduce((sum, item) => {
               <span className="mm-category-name">{category === "All" ? "All Products" : category}</span>
               <span style={{ color: "#E3BD70" }}>↗</span>
             </button>
-          ))}}
+          ))}
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && (
@@ -2854,16 +2854,6 @@ style={{
                   )}
 
                  
-                  {isJazzCash(paymentMethod) && WHATSAPP_NUMBER && (
-                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. Please guide me about JazzCash payment and screenshot submission.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
-                      WhatsApp for JazzCash Payment Help
-                    </a>
-                  )}
-                  {WHATSAPP_NUMBER && (
-                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. I need help with my checkout.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
-                      Need Help? Chat on WhatsApp
-                    </a>
-                  )}
                   <button
                     type="submit"
                     className="mm-gold-button"
@@ -2874,6 +2864,11 @@ style={{
                       ? "Submitting Your Order..."
                       : "Confirm & Place Order"}
                   </button>
+                  {WHATSAPP_NUMBER && (
+                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. I need help with my checkout.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+                      Need Help? Chat on WhatsApp
+                    </a>
+                  )}
                 </form>
               </div>
             )}
