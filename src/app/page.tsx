@@ -63,6 +63,8 @@ type Product = {
     deliveryFee?: number | string;
     packagingFee?: number | string;
     salesTaxRate?: number | string;
+    packagingType?: string;
+    salesTaxBase?: "product" | "all_charges";
   }>;
 };
 
@@ -773,8 +775,11 @@ app_link: String(item.app_link ?? ""),
     const deliveryFee = Math.max(0, Number(option?.deliveryFee ?? 0) || 0);
     const packagingFee = Math.max(0, Number(option?.packagingFee ?? 0) || 0);
     const salesTaxRate = Math.min(100, Math.max(0, Number(option?.salesTaxRate ?? 0) || 0));
-    const taxAmount = Math.round((unitPrice + deliveryFee + packagingFee) * salesTaxRate) / 100;
-    return { unitPrice, deliveryFee, packagingFee, salesTaxRate, taxAmount, unitTotal: unitPrice + deliveryFee + packagingFee + taxAmount };
+    const salesTaxBase = option?.salesTaxBase === "all_charges" ? "all_charges" : "product";
+    const packagingType = String(option?.packagingType ?? "");
+    const taxableAmount = salesTaxBase === "all_charges" ? unitPrice + deliveryFee + packagingFee : unitPrice;
+    const taxAmount = Math.round(taxableAmount * salesTaxRate) / 100;
+    return { unitPrice, deliveryFee, packagingFee, packagingType, salesTaxRate, salesTaxBase, taxAmount, unitTotal: unitPrice + deliveryFee + packagingFee + taxAmount };
   };
 
   const isCashOnDelivery = (methodName: string) => {
@@ -1876,7 +1881,7 @@ const total = cartItems.reduce((sum, item) => {
                     <strong>Price breakdown · {selectedWeight < 1 ? selectedWeight * 1000 + "g" : selectedWeight + "kg"}</strong>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Product price</span><strong>{money(getUnitCharges(product, selectedWeight).unitPrice)}</strong></div>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Delivery</span><strong>{money(getUnitCharges(product, selectedWeight).deliveryFee)}</strong></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Packaging</span><strong>{money(getUnitCharges(product, selectedWeight).packagingFee)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Packaging {getUnitCharges(product, selectedWeight).packagingType ? "· " + getUnitCharges(product, selectedWeight).packagingType : ""}</span><strong>{money(getUnitCharges(product, selectedWeight).packagingFee)}</strong></div>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>Sales tax ({getUnitCharges(product, selectedWeight).salesTaxRate}%)</span><strong>{money(getUnitCharges(product, selectedWeight).taxAmount)}</strong></div>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, borderTop: "1px solid #D8C59F", marginTop: 7, paddingTop: 7 }}><strong>Price per selected pack</strong><strong>{money(getUnitCharges(product, selectedWeight).unitTotal)}</strong></div>
                   </div>
@@ -2714,7 +2719,7 @@ const key = cartKey(
                             : `${money(product.price)} per kg`}
                         </div>
                         <div style={{ fontSize: 12, marginTop: 7, lineHeight: 1.7 }}>
-                          Product {money(itemCharges.unitPrice)} · Delivery {money(itemCharges.deliveryFee)} · Packaging {money(itemCharges.packagingFee)} · Tax ({itemCharges.salesTaxRate}%) {money(itemCharges.taxAmount)}
+                          Product {money(itemCharges.unitPrice)} · Delivery {money(itemCharges.deliveryFee)} · Packaging {itemCharges.packagingType ? itemCharges.packagingType + " " : ""}{money(itemCharges.packagingFee)} · Tax ({itemCharges.salesTaxRate}%) {money(itemCharges.taxAmount)}
                           <br /><strong>Per item total: {money(itemCharges.unitTotal)}</strong>
                         </div>
                       </div>
