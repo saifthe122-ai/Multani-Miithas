@@ -46,7 +46,7 @@ This checklist is for the final pre-production review. Do not merge or promote t
 ## Known items that still need a separate implementation or provider setup
 
 - The generic `/api/payments` endpoint remains testing-only. No live card/payment gateway is connected. Manual bank/wallet transfer and COD are separate from automatic gateway processing.
-- Delivery, coupons, reviews, feedback, newsletter, and referrals APIs still contain demo/testing-mode behavior. Customer profiles now have a database-backed API and admin read view, but email capture, profile editing controls, and customer self-service account workflows still need implementation.
+- Delivery, coupons, reviews, feedback, newsletter, and referrals APIs still contain demo/testing-mode behavior. Customer profiles now have a database-backed API and admin read view, but profile editing controls and customer self-service account workflows still need implementation.
 - Payment verification history records status changes and references; it is not a provider settlement/reconciliation feed.
 - Login rate limiting and session revocation need a dedicated production security review.
 - Actual production database behavior and real payment account verification must be tested before launch. No live database or payment credentials are included in this repository checklist.
