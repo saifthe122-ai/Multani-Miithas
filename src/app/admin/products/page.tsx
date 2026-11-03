@@ -554,7 +554,7 @@ export default function ProductsPage() {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || data.error || "Product delete nahi ho saka."
+          data.message || data.error || "Product deactivate nahi ho saka."
         );
       }
 
@@ -563,12 +563,12 @@ export default function ProductsPage() {
       );
 
       setDeleteProduct(null);
-      alert("Product database se delete ho gaya!");
+      alert("Product deactivate ho gaya. Record database mein محفوظ hai.");
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : "Product delete karte waqt masla hua."
+          : "Product deactivate karte waqt masla hua."
       );
     }
   }
@@ -1453,9 +1453,9 @@ export default function ProductsPage() {
         <div style={overlayStyle}>
           <div style={deleteModalStyle}>
             <div style={{ fontSize: 42 }}>🗑️</div>
-            <h2 style={{ color: colors.teal }}>Remove Product?</h2>
+            <h2 style={{ color: colors.teal }}>Deactivate Product?</h2>
             <p style={detailTextStyle}>
-              Are you sure you want to remove{" "}
+              Are you sure you want to deactivate{" "}
               <strong>{deleteProduct.name}</strong>?
             </p>
 
@@ -1470,7 +1470,7 @@ export default function ProductsPage() {
                 onClick={removeProduct}
                 style={{ ...deleteButtonStyle, flex: 1, padding: 12 }}
               >
-                Yes, Remove
+                Yes, Deactivate
               </button>
             </div>
           </div>
