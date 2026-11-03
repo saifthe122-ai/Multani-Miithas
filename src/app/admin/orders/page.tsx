@@ -20,6 +20,7 @@ type Order = {
   phone: string;
   email: string;
   items: string;
+  itemBreakdown: string;
   quantity: number;
 subtotal: number;
 deliveryFee: number;
@@ -85,6 +86,18 @@ function mapOrder(row: Record<string, unknown>): Order {
     return `${name} × ${qty}`;
   });
 
+  const itemBreakdown = items.map((item) => {
+    const name = String(item.productName ?? item.product_name ?? "Product");
+    const weight = String(item.weight ?? "");
+    const quantity = Number(item.quantity ?? 0);
+    const unitPrice = Number(item.unitPrice ?? item.unit_price ?? 0);
+    const delivery = Number(item.deliveryFee ?? 0);
+    const packaging = Number(item.packagingFee ?? 0);
+    const tax = Number(item.taxAmount ?? 0);
+    const rate = Number(item.salesTaxRate ?? 0);
+    return `${name} (${weight}kg × ${quantity}): Product Rs. ${unitPrice.toLocaleString()} each; Delivery Rs. ${delivery.toLocaleString()}; Packaging Rs. ${packaging.toLocaleString()}; Tax ${rate}% Rs. ${tax.toLocaleString()}`;
+  }).join("\n");
+
   const created = row.created_at
     ? new Date(String(row.created_at))
     : null;
@@ -102,6 +115,7 @@ function mapOrder(row: Record<string, unknown>): Order {
     items: itemNames.length
       ? itemNames.join(", ")
       : "No item details",
+    itemBreakdown,
     quantity,
      subtotal: Number(row.subtotal ?? 0),
     deliveryFee: Number(row.delivery_fee ?? 0),
@@ -842,6 +856,7 @@ export default function OrdersDashboard() {
                 value={selectedOrder.email || "Not provided"}
               />
               <Detail label="Products" value={selectedOrder.items} />
+              <Detail label="Per-product charge breakdown" value={selectedOrder.itemBreakdown || "No item charge details"} />
               <Detail
                 label="Quantity"
                 value={String(selectedOrder.quantity)}
