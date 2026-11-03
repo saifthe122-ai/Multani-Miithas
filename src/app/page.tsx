@@ -2197,8 +2197,8 @@ const total = cartItems.reduce((sum, item) => {
 
 {savedPaymentAccounts.length > 0 && (
   <>
-    savedPaymentAccounts.map((account) => (
-                            <div
+    {savedPaymentAccounts.map((account) => (
+    <div
                               key={String(account.id)}
                               style={{
                                border: "1px solid #D8B66A",
