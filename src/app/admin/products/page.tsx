@@ -11,6 +11,8 @@ type WeightOption = {
   deliveryFee: number;
   packagingFee: number;
   salesTaxRate: number;
+  packagingType?: string;
+  salesTaxBase?: "product" | "all_charges";
 };
 
 type Product = {
@@ -220,6 +222,8 @@ export default function ProductsPage() {
                   deliveryFee: Number(option.deliveryFee ?? 0),
                   packagingFee: Number(option.packagingFee ?? 0),
                   salesTaxRate: Number(option.salesTaxRate ?? 0),
+                  packagingType: String(option.packagingType ?? ""),
+                  salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
                 }))
             : [],
           image: product.image ?? "🍬",
@@ -315,14 +319,14 @@ export default function ProductsPage() {
       ...current,
       weight_options: [
         ...current.weight_options,
-        { weight: "", price: 0, deliveryFee: 0, packagingFee: 0, salesTaxRate: 0 },
+        { weight: "", price: 0, deliveryFee: 0, packagingFee: 0, salesTaxRate: 0, packagingType: "", salesTaxBase: "product" },
       ],
     }));
   }
 
   function updateWeightOption(
     index: number,
-    field: "weight" | "price" | "deliveryFee" | "packagingFee" | "salesTaxRate",
+    field: "weight" | "price" | "deliveryFee" | "packagingFee" | "salesTaxRate" | "packagingType" | "salesTaxBase",
     value: string
   ) {
     setForm((current) => ({
@@ -331,7 +335,7 @@ export default function ProductsPage() {
         optionIndex === index
           ? {
               ...option,
-              [field]: field === "weight" ? value : Number(value),
+              [field]: field === "weight" || field === "packagingType" || field === "salesTaxBase" ? value : Number(value),
             }
           : option
       ),
@@ -506,6 +510,8 @@ export default function ProductsPage() {
           deliveryFee: Number(option.deliveryFee ?? 0),
           packagingFee: Number(option.packagingFee ?? 0),
           salesTaxRate: Number(option.salesTaxRate ?? 0),
+          packagingType: String(option.packagingType ?? ""),
+          salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
         })),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
@@ -1205,6 +1211,16 @@ export default function ProductsPage() {
                               style={inputStyle} />
                           </Field>
                         ))}
+                        <Field label="Packaging type (box / tin / jar)">
+                          <input type="text" maxLength={80} value={option.packagingType ?? ""} placeholder="e.g. Premium tin box"
+                            onChange={(event) => updateWeightOption(index, "packagingType", event.target.value)} style={inputStyle} />
+                        </Field>
+                        <Field label="Sales tax applies to">
+                          <select value={option.salesTaxBase ?? "product"} onChange={(event) => updateWeightOption(index, "salesTaxBase", event.target.value)} style={inputStyle}>
+                            <option value="product">Product price only</option>
+                            <option value="all_charges">Product + delivery + packaging</option>
+                          </select>
+                        </Field>
                       </div>
                       <button
                         type="button"
