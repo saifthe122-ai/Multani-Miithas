@@ -285,7 +285,8 @@ const normalizePaymentName = (value: string) =>
 
 export default function Home() {
   const [products, setProducts] =
-    useState<Product[]>(defaultProducts);
+    useState<Product[]>([]);
+  const [productsLoadError, setProductsLoadError] = useState("");
 
   const [cart, setCart] =
     useState<Record<string, CartItem>>({});
@@ -294,7 +295,7 @@ export default function Home() {
     useState<Record<number, number>>({});
 
   const [availablePaymentMethods, setAvailablePaymentMethods] =
-    useState<PaymentMethod[]>(fallbackPaymentMethods);
+    useState<PaymentMethod[]>([]);
 
   const [availablePaymentAccounts, setAvailablePaymentAccounts] =
     useState<PaymentAccount[]>([]);
@@ -422,12 +423,17 @@ weight_options: Array.isArray(item.weight_options)
               product.price >= 0
           );
 
-        if (!cancelled && databaseProducts.length > 0) {
-          setProducts(databaseProducts);
+        if (!cancelled) {
+          setProducts(databaseProducts.filter((product) => product.status === "Active"));
+          setProductsLoadError("");
         }
       })
       .catch((error: unknown) => {
         console.error("Products load error:", error);
+        if (!cancelled) {
+          setProducts([]);
+          setProductsLoadError("Products abhi load nahi ho sake. Barah-e-karam kuch dair baad dobara try karein.");
+        }
       });
 
     return () => {
@@ -588,8 +594,8 @@ app_link: String(item.app_link ?? ""),
               : methods[0].name
           );
         } else {
-          setAvailablePaymentMethods(fallbackPaymentMethods);
-          setPaymentMethod("Cash on Delivery");
+          setAvailablePaymentMethods([]);
+          setPaymentMethod("");
         }
       } catch (error: unknown) {
         console.error("Payment options error:", error);
@@ -694,6 +700,7 @@ app_link: String(item.app_link ?? ""),
     );
 
   const isProductEnabled = (product: Product) =>
+    product.status === "Active" &&
     getProductSetting(product)?.enabled !== false;
 
   const getProductBackground = (product: Product) =>
@@ -709,8 +716,30 @@ app_link: String(item.app_link ?? ""),
   const isGiftProduct = (product: Product) =>
     product.category === "Gift Boxes";
 
-  const getSelectedWeight = (productId: number) =>
-    selectedWeights[productId] ?? 1;
+  const parseWeightKg = (value: number | string): number | null => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) && value > 0 ? value : null;
+    }
+    const match = value.trim().toLowerCase().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)?$/);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return ["g", "gm", "gms", "gram", "grams"].includes(match[2] || "") ? amount / 1000 : amount;
+  };
+
+  const getProductWeightOptions = (product: Product): number[] => {
+    const configured = (product.weight_options || [])
+      .map((option) => parseWeightKg(option.weight))
+      .filter((weight): weight is number => weight !== null);
+    return configured.length > 0 ? Array.from(new Set(configured)) : WEIGHT_OPTIONS;
+  };
+
+  const getSelectedWeight = (productId: number) => {
+    const product = products.find((item) => item.id === productId);
+    const options = product ? getProductWeightOptions(product) : WEIGHT_OPTIONS;
+    const selected = selectedWeights[productId];
+    return selected !== undefined && options.includes(selected) ? selected : options[0];
+  };
 
     const getProductPrice = (
     product: Product,
@@ -720,7 +749,7 @@ app_link: String(item.app_link ?? ""),
 
     if (product.price_type === "fixed") {
       const option = product.weight_options?.find(
-        (item) => Number(item.weight) === weight
+        (item) => parseWeightKg(item.weight) === weight
       );
 
       if (!option) return null;
@@ -847,6 +876,16 @@ app_link: String(item.app_link ?? ""),
   // Product ko selected weight ke saath cart mein add karein.
   const addToCart = (id: number, weight = 1) => {
     setSavedOrderNumber("");
+    const product = products.find((item) => item.id === id);
+    if (!product || product.status !== "Active" || product.stock <= 0) {
+      setMessage("Ye product filhal stock mein available nahi hai.");
+      return;
+    }
+    const existingQuantity = cart[cartKey(id, weight)]?.quantity || 0;
+    if (existingQuantity >= product.stock) {
+      setMessage("Available stock se zyada quantity add nahi kar sakte.");
+      return;
+    }
 
     const key = cartKey(id, weight);
 
@@ -866,6 +905,11 @@ app_link: String(item.app_link ?? ""),
   // Buy Now: selected item cart mein add karke checkout kholein.
   const buyNow = (id: number, weight = 1) => {
     setSavedOrderNumber("");
+    const product = products.find((item) => item.id === id);
+    if (!product || product.status !== "Active" || product.stock <= 0) {
+      setMessage("Ye product filhal stock mein available nahi hai.");
+      return;
+    }
     const key = cartKey(id, weight);
     setCart({
       [key]: { productId: id, weight, quantity: 1 },
@@ -879,6 +923,11 @@ app_link: String(item.app_link ?? ""),
     setCart((old) => {
       const item = old[key];
       if (!item || item.quantity >= 100) return old;
+      const product = products.find((entry) => entry.id === item.productId);
+      if (!product || item.quantity >= product.stock) {
+        setMessage("Available stock se zyada quantity add nahi kar sakte.");
+        return old;
+      }
       return { ...old, [key]: { ...item, quantity: item.quantity + 1 } };
     });
   };
@@ -972,6 +1021,10 @@ const total = cartItems.reduce((sum, item) => {
       setMessage("Pehle cart mein product add karein.");
       return;
     }
+    if (!availablePaymentMethods.some((method) => method.name === paymentMethod)) {
+      setMessage("Payment methods load nahi huay. Dobara try karein ya support se rabta karein.");
+      return;
+    }
 
     if (
       !customerName.trim() ||
@@ -1056,7 +1109,10 @@ const total = cartItems.reduce((sum, item) => {
       const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
       setSavedOrderNumber(orderNumber);
-      setSavedOrderAmount(Number(data.order?.total ?? data.order?.subtotal ?? total));
+      if (typeof data.order?.total !== "number" || !Number.isFinite(data.order.total)) {
+        throw new Error("Server ne final order total return nahi kiya. Support se rabta karein.");
+      }
+      setSavedOrderAmount(data.order.total);
       setSavedPaymentMethod(paymentMethod);
       setSavedCustomerPhone(customerPhone.trim());
       setSavedPaymentAccounts(matchingAccounts);
@@ -1802,7 +1858,7 @@ const total = cartItems.reduce((sum, item) => {
                     <p className="mm-discount-note">{product.discount}% discount</p>
                   )}
                   <p className="mm-stock-note">
-                    {product.stock > 0 ? "Available to order" : "Availability confirmed after order"}
+                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
                   </p>
 
                   <label
@@ -1824,33 +1880,37 @@ const total = cartItems.reduce((sum, item) => {
                         }))
                       }
                     >
-                      {WEIGHT_OPTIONS.map((weight) => (
+                      {getProductWeightOptions(product).map((weight) => (
                         <option key={weight} value={weight}>
-{weight < 1 ? `${weight * 1000}g` : `${weight}kg`}                     
+                          {weight < 1 ? `${weight * 1000}g` : `${weight}kg`}
                         </option>
                       ))}
                     </select>
                   </label>
 
                   <p className="mm-price">
-                    {money(product.price * selectedWeight)}
+                    {getProductPrice(product, selectedWeight) === null
+                      ? "Price unavailable"
+                      : money(getProductPrice(product, selectedWeight) as number)}
                   </p>
 
-  
-                  <p style={{ fontSize: 12, marginTop: -12 }}>
-                    {money(product.price)} per kg
-                  </p>
+                  {product.price_type !== "fixed" && (
+                    <p style={{ fontSize: 12, marginTop: -12 }}>
+                      {money(product.price)} per kg
+                    </p>
+                  )}
 
                   <button
                     type="button"
                     className="mm-gold-button"
+                    disabled={product.stock <= 0 || getProductPrice(product, selectedWeight) === null}
                     onClick={() =>
                       addToCart(product.id, selectedWeight)
                     }
                   >
-                    Add to Cart +
+                    {product.stock <= 0 ? "Out of Stock" : "Add to Cart +"}
                   </button>
-                 <button type="button" className="mm-buy-button" onClick={() => buyNow(product.id, selectedWeight)}>Instant Checkout →</button>
+                 <button type="button" className="mm-buy-button" disabled={product.stock <= 0 || getProductPrice(product, selectedWeight) === null} onClick={() => buyNow(product.id, selectedWeight)}>Instant Checkout →</button>
 
 {WHATSAPP_NUMBER && (
   <a
@@ -2075,19 +2135,21 @@ const total = cartItems.reduce((sum, item) => {
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{product.name}</h3>
                 <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
-                <p className="mm-stock-note">Availability confirmed after order</p>
+                <p className="mm-stock-note">{product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}</p>
                 <p className="mm-price">{money(product.price)}</p>
                 <p style={{ fontSize: 12 }}>Fixed price gift box</p>
                 <button
                   type="button"
                   className="mm-gold-button"
+                  disabled={product.stock <= 0}
                   onClick={() => addToCart(product.id, 1)}
                 >
-                  Add to Cart +
+                  {product.stock <= 0 ? "Out of Stock" : "Add to Cart +"}
                 </button>
               <button
   type="button"
   className="mm-buy-button"
+  disabled={product.stock <= 0}
   onClick={() => buyNow(product.id, 1)}
 >
   Instant Checkout →
