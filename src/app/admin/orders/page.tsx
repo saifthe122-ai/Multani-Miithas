@@ -278,12 +278,31 @@ export default function OrdersDashboard() {
     if (paymentStatus === "COD") return;
 
     try {
+      const order = orders.find((item) => item.id === id);
+      let paymentReference = "";
+      if (
+        paymentStatus === "Paid" &&
+        order &&
+        !order.paymentMethod.toLowerCase().replace(/[^a-z0-9]/g, "").includes("cashondelivery") &&
+        order.paymentMethod.toLowerCase() !== "cod"
+      ) {
+        const enteredReference = window.prompt(
+          "Apne bank/wallet mein payment verify karne ke baad transaction/reference ID enter karein. Screenshot akela payment proof nahi."
+        );
+        if (!enteredReference?.trim()) {
+          alert("Verified transaction reference ke baghair Paid mark nahi kar sakte.");
+          return;
+        }
+        paymentReference = enteredReference.trim();
+      }
+
       const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNumber: id,
           paymentStatus: paymentStatus.toLowerCase(),
+          paymentReference,
         }),
       });
 
