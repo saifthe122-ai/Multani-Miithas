@@ -27,6 +27,10 @@ export async function GET(request: Request) {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS delivery_fee numeric(12,2) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS tax_amount numeric(12,2) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
     const orders = await sql`
       SELECT
@@ -379,27 +383,12 @@ export async function POST(request: Request) {
           weight,
           quantity,
 
-          ROUND(
-            (
-              CASE
-                WHEN price_type = 'fixed'
-                THEN selected_option_price
-                ELSE price * weight
-              END
-            ) * (1 - discount / 100),
-            2
-          ) AS unit_price,
-
-          ROUND(
-            (
-              CASE
-                WHEN price_type = 'fixed'
-                THEN selected_option_price
-                ELSE price * weight
-              END
-            ) * (1 - discount / 100) * quantity,
-            2
-          ) AS line_total
+          ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) AS unit_price,
+          unit_delivery_fee,
+          unit_packaging_fee,
+          unit_sales_tax_rate,
+          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2) AS unit_tax_amount,
+          ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee + ROUND((ROUND((CASE WHEN price_type = 'fixed' THEN selected_option_price ELSE price * weight END) * (1 - discount / 100), 2) + unit_delivery_fee + unit_packaging_fee) * unit_sales_tax_rate / 100, 2)) * quantity, 2) AS line_total
 
         FROM product_prices
         WHERE
@@ -421,60 +410,18 @@ export async function POST(request: Request) {
           )
       ),
 
-      settings AS MATERIALIZED (
-        SELECT
-          delivery_fee,
-          free_delivery_minimum,
-          packaging_fee,
-          sales_tax_enabled,
-          sales_tax_rate
-        FROM checkout_settings
-        WHERE id = 1
-      ),
-
       totals AS (
         SELECT
-          (
-            SELECT COUNT(*)::integer
-            FROM requested_items
-          ) AS requested_count,
-
-          (
-            SELECT COUNT(*)::integer
-            FROM valid_products
-          ) AS valid_count,
-
-          COALESCE(
-            (SELECT SUM(line_total) FROM valid_products),
-            0
-          ) AS subtotal,
-
-          s.delivery_fee,
-          s.free_delivery_minimum,
-          s.packaging_fee,
-          s.sales_tax_enabled,
-          s.sales_tax_rate
-
-        FROM settings s
+          (SELECT COUNT(*)::integer FROM requested_items) AS requested_count,
+          (SELECT COUNT(*)::integer FROM valid_products) AS valid_count,
+          COALESCE((SELECT SUM(unit_price * quantity) FROM valid_products), 0) AS subtotal,
+          COALESCE((SELECT SUM(unit_delivery_fee * quantity) FROM valid_products), 0) AS delivery_fee,
+          COALESCE((SELECT SUM(unit_packaging_fee * quantity) FROM valid_products), 0) AS packaging_fee,
+          COALESCE((SELECT SUM(unit_tax_amount * quantity) FROM valid_products), 0) AS tax_amount
       ),
 
       calculated AS (
-        SELECT
-          *,
-          CASE
-            WHEN free_delivery_minimum > 0
-              AND subtotal >= free_delivery_minimum
-            THEN 0
-            ELSE delivery_fee
-          END AS final_delivery_fee,
-          packaging_fee,
-
-          CASE
-            WHEN sales_tax_enabled
-            THEN ROUND(subtotal * sales_tax_rate / 100, 2)
-            ELSE 0
-          END AS tax_amount
-
+        SELECT *, delivery_fee AS final_delivery_fee
         FROM totals
       ),
 
@@ -599,7 +546,11 @@ export async function POST(request: Request) {
           quantity,
           weight,
           unit_price,
-          line_total
+          line_total,
+          delivery_fee,
+          packaging_fee,
+          tax_amount,
+          sales_tax_rate
         )
 
         SELECT
@@ -609,7 +560,11 @@ export async function POST(request: Request) {
           p.quantity,
           p.weight,
           p.unit_price,
-          p.line_total
+          p.line_total,
+          p.unit_delivery_fee * p.quantity,
+          p.unit_packaging_fee * p.quantity,
+          p.unit_tax_amount * p.quantity,
+          p.unit_sales_tax_rate
 
         FROM new_order o
         CROSS JOIN valid_products p
