@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type ServiceRequest = {
@@ -36,7 +36,7 @@ export default function RefundsPage() {
   const [transferReference, setTransferReference] = useState("");
   const [saving, setSaving] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
       const response = await fetch("/api/order-service-requests" + (type === "all" ? "" : "?type=" + type), { cache: "no-store" });
@@ -45,8 +45,8 @@ export default function RefundsPage() {
       setRequests(data.requests);
     } catch (e) { setError(e instanceof Error ? e.message : "Requests load nahi ho sakin."); }
     finally { setLoading(false); }
-  }
-  useEffect(() => { void load(); }, [type]);
+  }, [type]);
+  useEffect(() => { void load(); }, [load]);
 
   function choose(row: ServiceRequest) {
     setSelected(row); setStatus(row.status === "requested" ? "under_review" : row.status);
