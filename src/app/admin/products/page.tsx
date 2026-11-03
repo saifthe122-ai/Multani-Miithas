@@ -12,7 +12,7 @@ type WeightOption = {
   packagingFee: number;
   salesTaxRate: number;
   packagingType?: string;
-  salesTaxBase?: "product" | "all_charges";
+  salesTaxBase?: string;
 };
 
 type Product = {
