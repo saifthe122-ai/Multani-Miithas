@@ -309,7 +309,7 @@ export default function OrdersDashboard() {
 
   async function deleteOrder(orderNumber: string) {
     const confirmed = window.confirm(
-      `Kya aap order ${orderNumber} ko permanently delete karna chahte hain? Yeh action undo nahi ho sakta.`
+      `Kya aap order ${orderNumber} ko archive karna chahte hain? Record history mein محفوظ rahega.`
     );
 
     if (!confirmed) return;
@@ -325,14 +325,14 @@ export default function OrdersDashboard() {
 
       if (!response.ok || data.success !== true) {
         throw new Error(
-          data.message || "Order delete nahi ho saka."
+          data.message || "Order archive nahi ho saka."
         );
       }
 
       setSelectedOrder(null);
       await loadOrders();
 
-      alert("Order delete ho gaya.");
+      alert("Order archive ho gaya. Record محفوظ hai.");
     } catch (error) {
       alert(
         error instanceof Error
@@ -956,7 +956,7 @@ export default function OrdersDashboard() {
                 style={styles.deleteModalButton}
                 onClick={() => void deleteOrder(selectedOrder.id)}
               >
-                Delete This Order Permanently
+                Archive This Order
               </button>
             </div>
 
