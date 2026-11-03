@@ -313,6 +313,7 @@ export default function Home() {
     useState("Cash on Delivery");
 const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [checkoutRequestKey, setCheckoutRequestKey] = useState("");
   const [savedOrderNumber, setSavedOrderNumber] = useState("");
   const [savedOrderAmount, setSavedOrderAmount] = useState(0);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState("");
@@ -1064,10 +1065,13 @@ const total = cartItems.reduce((sum, item) => {
     setMessage("");
 
     try {
+      const requestKey = checkoutRequestKey || crypto.randomUUID();
+      if (!checkoutRequestKey) setCheckoutRequestKey(requestKey);
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": requestKey,
         },
         body: JSON.stringify({
           customerName: customerName.trim(),
@@ -1109,6 +1113,7 @@ const total = cartItems.reduce((sum, item) => {
       const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
       setSavedOrderNumber(orderNumber);
+      setCheckoutRequestKey("");
       if (typeof data.order?.total !== "number" || !Number.isFinite(data.order.total)) {
         throw new Error("Server ne final order total return nahi kiya. Support se rabta karein.");
       }
@@ -1780,6 +1785,16 @@ const total = cartItems.reduce((sum, item) => {
           Explore our traditional sweets and bakery favourites. Prices
           are displayed in Pakistani rupees.
         </p>
+        {productsLoadError && (
+          <p role="alert" style={{ textAlign: "center", color: "#9A3B32", margin: "18px 0" }}>
+            {productsLoadError}
+          </p>
+        )}
+        {!productsLoadError && products.length === 0 && (
+          <p role="status" style={{ textAlign: "center", margin: "18px 0" }}>
+            Products are being updated. Please check back shortly.
+          </p>
+        )}
 
         <div
           style={{
