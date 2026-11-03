@@ -64,7 +64,7 @@ type Product = {
     packagingFee?: number | string;
     salesTaxRate?: number | string;
     packagingType?: string;
-    salesTaxBase?: "product" | "all_charges";
+    salesTaxBase?: string;
   }>;
 };
 
