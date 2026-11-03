@@ -2140,7 +2140,7 @@ const total = cartItems.reduce((sum, item) => {
                 <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
                 <p className="mm-stock-note">{product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}</p>
                 <p className="mm-price">
-                  {money(Math.round(product.price * (1 - Math.min(100, Math.max(0, Number(product.discount) || 0)) / 100))}
+                  {money(Math.round(product.price * (1 - Math.min(100, Math.max(0, Number(product.discount) || 0)) / 100)))}
                 </p>
                 {product.discount > 0 && (
                   <p className="mm-discount-note">{product.discount}% discount</p>
