@@ -56,6 +56,11 @@ type Product = {
   ingredients: string;
   rating: number;
   status: "Active" | "Inactive";
+    price_type?: "per_kg" | "fixed";
+  weight_options?: Array<{
+    weight: number | string;
+    price: number | string;
+  }>;
 };
 
 type CartItem = {
@@ -382,6 +387,13 @@ const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
               category: String(item.category ?? "Sweets"),
               stock: Number(item.stock ?? 0),
               discount: Number(item.discount ?? 0),
+              price_type:
+  String(item.price_type ?? "per_kg") === "fixed"
+    ? "fixed"
+    : "per_kg",
+weight_options: Array.isArray(item.weight_options)
+  ? (item.weight_options as Product["weight_options"])
+  : [],
               weight: String(item.weight ?? ""),
               image:
                 imageUrl ||
@@ -700,6 +712,33 @@ app_link: String(item.app_link ?? ""),
   const getSelectedWeight = (productId: number) =>
     selectedWeights[productId] ?? 1;
 
+    const getProductPrice = (
+    product: Product,
+    weight: number
+  ): number | null => {
+    let basePrice: number;
+
+    if (product.price_type === "fixed") {
+      const option = product.weight_options?.find(
+        (item) => Number(item.weight) === weight
+      );
+
+      if (!option) return null;
+
+      basePrice = Number(option.price);
+    } else {
+      basePrice = Number(product.price) * weight;
+    }
+
+    if (!Number.isFinite(basePrice)) return null;
+
+    const discount = Math.min(
+      100,
+      Math.max(0, Number(product.discount) || 0)
+    );
+
+    return Math.round(basePrice * (1 - discount / 100));
+  };
   const isCashOnDelivery = (methodName: string) => {
     const method = normalizePaymentName(methodName);
 
@@ -885,20 +924,29 @@ app_link: String(item.app_link ?? ""),
     0
   );
 
-  const total = cartItems.reduce((sum, item) => {
-    const product = products.find(
-      (p) => p.id === item.productId
-    );
+const total = cartItems.reduce((sum, item) => {
+  const product = products.find(
+    (p) => p.id === item.productId
+  );
 
-    if (!product) return sum;
+  if (!product) return sum;
 
-    return (
-      sum +
-      product.price *
-        (isGiftProduct(product) ? 1 : item.weight) *
-        item.quantity
-    );
-  }, 0);
+  const unitPrice = isGiftProduct(product)
+    ? Math.round(
+        product.price *
+          (1 -
+            Math.min(
+              100,
+              Math.max(0, Number(product.discount) || 0)
+            ) /
+              100)
+      )
+    : getProductPrice(product, item.weight);
+
+  if (unitPrice === null) return sum;
+
+  return sum + unitPrice * item.quantity;
+}, 0);
 
   const regularProducts = products.filter(
     (product) =>
@@ -1748,6 +1796,7 @@ app_link: String(item.app_link ?? ""),
                     {money(product.price * selectedWeight)}
                   </p>
 
+  
                   <p style={{ fontSize: 12, marginTop: -12 }}>
                     {money(product.price)} per kg
                   </p>
@@ -2277,15 +2326,7 @@ app_link: String(item.app_link ?? ""),
   )}
 </div>
                           ))
-                        ) : (
-                          <p>
-                            Is payment method ka active account abhi
-                            available nahi hai. Payment bhejne se pehle
-                            business se WhatsApp par account details
-                            confirm karein.
-                          </p>
-                        )}
-
+                    
                        {isJazzCash(savedPaymentMethod) &&
   !getMatchingPaymentAccounts(savedPaymentMethod).some(
     (account) =>
@@ -2333,10 +2374,11 @@ app_link: String(item.app_link ?? ""),
                  Payment Verification
                    </h3>
                           <p>
-                            Payment karne ke baad screenshot WhatsApp par
-                            bhejein. Admin apne payment account mein amount
-                            verify karne ke baad payment status update karega.
-                          </p>
+                            Payment transfer karne ke baad screenshot business ko
+                 WhatsApp par bhej sakte hain. Screenshot payment ka
+                    proof nahi hai. Admin asal account mein payment verify
+                     karne ke baad status update karega.
+                                 </p>
 
                           <p>
                             Payment Status:{" "}
@@ -2433,17 +2475,29 @@ app_link: String(item.app_link ?? ""),
 
                   if (!product) return null;
 
-                  const gift = isGiftProduct(product);
-                  const lineTotal =
-                    product.price *
-                    (gift ? 1 : item.weight) *
-                    item.quantity;
+const gift = isGiftProduct(product);
 
-                  const key = cartKey(
-                    item.productId,
-                    item.weight
-                  );
+const unitPrice = gift
+  ? Math.round(
+      product.price *
+        (1 -
+          Math.min(
+            100,
+            Math.max(0, Number(product.discount) || 0)
+          ) /
+            100)
+    )
+  : getProductPrice(product, item.weight);
 
+const lineTotal =
+  unitPrice === null
+    ? 0
+    : unitPrice * item.quantity;
+
+const key = cartKey(
+  item.productId,
+  item.weight
+);
                   return (
                     <div
                       key={key}
@@ -2711,33 +2765,41 @@ style={{
         )}
       </section>
 
-      <section id="policies" style={sectionStyle}>
-        <h2 className="mm-section-heading">
-          Customer Information & Policies
-        </h2>
-        <div style={{ maxWidth: 850, margin: "auto" }}>
-          <h3>Orders and cancellations</h3>
-          <p>
-            An order is not confirmed until the business confirms product
-            availability, final price, delivery and payment arrangements.
-          </p>
-          <h3>Shipping and customs</h3>
-          <p>
-            International shipping charges, customs duties, import
-            restrictions and delivery times vary by destination.
-          </p>
-          <h3>Refunds and product issues</h3>
-          <p>
-            Contact the business about damaged, incorrect or missing items.
-            Publish a complete refund policy before accepting online payments.
-          </p>
-          <h3>Privacy</h3>
-          <p>
-            Only provide the personal information needed to handle an order.
-            Publish a complete privacy policy before collecting customer data.
-          </p>
-        </div>
-      </section>
+    <section id="policies" style={sectionStyle}>
+  <h2 className="mm-section-heading">
+    Customer Information & Policies
+  </h2>
+
+  <div style={{ maxWidth: 850, margin: "auto" }}>
+    <h3>Orders and Cancellations</h3>
+    <p>
+      Orders are subject to product availability, final pricing,
+      delivery arrangements and business confirmation. For details,
+      please read our{" "}
+      <a href="/order-cancellation">Order Cancellation Policy</a>.
+    </p>
+
+    <h3>Shipping and Customs</h3>
+    <p>
+      International shipping charges, customs duties, import
+      restrictions and delivery times vary depending on the destination.
+    </p>
+
+    <h3>Refunds and Returns</h3>
+    <p>
+      For information about damaged, incorrect or missing items
+      and refund requests, please read our{" "}
+      <a href="/refund-return">Refund & Return Policy</a>.
+    </p>
+
+    <h3>Privacy</h3>
+    <p>
+      To understand how customer information is collected and
+      handled, please read our{" "}
+      <a href="/privacy-policy">Privacy Policy</a>.
+    </p>
+  </div>
+</section>
 
       <footer className="mm-footer">
         <div className="mm-ornament">✦ ❖ ✦</div>
