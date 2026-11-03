@@ -13,6 +13,8 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - Order API locks product rows, validates available stock, and deducts inventory in the same SQL statement as order creation.
 - Orders are archived, not permanently deleted; products are deactivated, not permanently deleted.
 - Admin payment status changes store a verified payment reference and an audit event.
+- Customer checkout creates or updates the customer record by phone; name, phone, and delivery address are synced from orders.
+- Admin Customers page reads real customer records and shows order counts, last order date, and verified-paid totals.
 - Canonical metadata, robots sitemap URL, and sitemap use https://multani-mithas.vercel.app.
 - Broken fallback media paths are replaced with existing product image fallbacks; an unpublished brand film shows a coming-soon placeholder.
 - GitHub Actions workflow added for lint and production build.
@@ -44,7 +46,7 @@ This checklist is for the final pre-production review. Do not merge or promote t
 ## Known items that still need a separate implementation or provider setup
 
 - The generic `/api/payments` endpoint remains testing-only. No live card/payment gateway is connected. Manual bank/wallet transfer and COD are separate from automatic gateway processing.
-- Customers, delivery, coupons, reviews, feedback, newsletter, and referrals APIs still contain demo/testing-mode behavior. Do not advertise these as fully database-backed until their persistence and admin workflows are implemented and tested.
+- Delivery, coupons, reviews, feedback, newsletter, and referrals APIs still contain demo/testing-mode behavior. Customer profiles now have a database-backed API and admin read view, but email capture, profile editing controls, and customer self-service account workflows still need implementation.
 - Payment verification history records status changes and references; it is not a provider settlement/reconciliation feed.
 - Login rate limiting and session revocation need a dedicated production security review.
 - Actual production database behavior and real payment account verification must be tested before launch. No live database or payment credentials are included in this repository checklist.
