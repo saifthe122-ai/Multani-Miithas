@@ -503,6 +503,9 @@ export default function ProductsPage() {
                   Number(form.price)
                 ) ?? 0
               : Number(option.price),
+          deliveryFee: Number(option.deliveryFee ?? 0),
+          packagingFee: Number(option.packagingFee ?? 0),
+          salesTaxRate: Number(option.salesTaxRate ?? 0),
         })),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
