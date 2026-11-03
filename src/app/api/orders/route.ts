@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     const orders = await sql`
       SELECT
         o.id,
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
           '[]'::json
         ) AS items
       FROM orders o
+      WHERE o.archived_at IS NULL
       ORDER BY o.created_at DESC
       LIMIT 500
     `;
@@ -846,23 +848,16 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const result = await sql.transaction([
-      sql`
-        DELETE FROM order_items
-        WHERE order_id = (
-          SELECT id
-          FROM orders
-          WHERE order_number = ${orderNumber}
-        )
-      `,
-      sql`
-        DELETE FROM orders
-        WHERE order_number = ${orderNumber}
-        RETURNING order_number
-      `,
-    ]);
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
+    const result = await sql`
+      UPDATE orders
+      SET archived_at = NOW()
+      WHERE order_number = ${orderNumber}
+        AND archived_at IS NULL
+      RETURNING order_number
+    `;
 
-    const deletedOrders = result[1];
+    const deletedOrders = result;
 
     if (!deletedOrders || deletedOrders.length === 0) {
       return NextResponse.json(
@@ -873,7 +868,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Order permanently delete ho gaya.",
+      message: "Order archive ho gaya. Record history mein محفوظ rahega.",
       orderNumber,
     });
   } catch (error) {
