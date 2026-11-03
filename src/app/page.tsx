@@ -2628,7 +2628,6 @@ const key = cartKey(
      Delivery charges and applicable taxes will be included
   in your final payable amount after placing the order.
 </p>
-  </p>
 </div>
 
 <form
