@@ -1671,21 +1671,20 @@ const total = cartItems.reduce((sum, item) => {
         <div className="mm-ornament">❖ ✦ ❖</div>
         <h2 className="mm-section-heading">Our Signature Collection</h2>
         <p className="mm-section-intro">
-          Traditional favourites inspired by the sweet heritage of Multan
-          and the warmth of the Saraiki Wasib.
+          Browse collections by category. Product prices are shown in PKR; delivery, packaging and applicable tax are itemised before checkout.
         </p>
         <div className="mm-category-grid">
           {categories.map((category) => (
-            <a
-              key={category.name}
-              href={category.name === "Gift Boxes" ? "#gifts" : "#products"}
-              className="mm-category"
-            >
-              <span className="mm-category-symbol">{category.symbol}</span>
-              <span className="mm-category-name">{category.name}</span>
+            <button key={category} type="button" onClick={() => {
+              setSelectedCategory(category);
+              document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+            }} className="mm-category" aria-pressed={selectedCategory === category}
+              style={{ cursor: "pointer", font: "inherit", border: selectedCategory === category ? "2px solid #D8AC55" : "1px solid transparent", background: selectedCategory === category ? "#092F32" : undefined, color: selectedCategory === category ? "#FFF8EA" : undefined }}>
+              <span className="mm-category-symbol">{category === "All" ? "✦" : "❖"}</span>
+              <span className="mm-category-name">{category === "All" ? "All Products" : category}</span>
               <span style={{ color: "#E3BD70" }}>↗</span>
-            </a>
-          ))}
+            </button>
+          ))}}
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && (
@@ -2718,16 +2717,14 @@ const key = cartKey(
                   );
                 })}
 
-                <div className="mm-cart-totals">
-  <div>
-    <span>Product Subtotal</span>
-    <strong>{money(total)}</strong>
-  </div>
-  <p>
-     Delivery charges and applicable taxes will be included
-  in your final payable amount after placing the order.
-</p>
-</div>
+                <div className="mm-cart-totals" style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Products subtotal</span><strong>{money(total)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Delivery fee</span><strong>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Packaging</span><strong>{money(packagingFee)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span>Sales tax {checkoutPricing.salesTaxEnabled ? "(" + checkoutPricing.salesTaxRate + "%)" : "(not applied)"}</span><strong>{money(taxAmount)}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #D8C59F", paddingTop: 12, fontSize: 18 }}><strong>Estimated total</strong><strong>{money(estimatedGrandTotal)}</strong></div>
+                  <p style={{ fontSize: 12, margin: 0 }}>Final charges are recalculated securely when the order is submitted.</p>
+                </div>
 
 <form
   onSubmit={placeOrder}
