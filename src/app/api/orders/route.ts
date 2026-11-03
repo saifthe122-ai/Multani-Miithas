@@ -36,6 +36,7 @@ export async function GET(request: Request) {
         o.status,
         o.payment_method,
         o.payment_status,
+        o.payment_reference,
         o.subtotal,
         o.delivery_fee,
         o.tax_amount,
@@ -772,23 +773,88 @@ export async function PATCH(request: Request) {
         ? "partially_refunded"
         : paymentStatus;
 
+    const paymentReference =
+      typeof data.paymentReference === "string"
+        ? data.paymentReference.trim()
+        : "";
+
+    if (paymentReference.length > 120) {
+      return NextResponse.json(
+        { success: false, message: "Payment reference 120 characters se kam rakhein." },
+        { status: 400 }
+      );
+    }
+
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at timestamptz`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS payment_status_events (
+        id bigserial PRIMARY KEY,
+        order_number text NOT NULL,
+        previous_status text,
+        new_status text NOT NULL,
+        payment_reference text,
+        changed_by text NOT NULL DEFAULT 'admin',
+        created_at timestamptz NOT NULL DEFAULT NOW()
+      )
+    `;
+
     const result = await sql`
-      UPDATE orders
-      SET
-        status = CASE
-          WHEN ${hasStatus} THEN ${status}
-          ELSE status
-        END,
-
-        payment_status = CASE
-          WHEN ${hasPaymentStatus}
-          THEN ${normalizedPaymentStatus}
-          ELSE payment_status
-        END
-
-      WHERE order_number = ${orderNumber}
-
-      RETURNING order_number, status, payment_status
+      WITH prior_order AS MATERIALIZED (
+        SELECT id, payment_status
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        FOR UPDATE
+      ),
+      updated_order AS (
+        UPDATE orders current_order
+        SET
+          status = CASE
+            WHEN ${hasStatus} THEN ${status}
+            ELSE current_order.status
+          END,
+          payment_status = CASE
+            WHEN ${hasPaymentStatus} THEN ${normalizedPaymentStatus}
+            ELSE current_order.payment_status
+          END,
+          payment_reference = CASE
+            WHEN ${hasPaymentStatus} AND ${paymentReference} <> ''
+            THEN ${paymentReference}
+            ELSE current_order.payment_reference
+          END,
+          payment_verified_at = CASE
+            WHEN ${hasPaymentStatus} AND ${normalizedPaymentStatus} = 'paid'
+            THEN NOW()
+            WHEN ${hasPaymentStatus}
+            THEN NULL
+            ELSE current_order.payment_verified_at
+          END
+        FROM prior_order previous
+        WHERE current_order.id = previous.id
+        RETURNING
+          current_order.order_number,
+          current_order.status,
+          current_order.payment_status,
+          current_order.payment_reference,
+          previous.payment_status AS previous_payment_status
+      ),
+      payment_audit AS (
+        INSERT INTO payment_status_events (
+          order_number, previous_status, new_status, payment_reference
+        )
+        SELECT
+          order_number,
+          previous_payment_status,
+          payment_status,
+          payment_reference
+        FROM updated_order
+        WHERE ${hasPaymentStatus}
+          AND previous_payment_status IS DISTINCT FROM payment_status
+        RETURNING id
+      )
+      SELECT
+        order_number, status, payment_status, payment_reference
+      FROM updated_order
     `;
 
     if (result.length === 0) {
