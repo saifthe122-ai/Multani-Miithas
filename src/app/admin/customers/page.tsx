@@ -57,7 +57,7 @@ export default function CustomersDashboard() {
         <Stat title="Total Customers" value={customers.length.toLocaleString()} />
         <Stat title="Repeat Customers" value={repeatCustomers.toLocaleString()} />
         <Stat title="Customers with Orders" value={customersWithOrders.toLocaleString()} />
-        <Stat title="Verified Payments" value={`Rs. ${totalPaid.toLocaleString("en-PK", { maximumFractionDigits: 2 })`} />
+        <Stat title="Verified Payments" value={`Rs. ${totalPaid.toLocaleString("en-PK", { maximumFractionDigits: 2 })}` } />
       </section>
 
       {error && <div role="alert" style={styles.error}>{error}</div>}
