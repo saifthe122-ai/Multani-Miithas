@@ -13,7 +13,13 @@ body {
   color: #302018;
   font-family: Arial, Helvetica, sans-serif;
 }
-
+.mm-product-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  height: auto;
+}
 h1,
 h2,
 h3,
@@ -37,7 +43,9 @@ button:hover {
   background: #d8b17a;
   color: #183d2b;
 }
-
+img {
+  max-width: 100%;
+}
 @media (max-width: 600px) {
   nav {
     font-size: 14px;
