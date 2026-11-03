@@ -1810,12 +1810,31 @@ const total = cartItems.reduce((sum, item) => {
                   >
                     Add to Cart +
                   </button>
-                  <button type="button" className="mm-buy-button" onClick={() => buyNow(product.id, selectedWeight)}>Buy Now →</button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                 <button type="button" className="mm-buy-button" onClick={() => buyNow(product.id, selectedWeight)}>Instant Checkout →</button>
+
+{WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      `Assalam-o-Alaikum Multani Mithas. I am interested in ${product.name}. Please confirm availability and delivery details.`
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="mm-buy-button"
+    style={{
+      display: "block",
+      textAlign: "center",
+      textDecoration: "none",
+      marginTop: 8,
+    }}
+  >
+    WhatsApp
+  </a>
+)}
+</div>
+</article>
+);
+})}
+</div>
       </section>
 
       <section
