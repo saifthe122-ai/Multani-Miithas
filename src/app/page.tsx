@@ -268,18 +268,6 @@ const goldButton: CSSProperties = {
   display: "inline-block",
 };
 
-const fallbackPaymentMethods: PaymentMethod[] = [
-  {
-    id: "cod-fallback",
-    method_key: "cash_on_delivery",
-    name: "Cash on Delivery",
-    description: "Order receive karte waqt cash payment.",
-    payment_type: "manual",
-    instructions: "Delivery par cash ada karein.",
-    display_order: 1,
-  },
-];
-
 const normalizePaymentName = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -721,7 +709,7 @@ app_link: String(item.app_link ?? ""),
     if (typeof value === "number") {
       return Number.isFinite(value) && value > 0 ? value : null;
     }
-    const match = value.trim().toLowerCase().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)?$/);
+    const match = value.trim().toLowerCase().match(/^([0-9]+(?:\.[0-9]+)?)\s*(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)?$/);
     if (!match) return null;
     const amount = Number(match[1]);
     if (!Number.isFinite(amount) || amount <= 0) return null;
