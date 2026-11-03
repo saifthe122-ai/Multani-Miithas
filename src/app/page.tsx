@@ -2691,6 +2691,7 @@ const key = cartKey(
                       }}
                     >
                       <div>
+                        <img src={getProductImage(product)} alt={product.name} style={{ width: 76, height: 76, objectFit: "cover", borderRadius: 8, border: "1px solid #D8C59F", marginRight: 12 }} />
                         <strong>{product.name}</strong>
                         <div>
                           {gift
@@ -2853,6 +2854,16 @@ style={{
                   )}
 
                  
+                  {isJazzCash(paymentMethod) && WHATSAPP_NUMBER && (
+                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. Please guide me about JazzCash payment and screenshot submission.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+                      WhatsApp for JazzCash Payment Help
+                    </a>
+                  )}
+                  {WHATSAPP_NUMBER && (
+                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. I need help with my checkout.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+                      Need Help? Chat on WhatsApp
+                    </a>
+                  )}
                   <button
                     type="submit"
                     className="mm-gold-button"
