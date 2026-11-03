@@ -8,6 +8,9 @@ type PriceType = "per_kg" | "fixed";
 type WeightOption = {
   weight: string;
   price: number;
+  deliveryFee: number;
+  packagingFee: number;
+  salesTaxRate: number;
 };
 
 type Product = {
@@ -309,14 +312,14 @@ export default function ProductsPage() {
       ...current,
       weight_options: [
         ...current.weight_options,
-        { weight: "", price: 0 },
+        { weight: "", price: 0, deliveryFee: 0, packagingFee: 0, salesTaxRate: 0 },
       ],
     }));
   }
 
   function updateWeightOption(
     index: number,
-    field: "weight" | "price",
+    field: "weight" | "price" | "deliveryFee" | "packagingFee" | "salesTaxRate",
     value: string
   ) {
     setForm((current) => ({
@@ -325,7 +328,7 @@ export default function ProductsPage() {
         optionIndex === index
           ? {
               ...option,
-              [field]: field === "price" ? Number(value) : value,
+              [field]: field === "weight" ? value : Number(value),
             }
           : option
       ),
@@ -1183,6 +1186,20 @@ export default function ProductsPage() {
                         </Field>
                       )}
 
+                      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 8 }}>
+                        {([
+                          ["deliveryFee", "Delivery charge (Rs.)"],
+                          ["packagingFee", "Packaging charge (Rs.)"],
+                          ["salesTaxRate", "Sales tax (%)"],
+                        ] as const).map(([field, label]) => (
+                          <Field key={field} label={label}>
+                            <input type="number" min="0" step="0.01" max={field === "salesTaxRate" ? "100" : undefined}
+                              value={option[field] ?? 0}
+                              onChange={(event) => updateWeightOption(index, field, event.target.value)}
+                              style={inputStyle} />
+                          </Field>
+                        ))}
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeWeightOption(index)}
