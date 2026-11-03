@@ -2291,7 +2291,7 @@ const total = cartItems.reduce((sum, item) => {
                       </p>
 
                     <p>
-  Total Payable (including delivery and applicable tax):{" "}
+  Total Payable (including delivery, packaging and applicable tax):{" "}
   <strong>{money(savedOrderAmount)}</strong>
 </p>
                       
