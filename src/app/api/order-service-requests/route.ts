@@ -167,6 +167,59 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, message: "Approved refund amount requested amount se zyada ya zero nahi ho sakta." }, { status: 400 });
     }
     if (row.request_type === "cancellation" && status === "refunded") return NextResponse.json({ success: false, message: "Cancellation request refund workflow nahi hai." }, { status: 400 });
+    if (row.status === "refunded" && status !== "refunded") {
+      return NextResponse.json({ success: false, message: "Completed refund record ko dobara change nahi kiya ja sakta." }, { status: 409 });
+    }
+    if (row.request_type === "refund" && status === "refunded") {
+      const completed = await sql`
+        WITH request_row AS MATERIALIZED (
+          SELECT id, order_number FROM order_service_requests
+          WHERE request_reference = ${reference} AND request_type = 'refund'
+          FOR UPDATE
+        ),
+        order_row AS MATERIALIZED (
+          SELECT o.id, o.total
+          FROM orders o JOIN request_row r ON r.order_number = o.order_number
+          FOR UPDATE OF o
+        ),
+        prior_refunds AS MATERIALIZED (
+          SELECT COALESCE(SUM(r.approved_amount), 0)::numeric AS amount
+          FROM order_service_requests r
+          JOIN request_row target ON target.order_number = r.order_number
+          WHERE r.request_type = 'refund' AND r.status = 'refunded' AND r.id <> target.id
+        ),
+        saved_request AS (
+          UPDATE order_service_requests r
+          SET status = 'refunded',
+              approved_amount = ${amount},
+              admin_note = ${note},
+              refund_transfer_reference = ${transferReference},
+              refund_processed_at = NOW(),
+              reviewed_by = 'admin',
+              updated_at = NOW()
+          FROM request_row rr, order_row o, prior_refunds previous
+          WHERE r.id = rr.id
+            AND ${amount} + previous.amount <= o.total
+          RETURNING r.*, o.id AS order_id, o.total AS order_total
+        ),
+        saved_order AS (
+          UPDATE orders o
+          SET payment_status = CASE
+            WHEN s.approved_amount + previous.amount >= s.order_total THEN 'refunded'
+            ELSE 'partially_refunded'
+          END
+          FROM saved_request s, prior_refunds previous
+          WHERE o.id = s.order_id
+          RETURNING o.payment_status
+        )
+        SELECT s.*, saved_order.payment_status AS order_payment_status
+        FROM saved_request s CROSS JOIN saved_order
+      `;
+      if (!completed.length) {
+        return NextResponse.json({ success: false, message: "Refund amount order ke remaining refundable balance se zyada hai, ya order record missing hai. Pehle existing refunds check karein." }, { status: 409 });
+      }
+      return NextResponse.json({ success: true, request: completed[0], message: "Actual transfer reference recorded and order payment status updated. Transfer was not initiated by this system." });
+    }
     if (row.request_type === "refund" && status === "approved") {
       // Approval records the decision only; it never claims money was transferred.
     }
