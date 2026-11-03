@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 
   try {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
     const orders = await sql`
       SELECT
         o.id,
