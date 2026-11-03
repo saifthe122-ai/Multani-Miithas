@@ -780,6 +780,21 @@ export async function PATCH(request: Request) {
         ? data.paymentReference.trim()
         : "";
 
+    if (hasStatus && status !== "cancelled") {
+      const currentOrder = await sql`
+        SELECT status
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        LIMIT 1
+      `;
+      if (String(currentOrder[0]?.status ?? "").toLowerCase() === "cancelled") {
+        return NextResponse.json(
+          { success: false, message: "Cancelled order ko dobara active karne se pehle naya stock reservation process zaroori hai." },
+          { status: 409 }
+        );
+      }
+    }
+
     if (paymentReference.length > 120) {
       return NextResponse.json(
         { success: false, message: "Payment reference 120 characters se kam rakhein." },
