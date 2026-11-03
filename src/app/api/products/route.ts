@@ -145,6 +145,12 @@ function validateProduct(data: ProductInput) {
         (typeof item.salesTaxRate !== "number" || !Number.isFinite(item.salesTaxRate) || item.salesTaxRate < 0 || item.salesTaxRate > 100)
       ) return "Weight option sales tax must be between 0 and 100";
 
+      if (typeof item.packagingType !== "undefined" && (typeof item.packagingType !== "string" || item.packagingType.length > 80)) {
+        return "Packaging type must be text up to 80 characters";
+      }
+      if (typeof item.salesTaxBase !== "undefined" && !["product", "all_charges"].includes(String(item.salesTaxBase))) {
+        return "Sales tax base must be product or all_charges";
+      }
       const weight = item.weight.trim().toLowerCase();
 
       if (seenWeights.has(weight)) {
