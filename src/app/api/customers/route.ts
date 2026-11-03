@@ -21,11 +21,11 @@ export async function GET(request: Request) {
 
   try {
     const sql = getDatabase();
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text\`;
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text\`;
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()\`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
 
-    const customers = await sql\`
+    const customers = await sql`
       SELECT
         c.id, c.name, c.email, c.phone, c.address, c.created_at,
         COUNT(o.id)::integer AS order_count,
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       GROUP BY c.id
       ORDER BY c.created_at DESC NULLS LAST, c.id DESC
       LIMIT 500
-    \`;
+    `;
 
     return NextResponse.json(
       { success: true, mode: "database", databaseConnected: true,
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     if (!name || name.length > 150) {
       return NextResponse.json({ success: false, message: "Valid customer name required hai." }, { status: 400 });
     }
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
       return NextResponse.json({ success: false, message: "Valid email address required hai." }, { status: 400 });
     }
     if (phone.length > 40 || address.length > 2000) {
@@ -79,11 +79,11 @@ export async function POST(request: Request) {
     }
 
     const sql = getDatabase();
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text\`;
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text\`;
-    await sql\`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()\`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
 
-    const saved = await sql\`
+    const saved = await sql`
       WITH matching_customer AS MATERIALIZED (
         SELECT id FROM customers
         WHERE lower(COALESCE(email, '')) = \${email}
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       UNION ALL
       SELECT *, false AS existing FROM inserted_customer
       LIMIT 1
-    \`;
+    `;
 
     if (!saved.length) {
       return NextResponse.json({ success: false, message: "Customer save nahi ho saka." }, { status: 500 });
