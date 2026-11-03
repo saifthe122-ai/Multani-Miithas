@@ -297,9 +297,9 @@ export async function POST(request: Request) {
           p.weight_options,
           r.weight,
           r.quantity,
-          COALESCE(NULLIF(selected_weight_option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
-          COALESCE(NULLIF(selected_weight_option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
-          COALESCE(NULLIF(selected_weight_option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
+          COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
+          COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
+          COALESCE(NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
 
           selected_weight_option.option AS selected_weight_option
 
