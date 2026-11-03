@@ -132,6 +132,19 @@ function validateProduct(data: ProductInput) {
         return "Each weight option needs a valid weight and price";
       }
 
+      if (
+        typeof item.deliveryFee !== "undefined" &&
+        (typeof item.deliveryFee !== "number" || !Number.isFinite(item.deliveryFee) || item.deliveryFee < 0)
+      ) return "Weight option delivery fee must be a valid non-negative amount";
+      if (
+        typeof item.packagingFee !== "undefined" &&
+        (typeof item.packagingFee !== "number" || !Number.isFinite(item.packagingFee) || item.packagingFee < 0)
+      ) return "Weight option packaging fee must be a valid non-negative amount";
+      if (
+        typeof item.salesTaxRate !== "undefined" &&
+        (typeof item.salesTaxRate !== "number" || !Number.isFinite(item.salesTaxRate) || item.salesTaxRate < 0 || item.salesTaxRate > 100)
+      ) return "Weight option sales tax must be between 0 and 100";
+
       const weight = item.weight.trim().toLowerCase();
 
       if (seenWeights.has(weight)) {
