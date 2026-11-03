@@ -217,6 +217,9 @@ export default function ProductsPage() {
                 .map((option) => ({
                   weight: option.weight,
                   price: Number(option.price),
+                  deliveryFee: Number(option.deliveryFee ?? 0),
+                  packagingFee: Number(option.packagingFee ?? 0),
+                  salesTaxRate: Number(option.salesTaxRate ?? 0),
                 }))
             : [],
           image: product.image ?? "🍬",
