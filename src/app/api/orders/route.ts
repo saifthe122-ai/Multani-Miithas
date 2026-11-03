@@ -18,7 +18,7 @@ const PAYMENT_METHODS = [
   "Cash on Delivery",
 ];
 
-const ALLOWED_WEIGHTS = [1, 1.5, 2, 5];
+const ALLOWED_WEIGHTS = [0.5, 1, 1.5, 2, 5];
 
 type CartItem = {
   productId: string;
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
         o.payment_status,
         o.subtotal,
         o.delivery_fee,
+        o.tax_amount,
         o.total,
         o.created_at,
         COALESCE(
@@ -114,7 +115,8 @@ export async function POST(request: Request) {
         : "";
 
     const paymentMethod = PAYMENT_METHODS.find(
-      (method) => method.toLowerCase() === submittedPayment.toLowerCase()
+      (method) =>
+        method.toLowerCase() === submittedPayment.toLowerCase()
     );
 
     if (
@@ -152,10 +154,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const combinedItems = new Map<
-      string,
-      { productId: string; weight: number; quantity: number }
-    >();
+    const combinedItems = new Map<string, CartItem>();
 
     for (const item of data.items) {
       if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -166,6 +165,7 @@ export async function POST(request: Request) {
       }
 
       const cartItem = item as Record<string, unknown>;
+
       const productId = String(cartItem.productId ?? "");
       const quantity = cartItem.quantity;
       const weight = cartItem.weight;
@@ -192,12 +192,16 @@ export async function POST(request: Request) {
 
       const id = String(Number(productId));
       const key = `${id}:${weight}`;
-      const existing = combinedItems.get(key);
-      const combinedQuantity = (existing?.quantity ?? 0) + quantity;
+
+      const combinedQuantity =
+        (combinedItems.get(key)?.quantity ?? 0) + quantity;
 
       if (combinedQuantity > 100) {
         return NextResponse.json(
-          { success: false, message: "Product quantity limit se zyada hai." },
+          {
+            success: false,
+            message: "Product quantity limit se zyada hai.",
+          },
           { status: 400 }
         );
       }
@@ -209,12 +213,32 @@ export async function POST(request: Request) {
       });
     }
 
-    const items: CartItem[] = Array.from(combinedItems.values());
+    const items = Array.from(combinedItems.values());
 
     const orderNumber = `MM-${randomUUID()
       .replace(/-/g, "")
       .slice(0, 12)
       .toUpperCase()}`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS checkout_settings (
+        id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        delivery_fee numeric(12,2) NOT NULL DEFAULT 0
+          CHECK (delivery_fee >= 0),
+        free_delivery_minimum numeric(12,2) NOT NULL DEFAULT 0
+          CHECK (free_delivery_minimum >= 0),
+        sales_tax_enabled boolean NOT NULL DEFAULT false,
+        sales_tax_rate numeric(6,3) NOT NULL DEFAULT 0
+          CHECK (sales_tax_rate >= 0 AND sales_tax_rate <= 100),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
+      INSERT INTO checkout_settings (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING
+    `;
 
     const result = await sql`
       WITH requested_items AS MATERIALIZED (
@@ -222,53 +246,227 @@ export async function POST(request: Request) {
           (item->>'productId')::bigint AS product_id,
           (item->>'weight')::numeric AS weight,
           (item->>'quantity')::integer AS quantity
-        FROM jsonb_array_elements(${JSON.stringify(items)}::jsonb)
-          AS entry(item)
+        FROM jsonb_array_elements(
+          ${JSON.stringify(items)}::jsonb
+        ) AS entry(item)
       ),
-      valid_products AS MATERIALIZED (
+
+      product_prices AS MATERIALIZED (
         SELECT
           p.id AS product_id,
           p.name AS product_name,
-          p.price * r.weight AS unit_price,
+          COALESCE(p.price_type, 'per_kg') AS price_type,
+          p.price,
+          COALESCE(p.discount, 0) AS discount,
+          p.weight_options,
           r.weight,
           r.quantity,
-          p.price * r.weight * r.quantity AS line_total
+
+          (
+            SELECT
+              CASE
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?$'
+                THEN normalized.normalized_weight::numeric
+
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?kg$'
+                THEN regexp_replace(
+                  normalized.normalized_weight,
+                  'kg$',
+                  ''
+                )::numeric
+
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?g$'
+                THEN regexp_replace(
+                  normalized.normalized_weight,
+                  'g$',
+                  ''
+                )::numeric / 1000
+
+                ELSE NULL
+              END
+            FROM jsonb_array_elements(
+              CASE
+                WHEN jsonb_typeof(p.weight_options) = 'array'
+                THEN p.weight_options
+                ELSE '[]'::jsonb
+              END
+            ) AS option_item(option)
+            CROSS JOIN LATERAL (
+              SELECT regexp_replace(
+                lower(
+                  trim(option_item.option->>'weight')
+                ),
+                '\\s+',
+                '',
+                'g'
+              ) AS normalized_weight
+            ) normalized
+            WHERE
+              CASE
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?$'
+                THEN normalized.normalized_weight::numeric
+
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?kg$'
+                THEN regexp_replace(
+                  normalized.normalized_weight,
+                  'kg$',
+                  ''
+                )::numeric
+
+                WHEN normalized.normalized_weight ~
+                  '^[0-9]+(\\.[0-9]+)?g$'
+                THEN regexp_replace(
+                  normalized.normalized_weight,
+                  'g$',
+                  ''
+                )::numeric / 1000
+
+                ELSE NULL
+              END = r.weight
+              AND (option_item.option->>'price') ~
+                '^[0-9]+(\\.[0-9]+)?$'
+            LIMIT 1
+          ) AS selected_option_price
+
         FROM requested_items r
-        INNER JOIN products p ON p.id = r.product_id
+        INNER JOIN products p
+          ON p.id = r.product_id
         WHERE p.is_active = true
       ),
+
+      valid_products AS MATERIALIZED (
+        SELECT
+          product_id,
+          product_name,
+          weight,
+          quantity,
+
+          ROUND(
+            (
+              CASE
+                WHEN price_type = 'fixed'
+                THEN selected_option_price
+                ELSE price * weight
+              END
+            ) * (1 - discount / 100),
+            2
+          ) AS unit_price,
+
+          ROUND(
+            (
+              CASE
+                WHEN price_type = 'fixed'
+                THEN selected_option_price
+                ELSE price * weight
+              END
+            ) * (1 - discount / 100) * quantity,
+            2
+          ) AS line_total
+
+        FROM product_prices
+        WHERE
+          price >= 0
+          AND discount >= 0
+          AND discount <= 100
+          AND (
+            price_type <> 'fixed'
+            OR selected_option_price IS NOT NULL
+          )
+          AND (
+            price_type = 'fixed'
+            OR price_type = 'per_kg'
+          )
+      ),
+
+      settings AS MATERIALIZED (
+        SELECT
+          delivery_fee,
+          free_delivery_minimum,
+          sales_tax_enabled,
+          sales_tax_rate
+        FROM checkout_settings
+        WHERE id = 1
+      ),
+
       totals AS (
         SELECT
-          (SELECT COUNT(*)::integer FROM requested_items)
-            AS requested_count,
-          (SELECT COUNT(*)::integer FROM valid_products)
-            AS valid_count,
+          (
+            SELECT COUNT(*)::integer
+            FROM requested_items
+          ) AS requested_count,
+
+          (
+            SELECT COUNT(*)::integer
+            FROM valid_products
+          ) AS valid_count,
+
           COALESCE(
             (SELECT SUM(line_total) FROM valid_products),
             0
-          ) AS subtotal
+          ) AS subtotal,
+
+          s.delivery_fee,
+          s.free_delivery_minimum,
+          s.sales_tax_enabled,
+          s.sales_tax_rate
+
+        FROM settings s
       ),
+
+      calculated AS (
+        SELECT
+          *,
+          CASE
+            WHEN free_delivery_minimum > 0
+              AND subtotal >= free_delivery_minimum
+            THEN 0
+            ELSE delivery_fee
+          END AS final_delivery_fee,
+
+          CASE
+            WHEN sales_tax_enabled
+            THEN ROUND(subtotal * sales_tax_rate / 100, 2)
+            ELSE 0
+          END AS tax_amount
+
+        FROM totals
+      ),
+
       existing_customer AS (
         SELECT id
         FROM customers
         WHERE phone = ${phone}
         LIMIT 1
       ),
+
       new_customer AS (
         INSERT INTO customers (name, phone)
         SELECT ${customerName}, ${phone}
-        FROM totals t
-        WHERE t.requested_count > 0
+        FROM calculated t
+        WHERE
+          t.requested_count > 0
           AND t.requested_count = t.valid_count
-          AND NOT EXISTS (SELECT 1 FROM existing_customer)
+          AND NOT EXISTS (
+            SELECT 1 FROM existing_customer
+          )
         RETURNING id
       ),
+
       resolved_customer AS (
         SELECT id FROM existing_customer
+
         UNION ALL
+
         SELECT id FROM new_customer
+
         LIMIT 1
       ),
+
       new_order AS (
         INSERT INTO orders (
           order_number,
@@ -281,8 +479,10 @@ export async function POST(request: Request) {
           payment_status,
           subtotal,
           delivery_fee,
+          tax_amount,
           total
         )
+
         SELECT
           ${orderNumber},
           c.id,
@@ -293,14 +493,26 @@ export async function POST(request: Request) {
           ${paymentMethod},
           'pending',
           t.subtotal,
-          0,
-          t.subtotal
+          t.final_delivery_fee,
+          t.tax_amount,
+          t.subtotal + t.final_delivery_fee + t.tax_amount
+
         FROM resolved_customer c
-        CROSS JOIN totals t
-        WHERE t.requested_count > 0
+        CROSS JOIN calculated t
+
+        WHERE
+          t.requested_count > 0
           AND t.requested_count = t.valid_count
-        RETURNING id, order_number, subtotal, total
+
+        RETURNING
+          id,
+          order_number,
+          subtotal,
+          delivery_fee,
+          tax_amount,
+          total
       ),
+
       inserted_items AS (
         INSERT INTO order_items (
           order_id,
@@ -311,6 +523,7 @@ export async function POST(request: Request) {
           unit_price,
           line_total
         )
+
         SELECT
           o.id,
           p.product_id,
@@ -319,18 +532,25 @@ export async function POST(request: Request) {
           p.weight,
           p.unit_price,
           p.line_total
+
         FROM new_order o
         CROSS JOIN valid_products p
+
         RETURNING order_id
       )
+
       SELECT
         o.id AS order_id,
         o.order_number,
         o.subtotal,
+        o.delivery_fee,
+        o.tax_amount,
+        o.total,
         t.requested_count,
         t.valid_count,
         (SELECT COUNT(*) FROM inserted_items) AS saved_item_count
-      FROM totals t
+
+      FROM calculated t
       LEFT JOIN new_order o ON true
     `;
 
@@ -339,6 +559,9 @@ export async function POST(request: Request) {
           order_id: number | string | null;
           order_number: string | null;
           subtotal: number | string;
+          delivery_fee: number | string;
+          tax_amount: number | string;
+          total: number | string;
           requested_count: number;
           valid_count: number;
           saved_item_count: number;
@@ -355,23 +578,31 @@ export async function POST(request: Request) {
         {
           success: false,
           message:
-            "Cart ke kuch products available nahi hain. Page refresh karke dobara try karein.",
+            "Cart ke kuch products ya selected weight options available nahi hain. Page refresh karke dobara try karein.",
         },
         { status: 400 }
       );
     }
 
+    const order = {
+      orderNumber: saved.order_number,
+      subtotal: Number(saved.subtotal),
+      deliveryFee: Number(saved.delivery_fee),
+      taxAmount: Number(saved.tax_amount),
+      total: Number(saved.total),
+      paymentStatus: "pending",
+    };
+
     return NextResponse.json(
       {
         success: true,
         message: "Order successfully save ho gaya.",
-        order: {
-          orderNumber: saved.order_number,
-          subtotal: Number(saved.subtotal),
-          deliveryFee: 0,
-          total: Number(saved.subtotal),
-          paymentStatus: "pending",
-        },
+
+        // Nested response for existing integrations.
+        order,
+
+        // Top-level fields for customer checkout compatibility.
+        ...order,
       },
       { status: 201 }
     );
@@ -409,10 +640,13 @@ export async function PATCH(request: Request) {
     const data = body as Record<string, unknown>;
 
     const orderNumber =
-      typeof data.orderNumber === "string" ? data.orderNumber.trim() : "";
+      typeof data.orderNumber === "string"
+        ? data.orderNumber.trim()
+        : "";
 
     const hasStatus = typeof data.status === "string";
-    const hasPaymentStatus = typeof data.paymentStatus === "string";
+    const hasPaymentStatus =
+      typeof data.paymentStatus === "string";
 
     const status = hasStatus
       ? (data.status as string).trim().toLowerCase()
@@ -431,27 +665,36 @@ export async function PATCH(request: Request) {
       "cancelled",
     ];
 
-  const validPaymentStatuses = [
-  "pending",
-  "paid",
-  "failed",
-  "cancelled",
-  "refunded",
-  "partially refunded",
-  "partially_refunded",
-];
+    const validPaymentStatuses = [
+      "pending",
+      "paid",
+      "failed",
+      "cancelled",
+      "refunded",
+      "partially refunded",
+      "partially_refunded",
+    ];
 
     if (
       !orderNumber ||
       (!hasStatus && !hasPaymentStatus) ||
       (hasStatus && !validStatuses.includes(status)) ||
-      (hasPaymentStatus && !validPaymentStatuses.includes(paymentStatus))
+      (hasPaymentStatus &&
+        !validPaymentStatuses.includes(paymentStatus))
     ) {
       return NextResponse.json(
-        { success: false, message: "Order number ya status valid nahi." },
+        {
+          success: false,
+          message: "Order number ya status valid nahi.",
+        },
         { status: 400 }
       );
     }
+
+    const normalizedPaymentStatus =
+      paymentStatus === "partially refunded"
+        ? "partially_refunded"
+        : paymentStatus;
 
     const result = await sql`
       UPDATE orders
@@ -460,11 +703,15 @@ export async function PATCH(request: Request) {
           WHEN ${hasStatus} THEN ${status}
           ELSE status
         END,
+
         payment_status = CASE
-          WHEN ${hasPaymentStatus} THEN ${paymentStatus}
+          WHEN ${hasPaymentStatus}
+          THEN ${normalizedPaymentStatus}
           ELSE payment_status
         END
+
       WHERE order_number = ${orderNumber}
+
       RETURNING order_number, status, payment_status
     `;
 
@@ -483,7 +730,10 @@ export async function PATCH(request: Request) {
     console.error("Order status update failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "Status update nahi ho saka." },
+      {
+        success: false,
+        message: "Status update nahi ho saka.",
+      },
       { status: 500 }
     );
   }
@@ -509,7 +759,10 @@ export async function DELETE(request: Request) {
 
     const orderNumber =
       typeof (body as Record<string, unknown>).orderNumber === "string"
-        ? ((body as Record<string, unknown>).orderNumber as string).trim()
+        ? (
+            (body as Record<string, unknown>)
+              .orderNumber as string
+          ).trim()
         : "";
 
     if (!orderNumber) {
@@ -523,7 +776,9 @@ export async function DELETE(request: Request) {
       sql`
         DELETE FROM order_items
         WHERE order_id = (
-          SELECT id FROM orders WHERE order_number = ${orderNumber}
+          SELECT id
+          FROM orders
+          WHERE order_number = ${orderNumber}
         )
       `,
       sql`
@@ -551,7 +806,10 @@ export async function DELETE(request: Request) {
     console.error("Order delete failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "Order delete nahi ho saka." },
+      {
+        success: false,
+        message: "Order delete nahi ho saka.",
+      },
       { status: 500 }
     );
   }

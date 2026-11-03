@@ -21,7 +21,10 @@ type Order = {
   email: string;
   items: string;
   quantity: number;
-  amount: number;
+subtotal: number;
+deliveryFee: number;
+taxAmount: number;
+amount: number;
   paymentMethod: string;
   paymentStatus: PaymentStatus;
   status: OrderStatus;
@@ -99,6 +102,9 @@ function mapOrder(row: Record<string, unknown>): Order {
       ? itemNames.join(", ")
       : "No item details",
     quantity,
+     subtotal: Number(row.subtotal ?? 0),
+    deliveryFee: Number(row.delivery_fee ?? 0),
+    taxAmount: Number(row.tax_amount ?? 0),
     amount: Number(row.total ?? row.subtotal ?? 0),
     paymentMethod: method,
     paymentStatus,
@@ -819,10 +825,22 @@ export default function OrdersDashboard() {
                 label="Quantity"
                 value={String(selectedOrder.quantity)}
               />
-              <Detail
-                label="Total"
-                value={`Rs. ${selectedOrder.amount.toLocaleString()}`}
-              />
+             <Detail
+  label="Subtotal"
+  value={`Rs. ${selectedOrder.subtotal.toLocaleString()}`}
+/>
+<Detail
+  label="Delivery Fee"
+  value={`Rs. ${selectedOrder.deliveryFee.toLocaleString()}`}
+/>
+<Detail
+  label="Sales Tax"
+  value={`Rs. ${selectedOrder.taxAmount.toLocaleString()}`}
+/>
+<Detail
+  label="Total"
+  value={`Rs. ${selectedOrder.amount.toLocaleString()}`}
+/>
               <Detail
                 label="Payment Method"
                 value={selectedOrder.paymentMethod}

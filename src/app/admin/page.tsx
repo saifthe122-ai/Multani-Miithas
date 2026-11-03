@@ -50,8 +50,9 @@ const menuGroups = [
   {
     title: "SYSTEM",
     items: [
-      { icon: "🔌", label: "API & Integrations", href: "/admin/integrations" },
-      { icon: "⚙", label: "Settings", href: "/admin/settings" },
+     { icon: "🔌", label: "API & Integrations", href: "/admin/integrations" },
+    { icon: "🧾", label: "Checkout Settings", href: "/admin/checkout-settings" },
+    { icon: "⚙", label: "Settings", href: "/admin/settings" },
     ],
   },
 ];

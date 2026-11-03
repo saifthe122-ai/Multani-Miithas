@@ -15,13 +15,30 @@ type PublishedProductSetting = {
   background?: string;
 };
 
+type PublishedOffer = {
+  id: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonLink: string;
+  enabled: boolean;
+};
+
 type PublishedSettings = {
   media?: PublishedMedia[];
   products?: PublishedProductSetting[];
+  offers?: PublishedOffer[];
   heroTitle?: string;
   heroSubtitle?: string;
   backgroundColor?: string;
   brandColor?: string;
+  socialLinks?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    whatsapp?: string;
+  };
 };
 
 type Product = {
@@ -39,6 +56,11 @@ type Product = {
   ingredients: string;
   rating: number;
   status: "Active" | "Inactive";
+    price_type?: "per_kg" | "fixed";
+  weight_options?: Array<{
+    weight: number | string;
+    price: number | string;
+  }>;
 };
 
 type CartItem = {
@@ -73,7 +95,7 @@ type PaymentAccount = {
   app_link?: string;
 };
 
-const WEIGHT_OPTIONS = [1, 1.5, 2, 5];
+const WEIGHT_OPTIONS = [0.5, 1, 1.5, 2, 5];
 
 const cartKey = (productId: number, weight: number) =>
   `${productId}-${weight}`;
@@ -288,7 +310,7 @@ export default function Home() {
 
   const [paymentMethod, setPaymentMethod] =
     useState("Cash on Delivery");
-
+const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [savedOrderNumber, setSavedOrderNumber] = useState("");
   const [savedOrderAmount, setSavedOrderAmount] = useState(0);
@@ -365,6 +387,13 @@ export default function Home() {
               category: String(item.category ?? "Sweets"),
               stock: Number(item.stock ?? 0),
               discount: Number(item.discount ?? 0),
+            price_type:
+  String(item.price_type ?? "per_kg") === "fixed"
+    ? ("fixed" as const)
+    : ("per_kg" as const),
+weight_options: Array.isArray(item.weight_options)
+  ? (item.weight_options as NonNullable<Product["weight_options"]>)
+  : [],
               weight: String(item.weight ?? ""),
               image:
                 imageUrl ||
@@ -683,6 +712,33 @@ app_link: String(item.app_link ?? ""),
   const getSelectedWeight = (productId: number) =>
     selectedWeights[productId] ?? 1;
 
+    const getProductPrice = (
+    product: Product,
+    weight: number
+  ): number | null => {
+    let basePrice: number;
+
+    if (product.price_type === "fixed") {
+      const option = product.weight_options?.find(
+        (item) => Number(item.weight) === weight
+      );
+
+      if (!option) return null;
+
+      basePrice = Number(option.price);
+    } else {
+      basePrice = Number(product.price) * weight;
+    }
+
+    if (!Number.isFinite(basePrice)) return null;
+
+    const discount = Math.min(
+      100,
+      Math.max(0, Number(product.discount) || 0)
+    );
+
+    return Math.round(basePrice * (1 - discount / 100));
+  };
   const isCashOnDelivery = (methodName: string) => {
     const method = normalizePaymentName(methodName);
 
@@ -807,7 +863,36 @@ app_link: String(item.app_link ?? ""),
     setCartOpen(true);
   };
 
-  // Cart se selected product/weight remove karein.
+  // Buy Now: selected item cart mein add karke checkout kholein.
+  const buyNow = (id: number, weight = 1) => {
+    setSavedOrderNumber("");
+    const key = cartKey(id, weight);
+    setCart({
+      [key]: { productId: id, weight, quantity: 1 },
+    });
+    setMessage("");
+    setCartOpen(true);
+  };
+
+  // Quantity ko plus karein.
+  const increaseCartItem = (key: string) => {
+    setCart((old) => {
+      const item = old[key];
+      if (!item || item.quantity >= 100) return old;
+      return { ...old, [key]: { ...item, quantity: item.quantity + 1 } };
+    });
+  };
+
+  // Cart se item bilkul remove karein.
+  const deleteCartItem = (key: string) => {
+    setCart((old) => {
+      const next = { ...old };
+      delete next[key];
+      return next;
+    });
+  };
+
+  // Cart se selected product/weight ki quantity kam karein.
   const removeFromCart = (key: string) => {
     setSavedOrderNumber("");
 
@@ -839,20 +924,29 @@ app_link: String(item.app_link ?? ""),
     0
   );
 
-  const total = cartItems.reduce((sum, item) => {
-    const product = products.find(
-      (p) => p.id === item.productId
-    );
+const total = cartItems.reduce((sum, item) => {
+  const product = products.find(
+    (p) => p.id === item.productId
+  );
 
-    if (!product) return sum;
+  if (!product) return sum;
 
-    return (
-      sum +
-      product.price *
-        (isGiftProduct(product) ? 1 : item.weight) *
-        item.quantity
-    );
-  }, 0);
+  const unitPrice = isGiftProduct(product)
+    ? Math.round(
+        product.price *
+          (1 -
+            Math.min(
+              100,
+              Math.max(0, Number(product.discount) || 0)
+            ) /
+              100)
+      )
+    : getProductPrice(product, item.weight);
+
+  if (unitPrice === null) return sum;
+
+  return sum + unitPrice * item.quantity;
+}, 0);
 
   const regularProducts = products.filter(
     (product) =>
@@ -946,6 +1040,8 @@ app_link: String(item.app_link ?? ""),
         message?: string;
         order?: {
           orderNumber?: string;
+          subtotal?: number;
+          total?: number;
         };
       };
 
@@ -960,7 +1056,7 @@ app_link: String(item.app_link ?? ""),
       const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
 
       setSavedOrderNumber(orderNumber);
-      setSavedOrderAmount(total);
+      setSavedOrderAmount(Number(data.order?.total ?? data.order?.subtotal ?? total));
       setSavedPaymentMethod(paymentMethod);
       setSavedCustomerPhone(customerPhone.trim());
       setSavedPaymentAccounts(matchingAccounts);
@@ -1245,6 +1341,17 @@ app_link: String(item.app_link ?? ""),
 
         .mm-gold-button:hover { background: #E7C77F; }
         .mm-gold-button:disabled { cursor: wait; opacity: .65; }
+        .mm-buy-button { display:block; width:100%; margin-top:9px; padding:11px 18px; border:1px solid #173F3E; border-radius:2px; background:#103F3D; color:#FFF4DE; font:inherit; font-weight:700; cursor:pointer; }
+        .mm-buy-button:hover { background:#1B5B55; }
+        .mm-product-rating { margin:5px 0; color:#9A7132; font-weight:700; font-size:13px; }
+        .mm-stock-note { margin:5px 0 10px; color:#42645B; font-size:12px; }
+        .mm-discount-note { color:#A13D2D; font-size:12px; font-weight:700; }
+        .mm-quantity-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+        .mm-quantity-controls button { min-width:36px; min-height:36px; border:1px solid #C8B48C; background:#F3E8D4; color:#173639; border-radius:6px; cursor:pointer; font-weight:700; }
+        .mm-quantity-controls .mm-remove-button { padding:0 10px; width:auto; color:#8B342B; }
+        .mm-cart-totals { margin:20px 0; padding:16px; background:#F7EEDC; border:1px solid #D8C59F; border-radius:8px; }
+        .mm-cart-totals > div { display:flex; justify-content:space-between; gap:12px; padding:5px 0; }
+        .mm-cart-totals p { margin:8px 0 0; font-size:12px; color:#665A45; }
 
         .mm-heritage {
           display: grid;
@@ -1379,8 +1486,8 @@ app_link: String(item.app_link ?? ""),
           inset: 0;
           z-index: 99999;
           display: flex;
-          justify-content: center;
-          align-items: flex-start;
+          justify-content: flex-end;
+          align-items: stretch;
           overflow-y: auto;
           overscroll-behavior: contain;
           background: rgba(4, 24, 26, .88);
@@ -1388,14 +1495,19 @@ app_link: String(item.app_link ?? ""),
         }
 
         .mm-cart-panel {
-          max-width: 850px;
-          width: 100%;
-          margin: 0 auto;
+          max-width: 760px;
+          width: min(760px, 100%);
+          height: 100%;
+          overflow-y: auto;
+          margin: 0;
           padding: 25px;
           background: #F3E8D4;
-          border: 2px solid #D8AC55;
+          border-left: 2px solid #D8AC55;
           box-shadow: 0 15px 50px rgba(0,0,0,.35);
-          border-radius: 4px;
+          border-radius: 14px 0 0 14px;
+          animation: mm-slide-in .22s ease-out;
+        }
+        @keyframes mm-slide-in { from { transform: translateX(24px); opacity:.7; } to { transform:translateX(0); opacity:1; }
         }
 
         .mm-cart-close-row {
@@ -1424,8 +1536,8 @@ app_link: String(item.app_link ?? ""),
           .mm-heritage { grid-template-columns: 1fr; }
           .mm-benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mm-gift-banner { grid-template-columns: 1fr; padding: 25px; min-height: 350px; }
-          .mm-cart-overlay { padding: 10px; }
-          .mm-cart-panel { padding: 16px; }
+          .mm-cart-overlay { padding: 0; align-items: flex-end; }
+          .mm-cart-panel { width:100%; max-width:none; max-height:92dvh; height:auto; padding:16px; border-radius:18px 18px 0 0; border:2px solid #D8AC55; border-bottom:0; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1444,9 +1556,10 @@ app_link: String(item.app_link ?? ""),
           </span>
         </a>
 
-        <nav className="mm-nav">
+              <nav className="mm-nav">
           <a href="#home">Home</a>
           <a href="#products">Shop</a>
+          <a href="#offers">Offers</a>
           <a href="#about">Our Story</a>
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
@@ -1514,7 +1627,93 @@ app_link: String(item.app_link ?? ""),
           ))}
         </div>
       </section>
+      {publishedSettings?.offers?.some((offer) => offer.enabled) && (
+        <section
+          id="offers"
+          style={{
+            ...sectionStyle,
+            background: "#092F32",
+            color: "#F3E8D4",
+          }}
+        >
+          <div className="mm-ornament">✦ ❖ ✦</div>
 
+          <p className="mm-eyebrow" style={{ textAlign: "center" }}>
+            Special Deals · Limited Promotions
+          </p>
+
+          <h2
+            className="mm-section-heading"
+            style={{ color: "#FFF1D7" }}
+          >
+            Offers & Promotions
+          </h2>
+
+          <p
+            className="mm-section-intro"
+            style={{ color: "#D9D0BE" }}
+          >
+            Discover our latest special offers from Multani Mithas.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 22,
+              maxWidth: 1000,
+              margin: "auto",
+            }}
+          >
+            {publishedSettings.offers
+              .filter((offer) => offer.enabled)
+              .map((offer) => (
+                <article
+                  key={offer.id}
+                  style={{
+                    background: "#FFF8EA",
+                    color: "#123F42",
+                    padding: 25,
+                    border: "1px solid #D8AC55",
+                    borderRadius: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ color: "#A16B16", fontSize: 22 }}>
+                    ✦ SPECIAL OFFER ✦
+                  </div>
+
+                  <h3
+                    style={{
+                      fontSize: 23,
+                      margin: "15px 0",
+                      color: "#123F42",
+                    }}
+                  >
+                    {offer.title}
+                  </h3>
+
+                  <p style={{ lineHeight: 1.7 }}>
+                    {offer.description}
+                  </p>
+
+                  {offer.buttonText && offer.buttonLink && (
+                    <a
+                      href={offer.buttonLink}
+                      style={{
+                        ...goldButton,
+                        display: "inline-block",
+                        marginTop: 15,
+                      }}
+                    >
+                      {offer.buttonText} →
+                    </a>
+                  )}
+                </article>
+              ))}
+          </div>
+        </section>
+      )}
       <section
         id="products"
         style={{ ...sectionStyle, background: "#FFF8EA" }}
@@ -1548,15 +1747,63 @@ app_link: String(item.app_link ?? ""),
                   alt={product.name}
                   loading="lazy"
                 />
-
-                <div className="mm-card-body">
+<div className="mm-card-body">
                   <span className="mm-card-category">
                     {product.category}
                   </span>
 
-                  <h3 className="mm-card-title">{product.name}</h3>
+         <h3 className="mm-card-title">{product.name}</h3>
 
-                  {product.weight && <p>{product.weight}</p>}
+{product.description && (
+  <p
+    style={{
+      color: "#665B4A",
+      fontSize: 13,
+      lineHeight: 1.6,
+      margin: "8px 0",
+    }}
+  >
+    {product.description}
+  </p>
+)}
+
+{product.weight && <p>{product.weight}</p>}
+<p className="mm-product-rating" aria-label={`Rated ${product.rating} out of 5`}>
+  ★ {Number.isFinite(product.rating) ? product.rating.toFixed(1) : "5.0"} / 5
+</p>
+
+  {product.price_type !== "fixed" && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: 12,
+      flexWrap: "wrap",
+      margin: "12px 0",
+    }}
+  >
+    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
+      <strong>500g</strong>
+      <div style={{ color: "#8A5630", fontWeight: 700 }}>
+        {money(getProductPrice(product, 0.5) ?? 0)}
+      </div>
+    </div>
+
+    <div style={{ background: "#F3E8D4", padding: "9px 14px", borderRadius: 8 }}>
+      <strong>1kg</strong>
+      <div style={{ color: "#8A5630", fontWeight: 700 }}>
+        {money(getProductPrice(product, 1) ?? 0)}
+      </div>
+    </div>
+  </div>
+)}
+  
+                  {product.discount > 0 && (
+                    <p className="mm-discount-note">{product.discount}% discount</p>
+                  )}
+                  <p className="mm-stock-note">
+                    {product.stock > 0 ? "Available to order" : "Availability confirmed after order"}
+                  </p>
 
                   <label
                     style={{
@@ -1579,7 +1826,7 @@ app_link: String(item.app_link ?? ""),
                     >
                       {WEIGHT_OPTIONS.map((weight) => (
                         <option key={weight} value={weight}>
-                          {weight} kg
+{weight < 1 ? `${weight * 1000}g` : `${weight}kg`}                     
                         </option>
                       ))}
                     </select>
@@ -1589,6 +1836,7 @@ app_link: String(item.app_link ?? ""),
                     {money(product.price * selectedWeight)}
                   </p>
 
+  
                   <p style={{ fontSize: 12, marginTop: -12 }}>
                     {money(product.price)} per kg
                   </p>
@@ -1602,11 +1850,31 @@ app_link: String(item.app_link ?? ""),
                   >
                     Add to Cart +
                   </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                 <button type="button" className="mm-buy-button" onClick={() => buyNow(product.id, selectedWeight)}>Instant Checkout →</button>
+
+{WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      `Assalam-o-Alaikum Multani Mithas. I am interested in ${product.name}. Please confirm availability and delivery details.`
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="mm-buy-button"
+    style={{
+      display: "block",
+      textAlign: "center",
+      textDecoration: "none",
+      marginTop: 8,
+    }}
+  >
+    WhatsApp
+  </a>
+)}
+</div>
+</article>
+);
+})}
+</div>
       </section>
 
       <section
@@ -1802,9 +2070,12 @@ app_link: String(item.app_link ?? ""),
                 src={getProductImage(product)}
                 alt={product.name}
                 loading="lazy"
+                decoding="async"
               />
               <div className="mm-card-body">
                 <h3 className="mm-card-title">{product.name}</h3>
+                <p className="mm-product-rating">★ {product.rating.toFixed(1)} / 5</p>
+                <p className="mm-stock-note">Availability confirmed after order</p>
                 <p className="mm-price">{money(product.price)}</p>
                 <p style={{ fontSize: 12 }}>Fixed price gift box</p>
                 <button
@@ -1814,12 +2085,37 @@ app_link: String(item.app_link ?? ""),
                 >
                   Add to Cart +
                 </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              <button
+  type="button"
+  className="mm-buy-button"
+  onClick={() => buyNow(product.id, 1)}
+>
+  Instant Checkout →
+</button>
 
+{WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      `Assalam-o-Alaikum Multani Mithas. I am interested in ${product.name}. Please share details about gift packaging and availability.`
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="mm-buy-button"
+    style={{
+      display: "block",
+      textAlign: "center",
+      textDecoration: "none",
+      marginTop: 8,
+    }}
+  >
+    WhatsApp
+  </a>
+)}
+</div>
+</article>
+))}
+</div>
+</section>
       {/* Cart and checkout popup */}
       {cartOpen && (
         <div
@@ -1909,16 +2205,13 @@ app_link: String(item.app_link ?? ""),
                         <strong>{savedPaymentMethod}</strong>
                       </p>
 
-                      <p>
-                        Product Subtotal:{" "}
-                        <strong>{money(savedOrderAmount)}</strong>
-                      </p>
+                    <p>
+  Total Payable (including delivery and applicable tax):{" "}
+  <strong>{money(savedOrderAmount)}</strong>
+</p>
+                      
 
-                      <p style={{ fontSize: 13 }}>
-                        Delivery charges are not included in this amount.
-                        Our business will confirm delivery charges and
-                        final payable amount separately.
-                      </p>
+                  
                     </div>
 
                     {isCashOnDelivery(savedPaymentMethod) ? (
@@ -1961,68 +2254,63 @@ app_link: String(item.app_link ?? ""),
                         <h3 style={{ color: "#123F42" }}>
                           Payment Instructions
                         </h3>
-
+                       <div
+  style={{
+    background: "#123F42",
+    color: "#FFF8EA",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    textAlign: "center",
+  }}
+>
+  <p style={{ margin: 0 }}>Exact Amount to Transfer</p>
+  <h2 style={{ color: "#E6BD6C", margin: "8px 0 0" }}>
+    {money(savedOrderAmount)}
+  </h2>
+</div>
                         {savedPaymentInstructions && (
                           <p>{savedPaymentInstructions}</p>
                         )}
 
-                        {savedPaymentAccounts.length > 0 ? (
-                          savedPaymentAccounts.map((account) => (
-                            <div
+{savedPaymentAccounts.length > 0 && (
+  <>
+    {savedPaymentAccounts.map((account) => (
+    <div
                               key={String(account.id)}
                               style={{
-                                border: "1px solid #D8C59F",
-                                padding: 14,
-                                marginTop: 14,
-                                borderRadius: 6,
-                                background: "#FFFDF7",
+                               border: "1px solid #D8B66A",
+                                padding: 20,
+                                marginTop: 16,
+                                borderRadius: 12,
+                                background: "linear-gradient(145deg, #123F42, #1B5555)",
+                                color: "#FFF8EA",
+                        boxShadow: "0 8px 22px rgba(18, 63, 66, 0.16)",
                               }}
                             >
-                              <p>
-                                <strong>
-                                  {account.account_name || account.provider}
-                                </strong>
+                             
+                          
+                             <div style={{ lineHeight: 1.8 }}>
+                             <p style={{ margin: "8px 0", color: "#FFF8EA" }}>
+                              Account Title:{" "}
+                                  <strong>{account.account_title}</strong>
+                                  </p>
 
-                                {account.is_primary && (
-                                  <span
-                                    style={{
-                                      marginLeft: 8,
-                                      fontSize: 11,
-                                      color: "#237A4B",
-                                    }}
-                                  >
-                                    PRIMARY ACCOUNT
-                                  </span>
-                                )}
-                              </p>
+                                  <p style={{ margin: "8px 0", color: "#E6BD6C" }}>
+                            Amount to Transfer:{" "}
+                    <strong>{money(savedOrderAmount)}</strong>
+                   </p>
 
-                              <p>
-                                Account Provider:{" "}
-                                <strong>{account.provider}</strong>
-                              </p>
-
-                              <p>
-                                Account Type:{" "}
-                                <strong>
-                                  {account.wallet_owner_type || "Personal"}
-                                </strong>
-                              </p>
-
-                              <p>
-                                Account Title:{" "}
-                                <strong>{account.account_title}</strong>
-                              </p>
-
-                              <p>
-                                Account Number:{" "}
-                                <strong style={{ overflowWrap: "anywhere" }}>
-                                  {account.account_number}
-                                </strong>
-                              </p>
-
+                  <p style={{ margin: "8px 0", color: "#FFF8EA" }}>
+               Account Number:{" "}
+                <strong style={{ overflowWrap: "anywhere" }}>
+                   {account.account_number}
+                      </strong>
+                          </p>
+                         </div>
                               <button
                                 type="button"
-                                className="mm-gold-button"
+                           className="mm-buy-button"
                                 onClick={() =>
                                   copyPaymentDetail(
                                     account.account_number,
@@ -2060,29 +2348,36 @@ app_link: String(item.app_link ?? ""),
                                 </>
                               )}
 
-                              <p>
-                                Currency:{" "}
-                                <strong>{account.currency || "PKR"}</strong>
-                              </p>
-
+                       
                     {account.qr_image_url && (
-  <div style={{ marginTop: 16 }}>
-    <p><strong>Scan QR to Pay</strong></p>
+                            <div
+                             style={{
+                             marginTop: 18,
+                            padding: 16,
+                        background: "#FFF8EA",
+                       border: "1px solid #D8B66A",
+                         borderRadius: 10,
+                     textAlign: "center",
+                 }}
+                           >   
+                              <p><strong>Scan QR to Pay</strong></p>
 
     <img
       src={account.qr_image_url}
       alt={`${account.provider} payment QR code`}
       loading="lazy"
-      style={{
-        display: "block",
-        width: "100%",
-        maxWidth: 260,
-        height: "auto",
-        margin: "10px auto",
-        border: "1px solid #D8C59F",
-        padding: 8,
-        background: "#FFFFFF",
-      }}
+    style={{
+  display: "block",
+  width: "100%",
+  maxWidth: 260,
+  height: "auto",
+  margin: "10px auto",
+  border: "1px solid #D8B66A",
+  borderRadius: 8,
+  padding: 12,
+  background: "#FFFFFF",
+  boxShadow: "0 4px 14px rgba(18, 63, 66, 0.12)",
+}}
     />
   </div>
 )}
@@ -2093,25 +2388,24 @@ app_link: String(item.app_link ?? ""),
       href={account.app_link}
       target="_blank"
       rel="noopener noreferrer"
-      style={{
-        ...goldButton,
-        marginTop: 12,
-      }}
+     style={{
+  display: "inline-block",
+  padding: "12px 20px",
+  marginTop: 12,
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 9,
+  fontWeight: 700,
+}}
     >
       Open {account.provider}
     </a>
   )}
 </div>
-                          ))
-                        ) : (
-                          <p>
-                            Is payment method ka active account abhi
-                            available nahi hai. Payment bhejne se pehle
-                            business se WhatsApp par account details
-                            confirm karein.
-                          </p>
-                        )}
-
+                         ))}
+                    
                        {isJazzCash(savedPaymentMethod) &&
   !getMatchingPaymentAccounts(savedPaymentMethod).some(
     (account) =>
@@ -2125,7 +2419,16 @@ app_link: String(item.app_link ?? ""),
                               href="https://www.jazzcash.com.pk/deeplink/"
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={goldButton}
+                             style={{
+  display: "inline-block",
+  padding: "12px 20px",
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 9,
+  fontWeight: 700,
+}}
                             >
                               Open JazzCash
                             </a>
@@ -2137,22 +2440,26 @@ app_link: String(item.app_link ?? ""),
                               karein.
                             </p>
                           </div>
-                        )}
+                                               )}
+                      </>
+                    )}
 
-                        <div
-                          style={{
-                            borderTop: "1px solid #D8C59F",
-                            marginTop: 20,
-                            paddingTop: 15,
-                          }}
-                        >
-                          <h3>Payment Verification</h3>
-
+                    <div
+                      style={{
+                        borderTop: "1px solid #D8B66A",
+                        marginTop: 24,
+                        paddingTop: 20,
+                      }}
+                    >
+                      <h3 style={{ color: "#E6BD6C", marginTop: 0 }}>
+                        Payment Verification
+                      </h3>
                           <p>
-                            Payment karne ke baad screenshot WhatsApp par
-                            bhejein. Admin apne payment account mein amount
-                            verify karne ke baad payment status update karega.
-                          </p>
+                            Payment transfer karne ke baad screenshot business ko
+                 WhatsApp par bhej sakte hain. Screenshot payment ka
+                    proof nahi hai. Admin asal account mein payment verify
+                     karne ke baad status update karega.
+                                 </p>
 
                           <p>
                             Payment Status:{" "}
@@ -2172,18 +2479,27 @@ app_link: String(item.app_link ?? ""),
                                 /\D/g,
                                 ""
                               )}?text=${encodeURIComponent(
-                                `Assalam-o-Alaikum Multani Mithas. My order number is ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Product subtotal: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot for verification.`
+                                `Assalam-o-Alaikum Multani Mithas. My order number is ${savedOrderNumber}. Payment method: ${savedPaymentMethod}. Total payable: ${money(savedOrderAmount)}. My phone: ${savedCustomerPhone}. I am sending my payment screenshot for verification.`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                ...goldButton,
-                                width: "100%",
-                                textAlign: "center",
-                                marginTop: 12,
-                              }}
+                         style={{
+  display: "block",
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "15px 18px",
+  marginTop: 16,
+  textAlign: "center",
+  textDecoration: "none",
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  color: "#E6BD6C",
+  border: "1px solid #D8B66A",
+  borderRadius: 10,
+  fontWeight: 700,
+  boxShadow: "0 6px 18px rgba(18, 63, 66, 0.18)",
+}}
                             >
-                              Send Payment Screenshot on WhatsApp
+                             Open WhatsApp & Attach Payment Screenshot
                             </a>
                           )}
 
@@ -2240,17 +2556,29 @@ app_link: String(item.app_link ?? ""),
 
                   if (!product) return null;
 
-                  const gift = isGiftProduct(product);
-                  const lineTotal =
-                    product.price *
-                    (gift ? 1 : item.weight) *
-                    item.quantity;
+const gift = isGiftProduct(product);
 
-                  const key = cartKey(
-                    item.productId,
-                    item.weight
-                  );
+const unitPrice = gift
+  ? Math.round(
+      product.price *
+        (1 -
+          Math.min(
+            100,
+            Math.max(0, Number(product.discount) || 0)
+          ) /
+            100)
+    )
+  : getProductPrice(product, item.weight);
 
+const lineTotal =
+  unitPrice === null
+    ? 0
+    : unitPrice * item.quantity;
+
+const key = cartKey(
+  item.productId,
+  item.weight
+);
                   return (
                     <div
                       key={key}
@@ -2280,38 +2608,33 @@ app_link: String(item.app_link ?? ""),
 
                       <div>
                         <strong>{money(lineTotal)}</strong>
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(key)}
-                          style={{
-                            padding: "7px 10px",
-                            marginLeft: 8,
-                            cursor: "pointer",
-                            border: "1px solid #C8B48C",
-                            background: "#F3E8D4",
-                          }}
-                        >
-                          − Remove
-                        </button>
+                        <div className="mm-quantity-controls" aria-label={`Quantity for ${product.name}`}>
+                          <button type="button" onClick={() => removeFromCart(key)} aria-label="Decrease quantity">−</button>
+                          <strong>{item.quantity}</strong>
+                          <button type="button" onClick={() => increaseCartItem(key)} aria-label="Increase quantity">+</button>
+                          <button type="button" className="mm-remove-button" onClick={() => deleteCartItem(key)}>Remove</button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
 
-                <h3 style={{ textAlign: "right", color: "#123F42" }}>
-                  Subtotal: {money(total)}
-                </h3>
+                <div className="mm-cart-totals">
+  <div>
+    <span>Product Subtotal</span>
+    <strong>{money(total)}</strong>
+  </div>
+  <p>
+     Delivery charges and applicable taxes will be included
+  in your final payable amount after placing the order.
+</p>
+</div>
 
-                <p style={{ fontSize: 14 }}>
-                  Delivery charges are not included. Final delivery cost
-                  and payment arrangements must be confirmed by the business.
-                </p>
-
-                <form
-                  onSubmit={placeOrder}
-                  style={{ display: "grid", gap: 15, marginTop: 25 }}
-                >
-                  <h3>Delivery & Checkout Details</h3>
+<form
+  onSubmit={placeOrder}
+  style={{ display: "grid", gap: 15, marginTop: 25 }}
+>
+  <h3>Delivery & Checkout Details</h3>
 
                   <label>
                     Customer Name
@@ -2360,58 +2683,58 @@ app_link: String(item.app_link ?? ""),
                     />
                   </label>
 
-                  <label>
-                    Payment Method
-                    <select
-                      className="mm-input"
-                      value={paymentMethod}
-                      onChange={(event) =>
-                        setPaymentMethod(event.target.value)
-                      }
-                      required
-                    >
-                      {availablePaymentMethods.map((method) => (
-                        <option
-                          key={String(method.id)}
-                          value={method.name}
-                        >
-                          {method.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+               <div>
+  <button
+    type="button"
+    className="mm-gold-button"
+    onClick={() => setPaymentMethodOpen((open) => !open)}
+    style={{ width: "100%" }}
+  >
+    Payment Method: {paymentMethod} {paymentMethodOpen ? "▲" : "▼"}
+  </button>
 
-                  {getSelectedPaymentMethod(paymentMethod)?.description && (
-                    <p style={{ fontSize: 13, marginTop: -8 }}>
-                      {getSelectedPaymentMethod(paymentMethod)?.description}
-                    </p>
-                  )}
+  {paymentMethodOpen && (
+    <div
+      style={{
+  marginTop: 14,
+  padding: 18,
+  background: "linear-gradient(145deg, #123F42, #1B5555)",
+  border: "1px solid #D8B66A",
+  borderRadius: 12,
+  boxShadow: "0 8px 22px rgba(18, 63, 66, 0.16)",
+}}
+    >
+      {availablePaymentMethods.map((method) => (
+        <button
+          key={String(method.id)}
+          type="button"
+          className="mm-buy-button"
+style={{
+  width: "100%",
+  marginBottom: 8,
+  padding: "13px 16px",
+  borderRadius: 8,
+  border: paymentMethod === method.name
+    ? "2px solid #E6BD6C"
+    : "1px solid rgba(255,255,255,0.35)",
+  background: paymentMethod === method.name
+    ? "#E6BD6C"
+    : "rgba(255,255,255,0.08)",
+  color: paymentMethod === method.name ? "#123F42" : "#FFF8EA",
+  fontWeight: 600,
+}}          onClick={() => {
+            setPaymentMethod(method.name);
+            setPaymentMethodOpen(false);
+          }}
+        >
+          {method.name}
+        </button>
+      ))}
+    </div>
+  )}
+</div> 
 
-                  {!isCashOnDelivery(paymentMethod) && (
-                    <div
-                      style={{
-                        padding: 15,
-                        border: "1px solid #D8C59F",
-                        background: "#FFFDF7",
-                        borderRadius: 6,
-                      }}
-                    >
-                      <h3 style={{ marginTop: 0, color: "#123F42" }}>
-                        Selected Payment Method
-                      </h3>
-
-                      <p>
-                        {paymentMethod} select kiya gaya hai. Order submit
-                        karne ke baad payment instructions aur available
-                        account details show hongi.
-                      </p>
-
-                      <p style={{ fontSize: 13 }}>
-                        Payment order submit hone ke baad karein. Payment
-                        verification admin manually karega.
-                      </p>
-                    </div>
-                  )}
+        
 
                   {isCashOnDelivery(paymentMethod) && (
                     <p style={{ fontSize: 13 }}>
@@ -2420,12 +2743,7 @@ app_link: String(item.app_link ?? ""),
                     </p>
                   )}
 
-                  <p style={{ fontSize: 14 }}>
-                    Online payment is not processed automatically. Payment
-                    verification and delivery charges will be confirmed
-                    by the business.
-                  </p>
-
+                 
                   <button
                     type="submit"
                     className="mm-gold-button"
@@ -2528,33 +2846,41 @@ app_link: String(item.app_link ?? ""),
         )}
       </section>
 
-      <section id="policies" style={sectionStyle}>
-        <h2 className="mm-section-heading">
-          Customer Information & Policies
-        </h2>
-        <div style={{ maxWidth: 850, margin: "auto" }}>
-          <h3>Orders and cancellations</h3>
-          <p>
-            An order is not confirmed until the business confirms product
-            availability, final price, delivery and payment arrangements.
-          </p>
-          <h3>Shipping and customs</h3>
-          <p>
-            International shipping charges, customs duties, import
-            restrictions and delivery times vary by destination.
-          </p>
-          <h3>Refunds and product issues</h3>
-          <p>
-            Contact the business about damaged, incorrect or missing items.
-            Publish a complete refund policy before accepting online payments.
-          </p>
-          <h3>Privacy</h3>
-          <p>
-            Only provide the personal information needed to handle an order.
-            Publish a complete privacy policy before collecting customer data.
-          </p>
-        </div>
-      </section>
+    <section id="policies" style={sectionStyle}>
+  <h2 className="mm-section-heading">
+    Customer Information & Policies
+  </h2>
+
+  <div style={{ maxWidth: 850, margin: "auto" }}>
+    <h3>Orders and Cancellations</h3>
+    <p>
+      Orders are subject to product availability, final pricing,
+      delivery arrangements and business confirmation. For details,
+      please read our{" "}
+      <a href="/order-cancellation">Order Cancellation Policy</a>.
+    </p>
+
+    <h3>Shipping and Customs</h3>
+    <p>
+      International shipping charges, customs duties, import
+      restrictions and delivery times vary depending on the destination.
+    </p>
+
+    <h3>Refunds and Returns</h3>
+    <p>
+      For information about damaged, incorrect or missing items
+      and refund requests, please read our{" "}
+      <a href="/refund-return">Refund & Return Policy</a>.
+    </p>
+
+    <h3>Privacy</h3>
+    <p>
+      To understand how customer information is collected and
+      handled, please read our{" "}
+      <a href="/privacy-policy">Privacy Policy</a>.
+    </p>
+  </div>
+</section>
 
       <footer className="mm-footer">
         <div className="mm-ornament">✦ ❖ ✦</div>
@@ -2589,6 +2915,92 @@ app_link: String(item.app_link ?? ""),
           <a href="#contact">Contact</a>
           <a href="#home">Back to Top ↑</a>
         </div>
+        {publishedSettings?.socialLinks && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      flexWrap: "wrap",
+      gap: 14,
+      margin: "20px 0 25px",
+    }}
+  >
+    {[
+      {
+        name: "Facebook",
+        label: "f",
+        url: publishedSettings.socialLinks.facebook,
+      },
+      {
+        name: "Instagram",
+        label: "◎",
+        url: publishedSettings.socialLinks.instagram,
+      },
+      {
+        name: "TikTok",
+        label: "♪",
+        url: publishedSettings.socialLinks.tiktok,
+      },
+      {
+        name: "YouTube",
+        label: "▶",
+        url: publishedSettings.socialLinks.youtube,
+      },
+      {
+        name: "WhatsApp",
+        label: "☏",
+        url: publishedSettings.socialLinks.whatsapp,
+      },
+    ]
+      .filter((social) => social.url?.trim())
+      .map((social) => (
+        <a
+          key={social.name}
+          href={social.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={social.name}
+          title={social.name}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 42,
+            height: 42,
+            border: "1px solid #E6BD6C",
+            borderRadius: "50%",
+            color: "#E6BD6C",
+            fontSize: 20,
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          {social.label}
+        </a>
+      ))}
+  </div>
+)}
+      {WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      "Assalam-o-Alaikum Multani Mithas. I would like to know more about your sweets and products."
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "inline-block",
+      background: "#168B52",
+      color: "#FFFFFF",
+      padding: "12px 25px",
+      borderRadius: 30,
+      fontWeight: 700,
+      textDecoration: "none",
+      margin: "0 auto 25px",
+    }}
+  >
+    ☎ WhatsApp Us
+  </a>
+)}  
         <div
           style={{
             borderTop: "1px solid rgba(216,172,85,.4)",
