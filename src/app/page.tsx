@@ -2325,7 +2325,7 @@ const total = cartItems.reduce((sum, item) => {
     </a>
   )}
 </div>
-                          ))
+                         ))}
                     
                        {isJazzCash(savedPaymentMethod) &&
   !getMatchingPaymentAccounts(savedPaymentMethod).some(
