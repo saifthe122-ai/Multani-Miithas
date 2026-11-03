@@ -199,22 +199,36 @@ const PRODUCT_COLUMNS = `
   created_at, updated_at
 `;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const sql = getDatabase();
+    const adminView = await isAdminRequest(request);
 
-    const rows = await sql`
-      SELECT id, name, price, price_type, cost_price,
-             category, stock, discount, weight, weight_options, image_icon,
-             image_url, description, long_description,
-             ingredients, rating, is_active, created_at, updated_at
-      FROM products
-      ORDER BY id DESC
-    `;
+    const rows = adminView
+      ? await sql`
+          SELECT id, name, price, price_type, cost_price,
+                 category, stock, discount, weight, weight_options, image_icon,
+                 image_url, description, long_description,
+                 ingredients, rating, is_active, created_at, updated_at
+          FROM products
+          ORDER BY id DESC
+        `
+      : await sql`
+          SELECT id, name, price, price_type,
+                 category, stock, discount, weight, weight_options, image_icon,
+                 image_url, description, long_description,
+                 ingredients, rating, is_active, created_at, updated_at
+          FROM products
+          WHERE is_active = true
+          ORDER BY id DESC
+        `;
 
-    const products = rows.map((row) =>
-      formatProduct(row as Record<string, unknown>)
-    );
+    const products = rows.map((row) => {
+      const product = formatProduct(row as Record<string, unknown>);
+      if (adminView) return product;
+      const { cost_price: _privateCostPrice, ...publicProduct } = product;
+      return publicProduct;
+    });
 
     return NextResponse.json({
       success: true,
@@ -222,6 +236,11 @@ export async function GET() {
       mode: "database",
       total: products.length,
       products,
+    }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
     });
   } catch (error) {
     console.error("Products GET failed:", error);
@@ -235,7 +254,6 @@ export async function GET() {
     );
   }
 }
-
 export async function POST(request: Request) {
   try {
     if (!(await isAdminRequest(request))) {
