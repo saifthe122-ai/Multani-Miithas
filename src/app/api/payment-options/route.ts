@@ -36,6 +36,7 @@ export async function GET() {
           display_order
         FROM payment_methods
         WHERE is_enabled = true
+          AND payment_type = 'manual'
         ORDER BY display_order ASC, id ASC
       `,
 
