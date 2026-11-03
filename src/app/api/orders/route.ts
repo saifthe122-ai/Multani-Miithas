@@ -9,17 +9,6 @@ export const dynamic = "force-dynamic";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-const PAYMENT_METHODS = [
-  "JazzCash",
-  "Easypaisa",
-  "Raast ID",
-  "Payoneer",
-  "Bank Transfer",
-  "Cash on Delivery",
-];
-
-const ALLOWED_WEIGHTS = [0.5, 1, 1.5, 2, 5];
-
 type CartItem = {
   productId: string;
   weight: number;
@@ -114,10 +103,14 @@ export async function POST(request: Request) {
         ? data.paymentMethod.trim()
         : "";
 
-    const paymentMethod = PAYMENT_METHODS.find(
-      (method) =>
-        method.toLowerCase() === submittedPayment.toLowerCase()
-    );
+    const enabledPaymentMethods = await sql`
+      SELECT name
+      FROM payment_methods
+      WHERE is_enabled = true
+    `;
+    const paymentMethod = enabledPaymentMethods
+      .map((row) => String(row.name ?? ""))
+      .find((method) => method.toLowerCase() === submittedPayment.toLowerCase());
 
     if (
       !customerName ||
@@ -179,7 +172,9 @@ export async function POST(request: Request) {
         quantity < 1 ||
         quantity > 100 ||
         typeof weight !== "number" ||
-        !ALLOWED_WEIGHTS.includes(weight)
+        !Number.isFinite(weight) ||
+        weight <= 0 ||
+        weight > 100
       ) {
         return NextResponse.json(
           {
@@ -240,6 +235,21 @@ export async function POST(request: Request) {
       ON CONFLICT (id) DO NOTHING
     `;
 
+    const requestKey = request.headers.get("Idempotency-Key")?.trim() || randomUUID();
+    if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestKey)) {
+      return NextResponse.json(
+        { success: false, message: "Order request key valid nahi hai." },
+        { status: 400 }
+      );
+    }
+
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key text`;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS orders_idempotency_key_unique
+      ON orders (idempotency_key)
+      WHERE idempotency_key IS NOT NULL
+    `;
+
     const result = await sql`
       WITH requested_items AS MATERIALIZED (
         SELECT
@@ -257,6 +267,7 @@ export async function POST(request: Request) {
           p.name AS product_name,
           COALESCE(p.price_type, 'per_kg') AS price_type,
           p.price,
+          p.stock,
           COALESCE(p.discount, 0) AS discount,
           p.weight_options,
           r.weight,
@@ -337,6 +348,7 @@ export async function POST(request: Request) {
         INNER JOIN products p
           ON p.id = r.product_id
         WHERE p.is_active = true
+        FOR UPDATE OF p
       ),
 
       valid_products AS MATERIALIZED (
@@ -380,6 +392,11 @@ export async function POST(request: Request) {
           AND (
             price_type = 'fixed'
             OR price_type = 'per_kg'
+          )
+          AND stock >= (
+            SELECT COALESCE(SUM(requested.quantity), 0)
+            FROM requested_items requested
+            WHERE requested.product_id = valid_products.product_id
           )
       ),
 
@@ -470,6 +487,7 @@ export async function POST(request: Request) {
       new_order AS (
         INSERT INTO orders (
           order_number,
+          idempotency_key,
           customer_id,
           customer_name,
           customer_phone,
@@ -485,6 +503,7 @@ export async function POST(request: Request) {
 
         SELECT
           ${orderNumber},
+          ${requestKey},
           c.id,
           ${customerName},
           ${phone},
@@ -503,6 +522,13 @@ export async function POST(request: Request) {
         WHERE
           t.requested_count > 0
           AND t.requested_count = t.valid_count
+          AND NOT EXISTS (
+            SELECT 1 FROM orders existing
+            WHERE existing.idempotency_key = ${requestKey}
+          )
+
+        ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL
+        DO NOTHING
 
         RETURNING
           id,
@@ -511,6 +537,20 @@ export async function POST(request: Request) {
           delivery_fee,
           tax_amount,
           total
+      ),
+
+      reserved_products AS MATERIALIZED (
+        UPDATE products product
+        SET stock = product.stock - reservation.quantity,
+            updated_at = NOW()
+        FROM (
+          SELECT product_id, SUM(quantity)::integer AS quantity
+          FROM valid_products
+          GROUP BY product_id
+        ) reservation
+        WHERE product.id = reservation.product_id
+          AND EXISTS (SELECT 1 FROM new_order)
+        RETURNING product.id
       ),
 
       inserted_items AS (
@@ -535,6 +575,9 @@ export async function POST(request: Request) {
 
         FROM new_order o
         CROSS JOIN valid_products p
+        WHERE (SELECT COUNT(*) FROM reserved_products) = (
+          SELECT COUNT(DISTINCT product_id) FROM valid_products
+        )
 
         RETURNING order_id
       )
@@ -548,7 +591,8 @@ export async function POST(request: Request) {
         o.total,
         t.requested_count,
         t.valid_count,
-        (SELECT COUNT(*) FROM inserted_items) AS saved_item_count
+        (SELECT COUNT(*) FROM inserted_items) AS saved_item_count,
+        (SELECT COUNT(*) FROM reserved_products) AS reserved_product_count
 
       FROM calculated t
       LEFT JOIN new_order o ON true
@@ -565,14 +609,43 @@ export async function POST(request: Request) {
           requested_count: number;
           valid_count: number;
           saved_item_count: number;
+          reserved_product_count: number;
         }
       | undefined;
+
+    if (saved?.order_id == null) {
+      const existing = await sql`
+        SELECT order_number, subtotal, delivery_fee, tax_amount, total
+        FROM orders
+        WHERE idempotency_key = ${requestKey}
+        LIMIT 1
+      `;
+      if (existing.length) {
+        const previous = existing[0] as Record<string, unknown>;
+        const existingOrder = {
+          orderNumber: String(previous.order_number),
+          subtotal: Number(previous.subtotal),
+          deliveryFee: Number(previous.delivery_fee),
+          taxAmount: Number(previous.tax_amount),
+          total: Number(previous.total),
+          paymentStatus: "pending",
+        };
+        return NextResponse.json({
+          success: true,
+          message: "Order pehle hi receive ho chuka hai.",
+          order: existingOrder,
+          ...existingOrder,
+          duplicate: true,
+        });
+      }
+    }
 
     if (
       !saved ||
       saved.order_id == null ||
       Number(saved.requested_count) !== Number(saved.valid_count) ||
-      Number(saved.saved_item_count) !== Number(saved.valid_count)
+      Number(saved.saved_item_count) !== Number(saved.valid_count) ||
+      Number(saved.reserved_product_count) !== new Set(items.map((item) => item.productId)).size
     ) {
       return NextResponse.json(
         {
