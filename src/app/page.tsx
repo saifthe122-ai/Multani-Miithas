@@ -2195,8 +2195,9 @@ const total = cartItems.reduce((sum, item) => {
                           <p>{savedPaymentInstructions}</p>
                         )}
 
-                        {savedPaymentAccounts.length > 0 ? (
-                          savedPaymentAccounts.map((account) => (
+{savedPaymentAccounts.length > 0 && (
+  <>
+    savedPaymentAccounts.map((account) => (
                             <div
                               key={String(account.id)}
                               style={{
@@ -2361,18 +2362,20 @@ const total = cartItems.reduce((sum, item) => {
                               karein.
                             </p>
                           </div>
-                        )}
+                                               )}
+                      </>
+                    )}
 
-                        <div
-                          style={{
-                           borderTop: "1px solid #D8B66A",
-                          marginTop: 24,
-                       paddingTop: 20,
-                          }}
-                        >
-                 <h3 style={{ color: "#E6BD6C", marginTop: 0 }}>
-                 Payment Verification
-                   </h3>
+                    <div
+                      style={{
+                        borderTop: "1px solid #D8B66A",
+                        marginTop: 24,
+                        paddingTop: 20,
+                      }}
+                    >
+                      <h3 style={{ color: "#E6BD6C", marginTop: 0 }}>
+                        Payment Verification
+                      </h3>
                           <p>
                             Payment transfer karne ke baad screenshot business ko
                  WhatsApp par bhej sakte hain. Screenshot payment ka
