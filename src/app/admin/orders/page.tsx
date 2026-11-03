@@ -95,7 +95,9 @@ function mapOrder(row: Record<string, unknown>): Order {
     const packaging = Number(item.packagingFee ?? 0);
     const tax = Number(item.taxAmount ?? 0);
     const rate = Number(item.salesTaxRate ?? 0);
-    return `${name} (${weight}kg × ${quantity}): Product Rs. ${unitPrice.toLocaleString()} each; Delivery Rs. ${delivery.toLocaleString()}; Packaging Rs. ${packaging.toLocaleString()}; Tax ${rate}% Rs. ${tax.toLocaleString()}`;
+    const packagingType = String(item.packagingType ?? "");
+    const taxBase = item.salesTaxBase === "all_charges" ? "product + delivery + packaging" : "product only";
+    return `${name} (${weight}kg × ${quantity}): Product Rs. ${unitPrice.toLocaleString()} each; Delivery Rs. ${delivery.toLocaleString()}; Packaging ${packagingType ? packagingType + " " : ""}Rs. ${packaging.toLocaleString()}; Tax ${rate}% on ${taxBase}: Rs. ${tax.toLocaleString()}`;
   }).join("\n");
 
   const created = row.created_at
