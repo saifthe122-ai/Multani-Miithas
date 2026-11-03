@@ -387,12 +387,12 @@ const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
               category: String(item.category ?? "Sweets"),
               stock: Number(item.stock ?? 0),
               discount: Number(item.discount ?? 0),
-              price_type:
+            price_type:
   String(item.price_type ?? "per_kg") === "fixed"
-    ? "fixed"
-    : "per_kg",
+    ? ("fixed" as const)
+    : ("per_kg" as const),
 weight_options: Array.isArray(item.weight_options)
-  ? (item.weight_options as Product["weight_options"])
+  ? (item.weight_options as NonNullable<Product["weight_options"]>)
   : [],
               weight: String(item.weight ?? ""),
               image:
