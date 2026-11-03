@@ -615,6 +615,8 @@ app_link: String(item.app_link ?? ""),
     };
   }, []);
 
+  const activeWhatsAppNumber = WHATSAPP_NUMBER || (publishedSettings?.socialLinks?.whatsapp || "").replace(/\D/g, "");
+
   const publishedMedia = Array.isArray(
     publishedSettings?.media
   )
@@ -1911,9 +1913,9 @@ const total = cartItems.reduce((sum, item) => {
                   </button>
                  <button type="button" className="mm-buy-button" disabled={product.stock <= 0 || getProductPrice(product, selectedWeight) === null} onClick={() => buyNow(product.id, selectedWeight)}>Instant Checkout →</button>
 
-{WHATSAPP_NUMBER && (
+{activeWhatsAppNumber && (
   <a
-    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+    href={`https://wa.me/${activeWhatsAppNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
       `Assalam-o-Alaikum Multani Mithas. I am interested in ${product.name}. Please confirm availability and delivery details.`
     )}`}
     target="_blank"
@@ -2176,9 +2178,9 @@ const total = cartItems.reduce((sum, item) => {
   Instant Checkout →
 </button>
 
-{WHATSAPP_NUMBER && (
+{activeWhatsAppNumber && (
   <a
-    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+    href={`https://wa.me/${activeWhatsAppNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
       `Assalam-o-Alaikum Multani Mithas. I am interested in ${product.name}. Please share details about gift packaging and availability.`
     )}`}
     target="_blank"
@@ -2556,9 +2558,9 @@ const total = cartItems.reduce((sum, item) => {
                             <strong>Pending Confirmation</strong>
                           </p>
 
-                          {WHATSAPP_NUMBER && (
+                          {activeWhatsAppNumber && (
                             <a
-                              href={`https://wa.me/${WHATSAPP_NUMBER.replace(
+                              href={`https://wa.me/${activeWhatsAppNumber.replace(
                                 /\D/g,
                                 ""
                               )}?text=${encodeURIComponent(
@@ -2586,7 +2588,7 @@ const total = cartItems.reduce((sum, item) => {
                             </a>
                           )}
 
-                          {!WHATSAPP_NUMBER && (
+                          {!activeWhatsAppNumber && (
                             <p>
                               WhatsApp screenshot option business number
                               configure hone ke baad available hoga.
@@ -2849,8 +2851,8 @@ style={{
                       ? "Submitting Your Order..."
                       : "Confirm & Place Order"}
                   </button>
-                  {WHATSAPP_NUMBER && (
-                    <a href={"https://wa.me/" + WHATSAPP_NUMBER.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. I need help with my checkout.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+                  {activeWhatsAppNumber && (
+                    <a href={"https://wa.me/" + activeWhatsAppNumber.replace(/\D/g, "") + "?text=" + encodeURIComponent("Assalam-o-Alaikum Multani Mithas. I need help with my checkout.")} target="_blank" rel="noopener noreferrer" className="mm-buy-button" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
                       Need Help? Chat on WhatsApp
                     </a>
                   )}
@@ -2930,9 +2932,9 @@ style={{
           <p>Business email will be added soon.</p>
         )}
 
-        {WHATSAPP_NUMBER ? (
+        {activeWhatsAppNumber ? (
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+            href={`https://wa.me/${activeWhatsAppNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
               "Assalam-o-Alaikum Multani Mithas, I have a question about your products and delivery."
             )}`}
             target="_blank"
@@ -3080,9 +3082,9 @@ style={{
       ))}
   </div>
 )}
-      {WHATSAPP_NUMBER && (
+      {activeWhatsAppNumber && (
   <a
-    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+    href={`https://wa.me/${activeWhatsAppNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
       "Assalam-o-Alaikum Multani Mithas. I would like to know more about your sweets and products."
     )}`}
     target="_blank"
