@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       phone.length > 40 ||
       !address ||
       address.length > 2000 ||
-      (email !== "" && (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254))
+      (email !== "" && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254))
     ) {
       return NextResponse.json(
         {
