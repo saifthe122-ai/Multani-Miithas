@@ -606,6 +606,7 @@ app_link: String(item.app_link ?? ""),
   }, []);
 
   const activeWhatsAppNumber = WHATSAPP_NUMBER || (publishedSettings?.socialLinks?.whatsapp || "").replace(/\D/g, "");
+  const brandLogo = publishedSettings?.media?.find((media) => /logo/i.test(media.name || ""))?.url || "";
 
   const publishedMedia = Array.isArray(
     publishedSettings?.media
@@ -1846,6 +1847,7 @@ const total = cartItems.reduce((sum, item) => {
                     {product.category}
                   </span>
 
+         {brandLogo && <img src={brandLogo} alt="Multani Mithas logo" loading="lazy" style={{ width: 54, height: 38, objectFit: "contain", display: "block", margin: "0 auto 8px" }} />}
          <h3 className="mm-card-title">{product.name}</h3>
 
 {product.description && (
@@ -2281,6 +2283,7 @@ const total = cartItems.reduce((sum, item) => {
               >
                 {savedOrderNumber ? (
                   <div role="status" style={{ textAlign: "left" }}>
+                    {brandLogo && <img src={brandLogo} alt="Multani Mithas" style={{ display: "block", width: "100%", maxWidth: 180, maxHeight: 100, objectFit: "contain", margin: "0 auto 18px" }} />}
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 42, color: "#237A4B" }}>
                         ✓
