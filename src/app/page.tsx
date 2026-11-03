@@ -294,6 +294,7 @@ export default function Home() {
     useState<PublishedSettings | null>(null);
 
   const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
@@ -1063,6 +1064,7 @@ const total = cartItems.reduce((sum, item) => {
         },
         body: JSON.stringify({
           customerName: customerName.trim(),
+          email: customerEmail.trim(),
           phone: customerPhone.trim(),
           address: deliveryAddress.trim(),
           paymentMethod,
@@ -1115,6 +1117,7 @@ const total = cartItems.reduce((sum, item) => {
 
       setCart({});
       setCustomerName("");
+      setCustomerEmail("");
       setCustomerPhone("");
       setDeliveryAddress("");
       setCartOpen(true);
@@ -2735,6 +2738,19 @@ const key = cartKey(
                       required
                       autoComplete="name"
                       placeholder="Apna poora naam"
+                    />
+                  </label>
+
+                  <label>
+                    Email Address (optional)
+                    <input
+                      className="mm-input"
+                      type="email"
+                      value={customerEmail}
+                      onChange={(event) => setCustomerEmail(event.target.value)}
+                      maxLength={254}
+                      autoComplete="email"
+                      placeholder="name@example.com"
                     />
                   </label>
 
