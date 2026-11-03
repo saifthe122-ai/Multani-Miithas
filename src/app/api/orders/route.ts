@@ -221,6 +221,9 @@ export async function POST(request: Request) {
       .slice(0, 12)
       .toUpperCase()}`;
 
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
+
     await sql`
       CREATE TABLE IF NOT EXISTS checkout_settings (
         id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -461,15 +464,17 @@ export async function POST(request: Request) {
       ),
 
       existing_customer AS (
-        SELECT id
-        FROM customers
+        UPDATE customers
+        SET name = ${customerName},
+            address = ${address},
+            updated_at = NOW()
         WHERE phone = ${phone}
-        LIMIT 1
+        RETURNING id
       ),
 
       new_customer AS (
-        INSERT INTO customers (name, phone)
-        SELECT ${customerName}, ${phone}
+        INSERT INTO customers (name, phone, address, updated_at)
+        SELECT ${customerName}, ${phone}, ${address}, NOW()
         FROM calculated t
         WHERE
           t.requested_count > 0
