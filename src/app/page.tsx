@@ -2939,6 +2939,27 @@ style={{
       ))}
   </div>
 )}
+      {WHATSAPP_NUMBER && (
+  <a
+    href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+      "Assalam-o-Alaikum Multani Mithas. I would like to know more about your sweets and products."
+    )}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "inline-block",
+      background: "#168B52",
+      color: "#FFFFFF",
+      padding: "12px 25px",
+      borderRadius: 30,
+      fontWeight: 700,
+      textDecoration: "none",
+      margin: "0 auto 25px",
+    }}
+  >
+    ☎ WhatsApp Us
+  </a>
+)}  
         <div
           style={{
             borderTop: "1px solid rgba(216,172,85,.4)",
