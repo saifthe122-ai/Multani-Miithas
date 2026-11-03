@@ -97,6 +97,9 @@ export async function POST(request: Request) {
         ? data.customerName.trim()
         : "";
 
+    const email =
+      typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+
     const phone =
       typeof data.phone === "string" ? data.phone.trim() : "";
 
@@ -124,7 +127,8 @@ export async function POST(request: Request) {
       !phone ||
       phone.length > 40 ||
       !address ||
-      address.length > 2000
+      address.length > 2000 ||
+      (email !== "" && (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254))
     ) {
       return NextResponse.json(
         {
@@ -221,6 +225,7 @@ export async function POST(request: Request) {
       .slice(0, 12)
       .toUpperCase()}`;
 
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
 
@@ -474,6 +479,7 @@ export async function POST(request: Request) {
       existing_customer AS (
         UPDATE customers customer
         SET name = ${customerName},
+            email = COALESCE(NULLIF(${email}, ''), email),
             address = ${address},
             updated_at = NOW()
         FROM matching_customer matched
@@ -482,8 +488,8 @@ export async function POST(request: Request) {
       ),
 
       new_customer AS (
-        INSERT INTO customers (name, phone, address, updated_at)
-        SELECT ${customerName}, ${phone}, ${address}, NOW()
+        INSERT INTO customers (name, email, phone, address, updated_at)
+        SELECT ${customerName}, NULLIF(${email}, ''), ${phone}, ${address}, NOW()
         FROM calculated t
         WHERE
           t.requested_count > 0
