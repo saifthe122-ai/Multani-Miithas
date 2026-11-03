@@ -96,6 +96,13 @@ export default function PaymentsDashboard() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
+  const [methodKey, setMethodKey] = useState("cod");
+  const [methodName, setMethodName] = useState("Cash on Delivery");
+  const [methodDescription, setMethodDescription] = useState("Pay cash to the delivery representative when your order arrives.");
+  const [methodProvider, setMethodProvider] = useState("COD");
+  const [methodInstructions, setMethodInstructions] = useState("Pay the exact order amount in cash when the order is delivered.");
+  const [methodType, setMethodType] = useState("manual");
+
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("wallet");
   const [provider, setProvider] = useState("JazzCash");
@@ -272,6 +279,38 @@ appLink: String(item.app_link ?? ""),
       setNotice(
         error instanceof Error ? error.message : "Update failed."
       );
+    }
+  }
+
+  async function addPaymentMethod(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      setSaving(true);
+      setNotice("");
+      const response = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_method",
+          methodKey: methodKey.trim().toLowerCase(),
+          name: methodName.trim(),
+          description: methodDescription.trim(),
+          paymentType: methodType,
+          provider: methodProvider.trim(),
+          instructions: methodInstructions.trim(),
+          displayOrder: methods.length + 1,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.message || result.error || "Payment method create nahi hua.");
+      }
+      await loadPaymentSettings();
+      setNotice("Payment method add ho gaya. Customer checkout par dikhane ke liye Enable Method dabayein.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Payment method create nahi hua.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1014,10 +1053,61 @@ setNotice("Account settings database mein save ho gayi hain.");
             Yahan se checkout par payment methods enable ya disable karo.
           </p>
 
+          <form
+            onSubmit={addPaymentMethod}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+              gap: 14,
+              padding: 16,
+              margin: "18px 0",
+              border: "1px solid #d1d5db",
+              borderRadius: 12,
+              background: "#f9fafb",
+            }}
+          >
+            <label>
+              Method Key *
+              <input value={methodKey} onChange={(e) => setMethodKey(e.target.value)} placeholder="cod" style={inputStyle} required pattern="[a-z0-9_-]{2,60}" />
+            </label>
+            <label>
+              Customer-facing Name *
+              <input value={methodName} onChange={(e) => setMethodName(e.target.value)} placeholder="Cash on Delivery" style={inputStyle} required />
+            </label>
+            <label>
+              Provider
+              <input value={methodProvider} onChange={(e) => setMethodProvider(e.target.value)} placeholder="COD / JazzCash / Easypaisa" style={inputStyle} />
+            </label>
+            <label>
+              Payment Type
+              <select value={methodType} onChange={(e) => setMethodType(e.target.value)} style={inputStyle}>
+                <option value="manual">Manual / COD</option>
+                <option value="gateway">Gateway (not live until integrated)</option>
+                <option value="manual_gateway">Manual + Gateway</option>
+              </select>
+            </label>
+            <label style={{ gridColumn: "1 / -1" }}>
+              Description
+              <input value={methodDescription} onChange={(e) => setMethodDescription(e.target.value)} style={inputStyle} />
+            </label>
+            <label style={{ gridColumn: "1 / -1" }}>
+              Customer Instructions
+              <textarea value={methodInstructions} onChange={(e) => setMethodInstructions(e.target.value)} rows={2} style={inputStyle} />
+            </label>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <button type="submit" disabled={saving} style={{ ...buttonStyle, background: "#145b50", color: "#fff", opacity: saving ? 0.6 : 1 }}>
+                {saving ? "Adding method..." : "Add Payment Method"}
+              </button>
+              <p style={{ color: "#6b7280", fontSize: 12, marginBottom: 0 }}>
+                Naya method pehle Disabled save hota hai. Uske baad neeche Enable Method dabayein. Gateway option live payment activate nahi karta.
+              </p>
+            </div>
+          </form>
+
           {loading ? (
             <p>Payment methods load ho rahe hain...</p>
           ) : methods.length === 0 ? (
-            <p>Database mein payment methods nahi milay.</p>
+            <p>Database mein abhi koi payment method nahi. Upar form se COD add karein.</p>
           ) : (
             <div
               style={{
