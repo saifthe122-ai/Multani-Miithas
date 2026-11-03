@@ -2867,7 +2867,26 @@ style={{
       ))}
     </div>
   )}
-</div> 
+</div>
+  {!isCashOnDelivery(paymentMethod) && (
+    <section style={{ marginTop: 14, padding: 16, borderRadius: 12, border: "1px solid #D8B66A", background: "#FFF8EA", color: "#123F42" }}>
+      <h3 style={{ marginTop: 0 }}>{paymentMethod} Wallet / Account</h3>
+      <p style={{ margin: "6px 0" }}>Payable amount after placing this order:</p>
+      <strong style={{ display: "block", fontSize: 25, color: "#8A5630", marginBottom: 12 }}>{money(estimatedGrandTotal)}</strong>
+      {getMatchingPaymentAccounts(paymentMethod).length > 0 ? getMatchingPaymentAccounts(paymentMethod).map((account) => (
+        <div key={String(account.id)} style={{ padding: 12, border: "1px solid #D8C59F", borderRadius: 9, marginTop: 10, overflowWrap: "anywhere" }}>
+          <strong>{account.provider} · {account.account_name}</strong>
+          <p style={{ margin: "6px 0" }}>Account title: <strong>{account.account_title}</strong></p>
+          <p style={{ margin: "6px 0" }}>Wallet / Account number: <strong>{account.account_number}</strong></p>
+          {account.iban && <p style={{ margin: "6px 0" }}>IBAN: <strong>{account.iban}</strong></p>}
+          {account.qr_image_url && <img src={account.qr_image_url} alt={account.provider + " payment QR"} style={{ display: "block", width: "100%", maxWidth: 230, height: "auto", margin: "12px auto", background: "#fff", padding: 8, borderRadius: 8 }} /> }
+          {account.app_link && account.app_link.startsWith("https://") && <a href={account.app_link} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "10px 14px", borderRadius: 8, background: "#123F42", color: "#E6BD6C", textDecoration: "none" }}>Open {account.provider}</a>}
+        </div>
+      )) : <p role="status">Is payment method ka official wallet/account abhi admin ne configure nahi kiya. Payment details available hone tak transfer na karein.</p>}
+      <p style={{ fontSize: 12, marginBottom: 0 }}>Order place hone ke baad order number aur exact final amount ke saath screenshot bhejne ka WhatsApp button milega. Screenshot akela payment confirmation nahi hota.</p>
+    </section>
+  )}
+ 
 
         
 
