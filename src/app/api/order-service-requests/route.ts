@@ -200,16 +200,16 @@ export async function PATCH(request: Request) {
           FROM request_row rr, order_row o, prior_refunds previous
           WHERE r.id = rr.id
             AND ${amount} + previous.amount <= o.total
-          RETURNING r.*, o.id AS order_id, o.total AS order_total
+          RETURNING r.*
         ),
         saved_order AS (
           UPDATE orders o
           SET payment_status = CASE
-            WHEN s.approved_amount + previous.amount >= s.order_total THEN 'refunded'
+            WHEN s.approved_amount + previous.amount >= o.total THEN 'refunded'
             ELSE 'partially_refunded'
           END
           FROM saved_request s, prior_refunds previous
-          WHERE o.id = s.order_id
+          WHERE o.order_number = s.order_number
           RETURNING o.payment_status
         )
         SELECT s.*, saved_order.payment_status AS order_payment_status
