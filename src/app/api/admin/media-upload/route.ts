@@ -109,7 +109,8 @@ export async function POST(request: Request) {
       .replace(/-+/g, "-")
       .replace(/^[-.]+|[-.]+$/g, "")
       .slice(-100);
-    const filename = `${crypto.randomUUID()}-${safeName || `upload.${extension}`}`;
+    const baseName = safeName.replace(/\.[^.]*$/, "").slice(-90) || "upload";
+    const filename = `${crypto.randomUUID()}-${baseName}.${extension}`;
 
     if (STORAGE_DRIVER === "local") {
       await mkdir(LOCAL_MEDIA_DIRECTORY, { recursive: true });
