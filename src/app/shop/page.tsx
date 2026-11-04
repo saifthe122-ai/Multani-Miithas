@@ -51,7 +51,7 @@ export default function ShopPage() {
               <span style={{ color: "#F6E9D0", fontSize: 12 }}>{items.length} {items.length === 1 ? "product" : "products"}</span>
               <h2 style={{ color: "#FFF1D7", fontWeight: 400, margin: "6px 0" }}>{category}</h2>
               <span style={{ color: "#E6BD6C" }}>Explore collection →</span>
-            </a>;
+            </Link>;
           })}
         </section>
       )}
