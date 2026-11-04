@@ -303,6 +303,7 @@ export default function Home() {
 
   const [availablePaymentAccounts, setAvailablePaymentAccounts] =
     useState<PaymentAccount[]>([]);
+  const [selectedPaymentAccountId, setSelectedPaymentAccountId] = useState("");
 
   const [message, setMessage] = useState("");
 
@@ -1140,6 +1141,15 @@ const total = cartItems.reduce((sum, item) => {
       return;
     }
 
+    const matchingAccountsForOrder = getMatchingPaymentAccounts(paymentMethod);
+    const accountRequired = !isCashOnDelivery(paymentMethod);
+    const accountIdForOrder = selectedPaymentAccountId ||
+      (matchingAccountsForOrder.length === 1 ? String(matchingAccountsForOrder[0].id) : "");
+    if (accountRequired && (!matchingAccountsForOrder.length || !accountIdForOrder)) {
+      setMessage("Payment ke liye available business account select karein, ya Cash on Delivery choose karein.");
+      return;
+    }
+
     if (
       !customerName.trim() ||
       !customerPhone.trim() ||
@@ -1192,6 +1202,7 @@ const total = cartItems.reduce((sum, item) => {
           phone: customerPhone.trim(),
           address: deliveryAddress.trim(),
           paymentMethod,
+          paymentAccountId: accountRequired ? accountIdForOrder : null,
           items: items.map((item) => ({
             productId: String(item.productId),
             weight: Number(item.weight ?? 1),
@@ -1224,7 +1235,9 @@ const total = cartItems.reduce((sum, item) => {
 
       const orderNumber = data.order?.orderNumber || "";
       const selectedMethod = getSelectedPaymentMethod(paymentMethod);
-      const matchingAccounts = getMatchingPaymentAccounts(paymentMethod);
+      const matchingAccounts = getMatchingPaymentAccounts(paymentMethod).filter(
+        (account) => !accountRequired || String(account.id) === accountIdForOrder
+      );
 
       if (typeof data.order?.total !== "number" || !Number.isFinite(data.order.total)) {
         throw new Error("Server ne final order total return nahi kiya. Support se rabta karein.");
@@ -2918,6 +2931,10 @@ style={{
   fontWeight: 600,
 }}          onClick={() => {
             setPaymentMethod(method.name);
+            const accountsForMethod = getMatchingPaymentAccounts(method.name);
+            setSelectedPaymentAccountId(
+              accountsForMethod.length === 1 ? String(accountsForMethod[0].id) : ""
+            );
             setPaymentMethodOpen(false);
           }}
         >
@@ -2933,7 +2950,17 @@ style={{
       <p style={{ margin: "6px 0" }}>Payable amount after placing this order:</p>
       <strong style={{ display: "block", fontSize: 25, color: "#8A5630", marginBottom: 12 }}>{money(estimatedGrandTotal)}</strong>
       {getMatchingPaymentAccounts(paymentMethod).length > 0 ? getMatchingPaymentAccounts(paymentMethod).map((account) => (
-        <div key={String(account.id)} style={{ padding: 12, border: "1px solid #D8C59F", borderRadius: 9, marginTop: 10, overflowWrap: "anywhere" }}>
+        <div key={String(account.id)} style={{ padding: 12, border: String(selectedPaymentAccountId) === String(account.id) ? "2px solid #A77B31" : "1px solid #D8C59F", borderRadius: 9, marginTop: 10, overflowWrap: "anywhere" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontWeight: 700 }}>
+            <input
+              type="radio"
+              name="paymentAccount"
+              value={String(account.id)}
+              checked={String(selectedPaymentAccountId) === String(account.id)}
+              onChange={() => setSelectedPaymentAccountId(String(account.id))}
+            />
+            Use this account
+          </label>
           <strong>{account.provider} · {account.account_name}</strong>
           <p style={{ margin: "6px 0" }}>Account title: <strong>{account.account_title}</strong></p>
           <p style={{ margin: "6px 0" }}>Wallet / Account number: <strong>{account.account_number}</strong></p>
