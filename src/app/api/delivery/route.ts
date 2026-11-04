@@ -11,29 +11,21 @@ function database() {
   return neon(process.env.DATABASE_URL);
 }
 
-async function ensureDelivery(sql: ReturnType<typeof neon>) {
-  await sql`CREATE TABLE IF NOT EXISTS order_deliveries (
-    id bigserial PRIMARY KEY,
-    order_id bigint NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
-    provider text NOT NULL DEFAULT 'In-house delivery',
-    assigned_to text,
-    assigned_phone text,
-    status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','assigned','dispatched','in_transit','delivered','failed','returned')),
-    tracking_reference text,
-    delivery_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
-    notes text,
-    dispatched_at timestamptz,
-    delivered_at timestamptz,
-    updated_at timestamptz NOT NULL DEFAULT NOW(),
-    created_at timestamptz NOT NULL DEFAULT NOW()
-  )`;
-}
-
 export async function GET(request: Request) {
   if (!(await isAdminRequest(request))) return NextResponse.json({ success: false, message: "Admin login required" }, { status: 401 });
   try {
     const sql = database();
-    await ensureDelivery(sql);
+    await sql`CREATE TABLE IF NOT EXISTS order_deliveries (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+      provider text NOT NULL DEFAULT 'In-house delivery',
+      assigned_to text, assigned_phone text,
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','assigned','dispatched','in_transit','delivered','failed','returned')),
+      tracking_reference text,
+      delivery_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
+      notes text, dispatched_at timestamptz, delivered_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT NOW(), created_at timestamptz NOT NULL DEFAULT NOW()
+    )`;
     const deliveries = await sql`SELECT d.id, o.id AS order_id, o.order_number, o.customer_name,
       o.customer_phone, o.delivery_address, o.total, o.status AS order_status,
       d.provider, d.assigned_to, d.assigned_phone, d.status AS delivery_status,
@@ -67,7 +59,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Delivery details are invalid" }, { status: 400 });
     }
     const sql = database();
-    await ensureDelivery(sql);
+    await sql`CREATE TABLE IF NOT EXISTS order_deliveries (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+      provider text NOT NULL DEFAULT 'In-house delivery',
+      assigned_to text, assigned_phone text,
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','assigned','dispatched','in_transit','delivered','failed','returned')),
+      tracking_reference text,
+      delivery_fee numeric(12,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
+      notes text, dispatched_at timestamptz, delivered_at timestamptz,
+      updated_at timestamptz NOT NULL DEFAULT NOW(), created_at timestamptz NOT NULL DEFAULT NOW()
+    )`;
     const result = await sql`INSERT INTO order_deliveries
       (order_id, provider, assigned_to, assigned_phone, tracking_reference, notes, status, dispatched_at, delivered_at, updated_at)
       SELECT o.id, ${provider}, NULLIF(${assignedTo},''), NULLIF(${assignedPhone},''),
