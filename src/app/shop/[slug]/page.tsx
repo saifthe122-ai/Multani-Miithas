@@ -53,8 +53,14 @@ export default function CategoryPage() {
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : categoryProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
         <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 22 }}>
           {categoryProducts.map((product) => {
-            const firstOption = product.weight_options?.[0];
-            const basePrice = Number(firstOption?.price ?? product.price ?? 0);
+            const optionPrices = (product.weight_options ?? [])
+              .map((option) => Number(option.price))
+              .filter((price) => Number.isFinite(price) && price >= 0);
+            const basePrice = product.price_type === "per_kg"
+              ? Number(product.price ?? 0)
+              : optionPrices.length
+                ? Math.min(...optionPrices)
+                : Number(product.price ?? 0);
             const finalPrice = basePrice * (1 - Math.max(0, Math.min(100, Number(product.discount || 0))) / 100);
             const image = product.image_url || "";
             return <article key={product.id} style={{ background: "#FFFCF5", border: "1px solid #D8C59F", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -63,7 +69,10 @@ export default function CategoryPage() {
                 <span style={{ color: "#A16B16", fontSize: 12 }}>{product.category}</span>
                 <h2 style={{ fontWeight: 400, fontSize: 21, margin: "6px 0" }}>{product.name}</h2>
                 {product.description && <p style={{ color: "#6C5A43", fontSize: 13 }}>{product.description}</p>}
-                <strong style={{ fontSize: 19 }}>{money(finalPrice)}{product.price_type === "per_kg" ? " / kg" : ""}</strong>
+                <strong style={{ fontSize: 19 }}>
+                  {product.price_type === "fixed" && optionPrices.length > 1 ? "From " : ""}
+                  {money(finalPrice)}{product.price_type === "per_kg" ? " / kg" : ""}
+                </strong>
                 {Number(product.discount || 0) > 0 && <span style={{ color: "#8B642B", fontSize: 12 }}>{product.discount}% discount</span>}
                 <span style={{ color: product.stock > 0 ? "#356B45" : "#9A3B32", fontSize: 13, margin: "8px 0 14px" }}>{product.stock > 0 ? "In stock" : "Out of stock"}</span>
                 <Link href={`/?category=${encodeURIComponent(product.category)}#${slugify(product.category) === "gift-boxes" ? "gift-products" : "products"}`} style={{ marginTop: "auto", textAlign: "center", padding: "12px 16px", background: "#D8AC55", color: "#092F32", textDecoration: "none", fontWeight: 700, borderRadius: 4 }}>View & Order →</Link>
