@@ -901,20 +901,37 @@ export default function ProductsPage() {
                   </Field>
 
                   <Field label="Category">
-                    <select
+                    <input
+                      list="multani-mithas-product-categories"
                       value={form.category}
                       onChange={(event) =>
                         setForm({ ...form, category: event.target.value })
                       }
+                      placeholder="Select or type a category"
                       style={inputStyle}
-                    >
-                      <option>Sweets</option>
-                      <option>Bakery</option>
-                      <option>Namkeen</option>
-                      <option>Gift Boxes</option>
-                      <option>Cakes</option>
-                      <option>Seasonal</option>
-                    </select>
+                      required
+                    />
+                    <datalist id="multani-mithas-product-categories">
+                      {[
+                        "Sweets",
+                        "Gift Boxes",
+                        "Desi Ghee",
+                        "Pure Honey",
+                        "Dry Fruits",
+                        "Bakery",
+                        "Cakes",
+                        "Namkeen",
+                        "Seasonal & Special",
+                        ...products.map((product) => product.category),
+                      ]
+                        .filter((category, index, all) => category && all.indexOf(category) === index)
+                        .map((category) => (
+                          <option key={category} value={category} />
+                        ))}
+                    </datalist>
+                    <small style={{ display: "block", marginTop: 6, color: colors.muted, fontSize: 11 }}>
+                      Choose a suggested category or type a new one. Customer collections update from active products.
+                    </small>
                   </Field>
 
                   <Field label="Price Type">
