@@ -126,14 +126,17 @@ export async function POST(request: Request) {
         : "";
 
     const enabledPaymentMethods = await sql`
-      SELECT name
+      SELECT name, provider
       FROM payment_methods
       WHERE is_enabled = true
         AND payment_type = 'manual'
     `;
-    const paymentMethod = enabledPaymentMethods
-      .map((row) => String(row.name ?? ""))
-      .find((method) => method.toLowerCase() === submittedPayment.toLowerCase());
+    const selectedPaymentMethod = enabledPaymentMethods.find(
+      (row) => String(row.name ?? "").toLowerCase() === submittedPayment.toLowerCase()
+    );
+    const paymentMethod = selectedPaymentMethod
+      ? String(selectedPaymentMethod.name)
+      : undefined;
 
     if (
       !customerName ||
@@ -158,6 +161,33 @@ export async function POST(request: Request) {
         { success: false, message: "Payment method valid nahi hai." },
         { status: 400 }
       );
+    }
+
+    const isCashOnDelivery = /cash on delivery|\\bcod\\b/i.test(paymentMethod);
+    if (!isCashOnDelivery) {
+      const provider = String(selectedPaymentMethod?.provider ?? "").trim();
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: "Is payment method ka business account abhi configure nahi hai. Cash on Delivery select karein." },
+          { status: 409 }
+        );
+      }
+
+      const configuredAccounts = await sql`
+        SELECT id
+        FROM business_payment_accounts
+        WHERE is_active = true
+          AND wallet_owner_type = 'merchant'
+          AND LOWER(COALESCE(provider, '')) = LOWER(${provider})
+        LIMIT 1
+      `;
+
+      if (!configuredAccounts.length) {
+        return NextResponse.json(
+          { success: false, message: "Is payment method ka verified business account abhi available nahi hai. Cash on Delivery select karein." },
+          { status: 409 }
+        );
+      }
     }
 
     if (
