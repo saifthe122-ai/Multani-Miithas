@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         : "";
 
     const enabledPaymentMethods = await sql`
-      SELECT name, provider
+      SELECT name, provider, method_key
       FROM payment_methods
       WHERE is_enabled = true
         AND payment_type = 'manual'
@@ -184,7 +184,23 @@ export async function POST(request: Request) {
         FROM business_payment_accounts
         WHERE is_active = true
           AND wallet_owner_type = 'merchant'
-          AND LOWER(COALESCE(provider, '')) = LOWER(${provider})
+          AND (
+            LOWER(COALESCE(provider, '')) = LOWER(${provider})
+            OR (
+              (
+                LOWER(COALESCE(${String(selectedPaymentMethod?.method_key ?? '')}, '')) LIKE '%bank%'
+                OR LOWER(COALESCE(${paymentMethod}, '')) LIKE '%bank transfer%'
+              )
+              AND LOWER(COALESCE(account_type, '')) = 'bank'
+            )
+            OR (
+              (
+                LOWER(COALESCE(${String(selectedPaymentMethod?.method_key ?? '')}, '')) LIKE '%raast%'
+                OR LOWER(COALESCE(${paymentMethod}, '')) LIKE '%raast%'
+              )
+              AND LOWER(COALESCE(account_type, '')) = 'raast'
+            )
+          )
         ORDER BY is_primary DESC, id ASC
       `;
 
