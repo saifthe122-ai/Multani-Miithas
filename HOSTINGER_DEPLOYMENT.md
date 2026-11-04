@@ -23,6 +23,10 @@ Set these as server-side environment variables on the eventual host:
 
 | Variable | Purpose |
 | --- | --- |
+| `SITE_URL` | Canonical HTTPS domain used for metadata, robots and sitemap |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Public WhatsApp business number in international digits-only format |
+| `NEXT_PUBLIC_BUSINESS_PHONE` | Public customer-service phone number |
+| `NEXT_PUBLIC_BUSINESS_EMAIL` | Public customer-service email address |
 | `DATABASE_URL` | PostgreSQL / Neon database connection string |
 | `ADMIN_PASSWORD` | Secret admin login password |
 | `ADMIN_SESSION_SECRET` | Random HMAC key, minimum 32 characters |
@@ -31,6 +35,10 @@ Set these as server-side environment variables on the eventual host:
 | `MEDIA_STORAGE_DRIVER` | Set to `local` on a self-hosted Node.js host with persistent writable disk; defaults to `vercel_blob` |
 
 See `.env.example` for placeholders. Never put real values in GitHub, source code, screenshots, or customer-facing JavaScript. Never use a `NEXT_PUBLIC_` prefix for secrets.
+
+## Host connection health check
+
+After deploying the app and setting `DATABASE_URL`, open `https://your-domain.example/api/health`. A healthy response is `{ "status": "ok", "database": "connected" }`. An unavailable response returns HTTP 503 without exposing credentials or database error details. This endpoint performs only a read-only `SELECT 1` check.
 
 ## Database and customer data safety
 
@@ -81,6 +89,8 @@ Before moving the admin uploader to Hostinger, replace this provider-specific ro
 - [ ] COD and manual transfer status rules are verified without placing a fake live payment.
 - [ ] Admin can process an order from Pending through delivery and payment reconciliation.
 - [ ] Mobile and desktop customer journeys are checked on the actual production host.
+- [ ] Set `SITE_URL` to the final HTTPS domain and verify DNS/SSL before launch.
+- [ ] Set the WhatsApp number, business phone and support email to verified business contact details.
 - [ ] Domain, contact information, privacy/returns/delivery policies are correct.
 
 A GitHub green check is a code-quality gate, not proof that the live business is ready to accept orders.
