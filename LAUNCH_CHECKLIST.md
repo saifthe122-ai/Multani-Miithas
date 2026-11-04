@@ -19,6 +19,12 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - Broken fallback media paths are replaced with existing product image fallbacks; an unpublished brand film shows a coming-soon placeholder.
 - GitHub Actions workflow added for lint and production build.
 
+## Storefront polish completed after the initial audit
+
+- Removed the duplicate fixed About Us heading so the admin-managed heading is shown once.
+- Removed the duplicate About Us footer link.
+- Preserved the existing customer-provided product imagery and current storefront media references.
+
 ## Required automated checks
 
 - [ ] GitHub Actions lint passes.
