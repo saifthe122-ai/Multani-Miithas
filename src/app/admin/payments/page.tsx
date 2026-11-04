@@ -715,7 +715,7 @@ setNotice("Account settings database mein save ho gayi hain.");
             Personal wallet aur Merchant account ki details alag save hongi.
           </p>
           <p style={{ color: "#92400e", fontSize: 13, background: "#fffbeb", padding: 12, borderRadius: 8 }}>
-            Customer checkout par account tabhi dikhay ga jab tum "Allow this account..." select karoge ya saved account par "Show on Customer Checkout" dabao. Personal wallet ko personal hi label kiya jayega; merchant hone ka ghalat claim nahi hoga. Account details, QR aur optional HTTPS app link tum khud yahan enter karoge.
+            Customer checkout par account tabhi dikhay ga jab tum &quot;Allow this account...&quot; select karoge ya saved account par &quot;Show on Customer Checkout&quot; dabao. Personal wallet ko personal hi label kiya jayega; merchant hone ka ghalat claim nahi hoga. Account details, QR aur optional HTTPS app link tum khud yahan enter karoge.
           </p>
 
           <form
