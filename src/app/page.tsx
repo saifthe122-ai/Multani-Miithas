@@ -326,6 +326,12 @@ const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
 
   const [cartOpen, setCartOpen] = useState(false);
 
+  // Category pages se aane wali selection ko homepage par restore karein.
+  useEffect(() => {
+    const requestedCategory = new URLSearchParams(window.location.search).get("category");
+    if (requestedCategory) setSelectedCategory(requestedCategory);
+  }, []);
+
   // Products database se load karein.
   useEffect(() => {
     let cancelled = false;
@@ -1049,12 +1055,14 @@ const total = cartItems.reduce((sum, item) => {
   const estimatedGrandTotal = total + deliveryFee + packagingFee + taxAmount;
 
   const regularProducts = products.filter((product) => product.category !== "Gift Boxes" && isProductEnabled(product) && (selectedCategory === "All" || product.category === selectedCategory));
+  const homeRegularProducts = selectedCategory === "All" ? regularProducts.slice(0, 4) : regularProducts;
 
   const giftProducts = products.filter(
     (product) =>
       product.category === "Gift Boxes" &&
       isProductEnabled(product)
   );
+  const homeGiftProducts = selectedCategory === "Gift Boxes" ? giftProducts : giftProducts.slice(0, 3);
 
   // Customer order submit karein.
   const placeOrder = async (
@@ -1197,7 +1205,8 @@ const total = cartItems.reduce((sum, item) => {
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  const categories = ["All", ...Array.from(new Set(products.filter(isProductEnabled).map((product) => product.category))).sort((a, b) => a.localeCompare(b))];
+  const categories = Array.from(new Set(products.filter(isProductEnabled).map((product) => product.category))).sort((a, b) => a.localeCompare(b));
+  const categorySlug = (value: string) => value.toLowerCase().trim().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   return (
     <main
@@ -1715,16 +1724,17 @@ const total = cartItems.reduce((sum, item) => {
         </p>
         <div className="mm-category-grid">
           {categories.map((category) => (
-            <button key={category} type="button" onClick={() => {
-              setSelectedCategory(category);
-              document.getElementById(category === "Gift Boxes" ? "gift-products" : "products")?.scrollIntoView({ behavior: "smooth" });
-            }} className="mm-category" aria-pressed={selectedCategory === category}
-              style={{ cursor: "pointer", font: "inherit", border: selectedCategory === category ? "2px solid #D8AC55" : "1px solid transparent", background: selectedCategory === category ? "#092F32" : undefined, color: selectedCategory === category ? "#FFF8EA" : undefined }}>
-              <span className="mm-category-symbol">{category === "All" ? "✦" : "❖"}</span>
-              <span className="mm-category-name">{category === "All" ? "All Products" : category}</span>
-              <span style={{ color: "#E3BD70" }}>↗</span>
-            </button>
+            <a key={category} href={`/shop/${categorySlug(category)}`} className="mm-category">
+              <span className="mm-category-symbol">❖</span>
+              <span className="mm-category-name">{category}</span>
+              <span style={{ color: "#E3BD70" }}>Explore ↗</span>
+            </a>
           ))}
+          <a href="/shop" className="mm-category">
+            <span className="mm-category-symbol">✦</span>
+            <span className="mm-category-name">All Products</span>
+            <span style={{ color: "#E3BD70" }}>View all ↗</span>
+          </a>
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && (
@@ -1842,7 +1852,7 @@ const total = cartItems.reduce((sum, item) => {
             gap: 22,
           }}
         >
-          {regularProducts.map((product) => {
+          {homeRegularProducts.map((product) => {
             const selectedWeight = getSelectedWeight(product.id);
 
             return (
@@ -1983,6 +1993,11 @@ const total = cartItems.reduce((sum, item) => {
 );
 })}
 </div>
+        {regularProducts.length > 4 && selectedCategory === "All" && (
+          <div style={{ textAlign: "center", marginTop: 32 }}>
+            <a href="/shop" style={goldButton}>View All Products & Categories →</a>
+          </div>
+        )}
       </section>
 
       <section
@@ -2177,7 +2192,7 @@ const total = cartItems.reduce((sum, item) => {
             margin: "auto",
           }}
         >
-          {giftProducts.map((product) => (
+          {homeGiftProducts.map((product) => (
             <article
               key={product.id}
               className="mm-card"
@@ -2245,6 +2260,11 @@ const total = cartItems.reduce((sum, item) => {
 </article>
 ))}
 </div>
+        {giftProducts.length > 3 && selectedCategory !== "Gift Boxes" && (
+          <div style={{ textAlign: "center", marginTop: 28 }}>
+            <a href="/shop/gift-boxes" style={goldButton}>Explore All Gift Boxes →</a>
+          </div>
+        )}
 </section>
       {/* Cart and checkout popup */}
       {cartOpen && (
