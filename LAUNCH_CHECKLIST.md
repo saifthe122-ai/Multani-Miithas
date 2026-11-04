@@ -24,6 +24,8 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - Removed the duplicate fixed About Us heading so the admin-managed heading is shown once.
 - Removed the duplicate About Us footer link.
 - Preserved the existing customer-provided product imagery and current storefront media references.
+- Homepage product display is capped to four regular products and three gift boxes, with links to the full category directory.
+- Added `/shop` category directory and database-driven `/shop/[slug]` pages; active products are grouped automatically by their saved category.
 
 ## Required automated checks
 
@@ -48,6 +50,8 @@ This checklist is for the final pre-production review. Do not merge or promote t
 12. Confirm admin routes redirect to login when unauthenticated.
 13. Confirm product API responses to a public request do not contain `cost_price`.
 14. Check browser console and network requests for failed assets, API errors, or broken links.
+15. Confirm homepage shows no more than four regular products and three gift boxes, and category links open their own pages.
+16. Add a new active product in admin under an existing category; confirm it appears on that category page without expanding the homepage. Add an inactive product and confirm it remains hidden publicly.
 
 ## Known items that still need a separate implementation or provider setup
 
