@@ -165,7 +165,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const isCashOnDelivery = /cash on delivery|\\bcod\\b/i.test(paymentMethod);
+    const isCashOnDelivery = /cash on delivery|\bcod\b/i.test(paymentMethod);
     let selectedPaymentAccount: Record<string, unknown> | null = null;
     if (!isCashOnDelivery) {
       const provider = String(selectedPaymentMethod?.provider ?? "").trim();
@@ -214,7 +214,7 @@ export async function POST(request: Request) {
       const requestedAccountId = data.paymentAccountId == null
         ? ""
         : String(data.paymentAccountId).trim();
-      if (requestedAccountId && !/^\\d+$/.test(requestedAccountId)) {
+      if (requestedAccountId && !/^\d+$/.test(requestedAccountId)) {
         return NextResponse.json(
           { success: false, message: "Selected payment account valid nahi." },
           { status: 400 }
@@ -896,7 +896,7 @@ export async function PATCH(request: Request) {
         );
       }
 
-      const isCodOrder = /cash on delivery|\\bcod\\b/i.test(String(currentPaymentOrder.payment_method ?? ""));
+      const isCodOrder = /cash on delivery|\bcod\b/i.test(String(currentPaymentOrder.payment_method ?? ""));
       if (isCodOrder && String(currentPaymentOrder.status ?? "").toLowerCase() !== "completed") {
         return NextResponse.json(
           { success: false, message: "COD payment sirf delivery complete hone aur cash receive karne ke baad Paid mark karein." },
