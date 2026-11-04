@@ -29,10 +29,10 @@ This checklist is for the final pre-production review. Do not merge or promote t
 
 ## Required automated checks
 
-- [ ] GitHub Actions lint passes.
-- [ ] GitHub Actions production build passes.
-- [ ] Vercel preview deployment succeeds.
-- [ ] No TypeScript, ESLint, or runtime errors in preview.
+- [x] GitHub Actions lint passes on current branch head (`efe461ca679a5e7a5b27911af03b385f6a933e70`).
+- [x] GitHub Actions production build passes on current branch head (`efe461ca679a5e7a5b27911af03b385f6a933e70`).
+- [x] Vercel generated a Ready preview deployment for this branch: https://multani-miithas-git-final-launch-hardening-2026-11-03-webgen3.vercel.app.
+- [ ] Manually inspect preview browser console, mobile/desktop layouts, protected routes, and all real database-backed workflows.
 
 ## Required manual checks on preview
 
