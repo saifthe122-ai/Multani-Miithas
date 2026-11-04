@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import RefundRequestForm from "./refund-request-form";
 
 export const metadata: Metadata = {
   title: "Refund & Return Policy | Multani Mithas",
@@ -146,6 +147,8 @@ export default function RefundReturnPage() {
             </p>
           </section>
         ))}
+
+        <RefundRequestForm />
 
         <div
           style={{

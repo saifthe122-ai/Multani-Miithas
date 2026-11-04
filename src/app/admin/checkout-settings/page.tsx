@@ -7,6 +7,7 @@ import type { CSSProperties, FormEvent } from "react";
 type CheckoutSettings = {
   deliveryFee: number;
   freeDeliveryMinimum: number;
+  packagingFee: number;
   salesTaxEnabled: boolean;
   salesTaxRate: number;
 };
@@ -45,6 +46,7 @@ export default function CheckoutSettingsPage() {
   const [settings, setSettings] = useState<CheckoutSettings>({
     deliveryFee: 0,
     freeDeliveryMinimum: 0,
+    packagingFee: 0,
     salesTaxEnabled: false,
     salesTaxRate: 0,
   });
@@ -193,9 +195,15 @@ export default function CheckoutSettingsPage() {
               margin: "9px 0 0",
             }}
           >
-            Manage delivery charges and sales tax for customer orders.
+            Legacy global defaults only. New customer orders use the delivery, packaging and sales-tax settings saved on each product weight option.
           </p>
         </header>
+
+        <div style={{ ...cardStyle, marginBottom: 22, borderLeft: "5px solid #b58a43" }}>
+          <strong style={{ color: colors.green }}>Where to edit live customer prices</strong>
+          <p style={{ color: colors.text, marginBottom: 8 }}>Open <strong>Admin → Products → Edit Product → Weight & Price Options</strong>. Har weight par product price, delivery fee, packaging type, packaging fee, sales-tax rate aur tax calculation basis set karein. Customer cards, cart, wallet amount aur saved order total isi data se calculate hote hain.</p>
+          <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Neeche ke global fields purane orders/legacy settings ke liye hain; new checkout in values ko apply nahi karta.</p>
+        </div>
 
         <div
           style={{
@@ -345,6 +353,23 @@ export default function CheckoutSettingsPage() {
               margin: "28px 0",
             }}
           />
+
+          <section>
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ color: colors.gold, fontSize: "11px", fontWeight: 800, letterSpacing: "1.5px" }}>
+                PACKAGING MANAGEMENT
+              </div>
+              <h2 style={{ color: colors.green, fontSize: "20px", fontWeight: 800, margin: "7px 0" }}>Packaging Cost</h2>
+              <p style={{ color: colors.muted, fontSize: "13px", margin: 0 }}>A fixed packaging charge applied once per order.</p>
+            </div>
+            <div style={{ maxWidth: "420px" }}>
+              <label htmlFor="packagingFee" style={labelStyle}>Packaging Fee (PKR)</label>
+              <input id="packagingFee" type="number" min="0" max="1000000" step="0.01" value={settings.packagingFee} onChange={(event) => updateSetting("packagingFee", Number(event.target.value))} style={inputStyle} required />
+              <p style={{ color: colors.muted, fontSize: "11px" }}>0 rakhne par packaging charge apply nahi hoga.</p>
+            </div>
+          </section>
+
+          <div style={{ height: "1px", background: colors.border, margin: "28px 0" }} />
 
           <section>
             <div style={{ marginBottom: "20px" }}>

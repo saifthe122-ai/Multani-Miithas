@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import CancellationRequestForm from "./cancellation-request-form";
 
 export const metadata: Metadata = {
   title: "Order Cancellation Policy | Multani Mithas",
@@ -118,6 +119,8 @@ export default function OrderCancellationPage() {
         >
           ← Back to Multani Mithas
         </Link>
+
+        <CancellationRequestForm />
 
         <p
           style={{

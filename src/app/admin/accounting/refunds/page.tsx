@@ -1,422 +1,124 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-type Refund = {
-id: number;
-date: string;
-reference: string;
-customer: string;
-orderReference: string;
-reason: string;
-amount: number;
-status: "Pending" | "Approved" | "Rejected" | "Refunded";
+type ServiceRequest = {
+  id: number;
+  request_reference: string;
+  request_type: "cancellation" | "refund";
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  reason: string;
+  details: string;
+  requested_amount: number | null;
+  approved_amount: number | null;
+  status: string;
+  admin_note: string;
+  refund_transfer_reference: string;
+  created_at: string;
 };
 
-const initialRefunds: Refund[] = [
-{
-id: 1,
-date: "2026-10-02",
-reference: "REF-1001",
-customer: "Ahmed Ali",
-orderReference: "MM-1001",
-reason: "Damaged packaging",
-amount: 1500,
-status: "Pending",
-},
-{
-id: 2,
-date: "2026-10-04",
-reference: "REF-1002",
-customer: "Sara Khan",
-orderReference: "MM-1002",
-reason: "Incorrect item received",
-amount: 2200,
-status: "Approved",
-},
-{
-id: 3,
-date: "2026-10-06",
-reference: "REF-1003",
-customer: "Usman Ahmed",
-orderReference: "MM-1003",
-reason: "Order cancelled",
-amount: 800,
-status: "Refunded",
-},
-];
-
-const money = (amount: number) => "PKR " + amount.toLocaleString("en-PK");
-
-const cardStyle = {
-background: "#ffffff",
-border: "1px solid #e5e7eb",
-borderRadius: "12px",
-padding: "18px",
-} as const;
+const money = (value: number) => "PKR " + Number(value || 0).toLocaleString("en-PK");
+const panel: React.CSSProperties = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 18 };
 
 export default function RefundsPage() {
-const [refunds, setRefunds] = useState<Refund[]>(initialRefunds);
-const [search, setSearch] = useState("");
-const [filter, setFilter] = useState("All");
-const [message, setMessage] = useState("");
+  const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [type, setType] = useState<"all" | "cancellation" | "refund">("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [selected, setSelected] = useState<ServiceRequest | null>(null);
+  const [status, setStatus] = useState("under_review");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [transferReference, setTransferReference] = useState("");
+  const [saving, setSaving] = useState(false);
 
-const filteredRefunds = useMemo(() => {
-const query = search.trim().toLowerCase();
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const response = await fetch("/api/order-service-requests" + (type === "all" ? "" : "?type=" + type), { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.success || !Array.isArray(data.requests)) throw new Error(data.message || "Requests load nahi ho sakin.");
+      setRequests(data.requests);
+    } catch (e) { setError(e instanceof Error ? e.message : "Requests load nahi ho sakin."); }
+    finally { setLoading(false); }
+  }, [type]);
+  useEffect(() => { void load(); }, [load]);
 
+  function choose(row: ServiceRequest) {
+    setSelected(row); setStatus(row.status === "requested" ? "under_review" : row.status);
+    setAmount(String(row.approved_amount ?? row.requested_amount ?? ""));
+    setNote(row.admin_note || ""); setTransferReference(row.refund_transfer_reference || "");
+    setMessage("");
+  }
+  async function save() {
+    if (!selected) return;
+    setSaving(true); setMessage("");
+    try {
+      const response = await fetch("/api/order-service-requests", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestReference: selected.request_reference, status, adminNote: note,
+          approvedAmount: selected.request_type === "refund" ? Number(amount) : null,
+          refundTransferReference: transferReference,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Update nahi ho saki.");
+      setMessage(data.message || "Update saved."); setSelected(null); await load();
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Update nahi ho saki."); }
+    finally { setSaving(false); }
+  }
 
-return refunds.filter((refund) => {
-  const matchesSearch = [
-    refund.reference,
-    refund.customer,
-    refund.orderReference,
-    refund.reason,
-  ].some((value) => value.toLowerCase().includes(query));
+  const stats = useMemo(() => ({
+    total: requests.length,
+    open: requests.filter((r) => ["requested", "under_review", "approved", "processing"].includes(r.status)).length,
+    refunded: requests.filter((r) => r.status === "refunded").reduce((sum, r) => sum + Number(r.approved_amount ?? r.requested_amount ?? 0), 0),
+  }), [requests]);
 
-  return matchesSearch && (filter === "All" || refund.status === filter);
-});
-
-
-}, [refunds, search, filter]);
-
-const totalAmount = refunds.reduce((sum, item) => sum + item.amount, 0);
-
-const pendingAmount = refunds
-.filter((item) => item.status === "Pending")
-.reduce((sum, item) => sum + item.amount, 0);
-
-const refundedAmount = refunds
-.filter((item) => item.status === "Refunded")
-.reduce((sum, item) => sum + item.amount, 0);
-
-function addRefund() {
-const customer = window.prompt("Customer ka naam likhein:");
-if (!customer?.trim()) return;
-
-
-const orderReference = window.prompt("Order reference likhein:");
-if (!orderReference?.trim()) return;
-
-const reason = window.prompt("Refund ki wajah likhein:");
-if (!reason?.trim()) return;
-
-const amountInput = window.prompt("Refund amount PKR mein likhein:");
-if (!amountInput) return;
-
-const amount = Number(amountInput.replace(/,/g, ""));
-
-if (!Number.isFinite(amount) || amount <= 0) {
-  window.alert("Valid amount enter karein.");
-  return;
-}
-
-const refund: Refund = {
-  id: Date.now(),
-  date: new Date().toISOString().slice(0, 10),
-  reference: `REF-${Date.now().toString().slice(-6)}`,
-  customer: customer.trim(),
-  orderReference: orderReference.trim(),
-  reason: reason.trim(),
-  amount,
-  status: "Pending",
-};
-
-setRefunds((current) => [refund, ...current]);
-setMessage("Refund request add ho gayi. Demo record hai.");
-
-
-}
-
-function updateStatus(id: number, status: Refund["status"]) {
-setRefunds((current) =>
-current.map((refund) =>
-refund.id === id ? { ...refund, status } : refund
-)
-);
-setMessage("Refund status update ho gaya. Yeh demo change hai.");
-}
-
-return (
-<main
-style={{
-minHeight: "100vh",
-background: "#f5f7fb",
-color: "#172033",
-padding: "28px",
-fontFamily: "Arial, Helvetica, sans-serif",
-}}
->
-<div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-<Link
-href="/admin/accounting"
-style={{ color: "#8b2f12", textDecoration: "none", fontWeight: 700 }}
->
-← Back to Accounting </Link>
-
-
-    <header
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "16px",
-        margin: "24px 0",
-      }}
-    >
-      <div>
-        <h1 style={{ fontSize: "36px", margin: 0 }}>Refunds Dashboard</h1>
-        <p style={{ color: "#64748b" }}>
-          Manage customer refund requests and their statuses.
-        </p>
+  return <main style={{ minHeight: "100vh", background: "#f5f7fb", color: "#172033", padding: 24, fontFamily: "Arial, sans-serif" }}>
+    <div style={{ maxWidth: 1300, margin: "0 auto" }}>
+      <Link href="/admin/accounting" style={{ color: "#8b2f12", textDecoration: "none", fontWeight: 700 }}>← Back to Accounting</Link>
+      <header style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, margin: "24px 0" }}>
+        <div><h1 style={{ margin: 0, fontSize: 32 }}>Customer Requests</h1><p style={{ color: "#64748b" }}>Real customer cancellation and prepaid refund requests from the database.</p></div>
+        <button onClick={() => void load()} style={{ padding: "11px 16px", border: 0, borderRadius: 8, background: "#172033", color: "#fff", cursor: "pointer" }}>Refresh</button>
+      </header>
+      {message && <p role="status" style={panel}>{message}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 18 }}>
+        <div style={panel}><span style={{ color: "#64748b" }}>Requests</span><h2>{stats.total}</h2></div>
+        <div style={panel}><span style={{ color: "#64748b" }}>Open / In Review</span><h2>{stats.open}</h2></div>
+        <div style={panel}><span style={{ color: "#64748b" }}>Recorded Refund Transfers</span><h2>{money(stats.refunded)}</h2></div>
       </div>
-
-      <button
-        onClick={addRefund}
-        style={{
-          background: "#8b2f12",
-          color: "#fff",
-          border: 0,
-          borderRadius: "9px",
-          padding: "12px 16px",
-          fontWeight: 700,
-          cursor: "pointer",
-        }}
-      >
-        + Add Refund
-      </button>
-    </header>
-
-    <div
-      style={{
-        ...cardStyle,
-        background: "#fff7ed",
-        color: "#9a3412",
-        marginBottom: "20px",
-      }}
-    >
-      Demo mode: refund records browser refresh par reset ho sakte hain.
-      Abhi database ya payment provider connected nahi hai. Status change
-      karna asal payment refund process nahi karta.
+      <div style={{ ...panel, marginBottom: 18 }}>
+        <label>Show requests <select value={type} onChange={(e) => setType(e.target.value as typeof type)} style={{ padding: 10, marginLeft: 8, borderRadius: 7, border: "1px solid #cbd5e1" }}><option value="all">All</option><option value="cancellation">Cancellations</option><option value="refund">Refunds</option></select></label>
+      </div>
+      {error && <p role="alert" style={{ ...panel, color: "#b91c1c" }}>{error}</p>}
+      <section style={{ ...panel, overflowX: "auto" }}>
+        {loading ? <p>Loading requests…</p> : <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", textAlign: "left" }}>
+          <thead><tr>{["Date","Reference","Type","Order","Customer","Reason","Amount","Status","Action"].map((x) => <th key={x} style={{ padding: 11, borderBottom: "1px solid #e5e7eb" }}>{x}</th>)}</tr></thead>
+          <tbody>{requests.map((r) => <tr key={r.id}>
+            {[new Date(r.created_at).toLocaleString(), r.request_reference, r.request_type, r.order_number, r.customer_name + " · " + r.customer_phone, r.reason, r.request_type === "refund" ? money(Number(r.approved_amount ?? r.requested_amount ?? 0)) : "—", r.status].map((v, i) => <td key={i} style={{ padding: 11, borderBottom: "1px solid #eef0f3", verticalAlign: "top" }}>{v}</td>)}
+            <td style={{ padding: 11, borderBottom: "1px solid #eef0f3" }}><button onClick={() => choose(r)} style={{ padding: "8px 12px", border: 0, borderRadius: 7, background: "#8b2f12", color: "#fff", cursor: "pointer" }}>Review</button></td>
+          </tr>)}
+          {!requests.length && <tr><td colSpan={9} style={{ padding: 25, textAlign: "center", color: "#64748b" }}>No real customer requests yet.</td></tr>}</tbody>
+        </table>}
+      </section>
+      {selected && <section style={{ ...panel, marginTop: 20, display: "grid", gap: 12 }}>
+        <h2 style={{ margin: 0 }}>Review {selected.request_reference}</h2>
+        <p style={{ margin: 0 }}>Order: <strong>{selected.order_number}</strong> · {selected.customer_name} · {selected.customer_phone}</p>
+        <p style={{ margin: 0 }}>Reason: {selected.reason}. {selected.details}</p>
+        <label>Status <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ display: "block", padding: 10, marginTop: 5, borderRadius: 7, border: "1px solid #cbd5e1" }}>
+          <option value="under_review">Under Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>{selected.request_type === "refund" && <><option value="processing">Processing</option><option value="refunded">Refunded (actual transfer completed)</option></>}
+        </select></label>
+        {selected.request_type === "refund" && <label>Approved refund amount (PKR)<input type="number" min="1" max={Number(selected.requested_amount)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ display: "block", padding: 10, width: "100%", maxWidth: 360, marginTop: 5, borderRadius: 7, border: "1px solid #cbd5e1" }} /></label>}
+        {selected.request_type === "refund" && status === "refunded" && <label>Actual bank/wallet transfer reference (required)<input value={transferReference} onChange={(e) => setTransferReference(e.target.value)} maxLength={120} style={{ display: "block", padding: 10, width: "100%", maxWidth: 480, marginTop: 5, borderRadius: 7, border: "1px solid #cbd5e1" }} /></label>}
+        <label>Admin note<textarea rows={3} maxLength={1500} value={note} onChange={(e) => setNote(e.target.value)} style={{ display: "block", padding: 10, width: "100%", marginTop: 5, borderRadius: 7, border: "1px solid #cbd5e1" }} /></label>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button disabled={saving} onClick={() => void save()} style={{ padding: 12, border: 0, borderRadius: 8, background: "#166534", color: "#fff", cursor: "pointer" }}>{saving ? "Saving…" : "Save Decision"}</button><button onClick={() => setSelected(null)} style={{ padding: 12, border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", cursor: "pointer" }}>Close</button></div>
+        <p style={{ color: "#9a3412", fontSize: 13 }}>Important: Approving a refund does not transfer money. Select Refunded only after the actual bank/wallet transfer is complete and its reference is entered.</p>
+      </section>}
     </div>
-
-    {message && (
-      <div role="status" style={{ ...cardStyle, marginBottom: "20px" }}>
-        {message}
-        <button
-          onClick={() => setMessage("")}
-          style={{
-            float: "right",
-            border: 0,
-            background: "transparent",
-            cursor: "pointer",
-          }}
-          aria-label="Dismiss message"
-        >
-          X
-        </button>
-      </div>
-    )}
-
-    <section
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: "16px",
-        marginBottom: "24px",
-      }}
-    >
-      {[
-        { title: "Total Refunds", value: money(totalAmount) },
-        { title: "Pending Amount", value: money(pendingAmount) },
-        { title: "Refunded Amount", value: money(refundedAmount) },
-        { title: "Total Requests", value: String(refunds.length) },
-      ].map((item) => (
-        <div key={item.title} style={cardStyle}>
-          <p style={{ color: "#64748b", marginTop: 0 }}>{item.title}</p>
-          <h2 style={{ marginBottom: 0, fontSize: "24px" }}>{item.value}</h2>
-        </div>
-      ))}
-    </section>
-
-    <section style={{ ...cardStyle, overflowX: "auto" }}>
-      <div
-        style={{
-          display: "flex",
-          gap: "12px",
-          flexWrap: "wrap",
-          marginBottom: "20px",
-        }}
-      >
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search customer, order or reference..."
-          aria-label="Search refunds"
-          style={{
-            flex: "1 1 280px",
-            padding: "12px",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-          }}
-        />
-
-        <select
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          aria-label="Filter refund status"
-          style={{
-            padding: "12px",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-            background: "#fff",
-          }}
-        >
-          <option value="All">All statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
-          <option value="Refunded">Refunded</option>
-        </select>
-      </div>
-
-      <table
-        style={{
-          width: "100%",
-          minWidth: "1000px",
-          borderCollapse: "collapse",
-          textAlign: "left",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "#eef2f7" }}>
-            {[
-              "Date",
-              "Refund Ref",
-              "Customer",
-              "Order",
-              "Reason",
-              "Amount",
-              "Status",
-              "Update Status",
-            ].map((heading) => (
-              <th
-                key={heading}
-                style={{
-                  padding: "13px 10px",
-                  borderBottom: "1px solid #dbe2ea",
-                }}
-              >
-                {heading}
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredRefunds.map((refund) => (
-            <tr key={refund.id}>
-              {[
-                refund.date,
-                refund.reference,
-                refund.customer,
-                refund.orderReference,
-                refund.reason,
-                money(refund.amount),
-              ].map((value, index) => (
-                <td
-                  key={index}
-                  style={{
-                    padding: "13px 10px",
-                    borderBottom: "1px solid #e5e7eb",
-                  }}
-                >
-                  {value}
-                </td>
-              ))}
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #e5e7eb" }}>
-                <span
-                  style={{
-                    background:
-                      refund.status === "Refunded"
-                        ? "#dcfce7"
-                        : refund.status === "Rejected"
-                        ? "#fee2e2"
-                        : refund.status === "Approved"
-                        ? "#dbeafe"
-                        : "#ffedd5",
-                    color:
-                      refund.status === "Refunded"
-                        ? "#166534"
-                        : refund.status === "Rejected"
-                        ? "#991b1b"
-                        : refund.status === "Approved"
-                        ? "#1d4ed8"
-                        : "#9a3412",
-                    padding: "6px 9px",
-                    borderRadius: "20px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                  }}
-                >
-                  {refund.status}
-                </span>
-              </td>
-
-              <td style={{ padding: "10px", borderBottom: "1px solid #e5e7eb" }}>
-                <select
-                  value={refund.status}
-                  onChange={(event) =>
-                    updateStatus(
-                      refund.id,
-                      event.target.value as Refund["status"]
-                    )
-                  }
-                  aria-label={`Update ${refund.reference} status`}
-                  style={{
-                    padding: "8px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "7px",
-                    background: "#fff",
-                  }}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Refunded">Refunded</option>
-                </select>
-              </td>
-            </tr>
-          ))}
-
-          {filteredRefunds.length === 0 && (
-            <tr>
-              <td
-                colSpan={8}
-                style={{ padding: "28px", textAlign: "center" }}
-              >
-                Koi refund record nahi mila.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      <p style={{ color: "#64748b", fontSize: "14px" }}>
-        Showing {filteredRefunds.length} of {refunds.length} requests.
-      </p>
-    </section>
-
-    <p style={{ color: "#64748b", fontSize: "13px", marginTop: "20px" }}>
-      Note: Yeh sample data hai. Refunds ko real customers ya payment
-      transactions se connect karne ke liye database aur payment
-      integration alag se configure karni hogi.
-    </p>
-  </div>
-</main>
-
-
-);
+  </main>;
 }

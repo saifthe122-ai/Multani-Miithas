@@ -20,9 +20,11 @@ type Order = {
   phone: string;
   email: string;
   items: string;
+  itemBreakdown: string;
   quantity: number;
 subtotal: number;
 deliveryFee: number;
+packagingFee: number;
 taxAmount: number;
 amount: number;
   paymentMethod: string;
@@ -84,6 +86,20 @@ function mapOrder(row: Record<string, unknown>): Order {
     return `${name} × ${qty}`;
   });
 
+  const itemBreakdown = items.map((item) => {
+    const name = String(item.productName ?? item.product_name ?? "Product");
+    const weight = String(item.weight ?? "");
+    const quantity = Number(item.quantity ?? 0);
+    const unitPrice = Number(item.unitPrice ?? item.unit_price ?? 0);
+    const delivery = Number(item.deliveryFee ?? 0);
+    const packaging = Number(item.packagingFee ?? 0);
+    const tax = Number(item.taxAmount ?? 0);
+    const rate = Number(item.salesTaxRate ?? 0);
+    const packagingType = String(item.packagingType ?? "");
+    const taxBase = item.salesTaxBase === "all_charges" ? "product + delivery + packaging" : "product only";
+    return `${name} (${weight}kg × ${quantity}): Product Rs. ${unitPrice.toLocaleString()} each; Delivery Rs. ${delivery.toLocaleString()}; Packaging ${packagingType ? packagingType + " " : ""}Rs. ${packaging.toLocaleString()}; Tax ${rate}% on ${taxBase}: Rs. ${tax.toLocaleString()}`;
+  }).join("\n");
+
   const created = row.created_at
     ? new Date(String(row.created_at))
     : null;
@@ -101,9 +117,11 @@ function mapOrder(row: Record<string, unknown>): Order {
     items: itemNames.length
       ? itemNames.join(", ")
       : "No item details",
+    itemBreakdown,
     quantity,
      subtotal: Number(row.subtotal ?? 0),
     deliveryFee: Number(row.delivery_fee ?? 0),
+    packagingFee: Number(row.packaging_fee ?? 0),
     taxAmount: Number(row.tax_amount ?? 0),
     amount: Number(row.total ?? row.subtotal ?? 0),
     paymentMethod: method,
@@ -278,12 +296,31 @@ export default function OrdersDashboard() {
     if (paymentStatus === "COD") return;
 
     try {
+      const order = orders.find((item) => item.id === id);
+      let paymentReference = "";
+      if (
+        paymentStatus === "Paid" &&
+        order &&
+        !order.paymentMethod.toLowerCase().replace(/[^a-z0-9]/g, "").includes("cashondelivery") &&
+        order.paymentMethod.toLowerCase() !== "cod"
+      ) {
+        const enteredReference = window.prompt(
+          "Apne bank/wallet mein payment verify karne ke baad transaction/reference ID enter karein. Screenshot akela payment proof nahi."
+        );
+        if (!enteredReference?.trim()) {
+          alert("Verified transaction reference ke baghair Paid mark nahi kar sakte.");
+          return;
+        }
+        paymentReference = enteredReference.trim();
+      }
+
       const response = await fetch("/api/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNumber: id,
           paymentStatus: paymentStatus.toLowerCase(),
+          paymentReference,
         }),
       });
 
@@ -309,7 +346,7 @@ export default function OrdersDashboard() {
 
   async function deleteOrder(orderNumber: string) {
     const confirmed = window.confirm(
-      `Kya aap order ${orderNumber} ko permanently delete karna chahte hain? Yeh action undo nahi ho sakta.`
+      `Kya aap order ${orderNumber} ko archive karna chahte hain? Record history mein محفوظ rahega.`
     );
 
     if (!confirmed) return;
@@ -325,19 +362,19 @@ export default function OrdersDashboard() {
 
       if (!response.ok || data.success !== true) {
         throw new Error(
-          data.message || "Order delete nahi ho saka."
+          data.message || "Order archive nahi ho saka."
         );
       }
 
       setSelectedOrder(null);
       await loadOrders();
 
-      alert("Order delete ho gaya.");
+      alert("Order archive ho gaya. Record محفوظ hai.");
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : "Order delete nahi ho saka."
+          : "Order archive nahi ho saka."
       );
     }
   }
@@ -714,7 +751,7 @@ export default function OrdersDashboard() {
                           style={styles.deleteButton}
                           onClick={() => void deleteOrder(order.id)}
                         >
-                          Delete
+                          Archive
                         </button>
                       </div>
                     </td>
@@ -821,6 +858,7 @@ export default function OrdersDashboard() {
                 value={selectedOrder.email || "Not provided"}
               />
               <Detail label="Products" value={selectedOrder.items} />
+              <Detail label="Per-product charge breakdown" value={selectedOrder.itemBreakdown || "No item charge details"} />
               <Detail
                 label="Quantity"
                 value={String(selectedOrder.quantity)}
@@ -837,6 +875,10 @@ export default function OrdersDashboard() {
   label="Sales Tax"
   value={`Rs. ${selectedOrder.taxAmount.toLocaleString()}`}
 />
+<Detail
+   label="Packaging Fee"
+   value={`Rs. ${selectedOrder.packagingFee.toLocaleString()}`}
+ />
 <Detail
   label="Total"
   value={`Rs. ${selectedOrder.amount.toLocaleString()}`}
@@ -956,7 +998,7 @@ export default function OrdersDashboard() {
                 style={styles.deleteModalButton}
                 onClick={() => void deleteOrder(selectedOrder.id)}
               >
-                Delete This Order Permanently
+                Archive This Order
               </button>
             </div>
 

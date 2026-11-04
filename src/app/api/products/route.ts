@@ -132,6 +132,25 @@ function validateProduct(data: ProductInput) {
         return "Each weight option needs a valid weight and price";
       }
 
+      if (
+        typeof item.deliveryFee !== "undefined" &&
+        (typeof item.deliveryFee !== "number" || !Number.isFinite(item.deliveryFee) || item.deliveryFee < 0)
+      ) return "Weight option delivery fee must be a valid non-negative amount";
+      if (
+        typeof item.packagingFee !== "undefined" &&
+        (typeof item.packagingFee !== "number" || !Number.isFinite(item.packagingFee) || item.packagingFee < 0)
+      ) return "Weight option packaging fee must be a valid non-negative amount";
+      if (
+        typeof item.salesTaxRate !== "undefined" &&
+        (typeof item.salesTaxRate !== "number" || !Number.isFinite(item.salesTaxRate) || item.salesTaxRate < 0 || item.salesTaxRate > 100)
+      ) return "Weight option sales tax must be between 0 and 100";
+
+      if (typeof item.packagingType !== "undefined" && (typeof item.packagingType !== "string" || item.packagingType.length > 80)) {
+        return "Packaging type must be text up to 80 characters";
+      }
+      if (typeof item.salesTaxBase !== "undefined" && !["product", "all_charges"].includes(String(item.salesTaxBase))) {
+        return "Sales tax base must be product or all_charges";
+      }
       const weight = item.weight.trim().toLowerCase();
 
       if (seenWeights.has(weight)) {
@@ -456,7 +475,8 @@ export async function DELETE(request: Request) {
     const sql = getDatabase();
 
     const rows = await sql`
-      DELETE FROM products
+      UPDATE products
+      SET is_active = false, updated_at = NOW()
       WHERE id = ${id}
       RETURNING id
     `;
@@ -470,14 +490,14 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({
       success: true,
-      deleted: true,
+      deactivated: true,
       id: String(rows[0].id),
     });
   } catch (error) {
     console.error("Products DELETE failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "Could not delete the product" },
+      { success: false, message: "Could not deactivate the product" },
       { status: 500 }
     );
   }
