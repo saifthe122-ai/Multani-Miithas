@@ -26,6 +26,7 @@ export async function GET(request: Request) {
 
   try {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`ALTER TABLE business_payment_accounts ADD COLUMN IF NOT EXISTS show_on_checkout boolean NOT NULL DEFAULT false`;
     await sql`
       CREATE TABLE IF NOT EXISTS payment_status_events (
         id bigserial PRIMARY KEY,
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
   id, account_name, account_type, provider,
   account_title, account_number, iban,
   currency, is_primary, is_active,
-  wallet_owner_type, qr_image_url, app_link,
+  wallet_owner_type, show_on_checkout, qr_image_url, app_link,
   created_at, updated_at
 FROM business_payment_accounts
 ORDER BY is_primary DESC, id ASC
@@ -266,6 +267,7 @@ if (appLink) {
         return jsonError("Currency code valid nahi hai.");
       }
 
+      const showOnCheckout = data.showOnCheckout === true;
       const makePrimary = data.isPrimary === true;
 
       if (makePrimary) {
@@ -279,13 +281,13 @@ if (appLink) {
  INSERT INTO business_payment_accounts (
   account_name, account_type, provider,
   account_title, account_number, iban,
-  currency, wallet_owner_type, qr_image_url, app_link,
+  currency, wallet_owner_type, show_on_checkout, qr_image_url, app_link,
   is_primary, is_active
 )
       VALUES (
   ${accountName}, ${accountType}, ${provider},
   ${accountTitle}, ${accountNumber}, ${iban},
-  ${currency}, ${walletOwnerType}, ${qrImageUrl}, ${appLink},
+  ${currency}, ${walletOwnerType}, ${showOnCheckout}, ${qrImageUrl}, ${appLink},
   ${makePrimary}, true
 )
         RETURNING *
@@ -410,6 +412,9 @@ if (appLink) {
   }
 }
 
+const showOnCheckoutProvided = typeof data.showOnCheckout === "boolean";
+const showOnCheckout = showOnCheckoutProvided ? data.showOnCheckout : null;
+
 const walletOwnerTypeProvided =
   data.walletOwnerType === "personal" ||
   data.walletOwnerType === "merchant";
@@ -448,6 +453,7 @@ wallet_owner_type = CASE
   WHEN ${walletOwnerTypeProvided} THEN ${walletOwnerType}
   ELSE wallet_owner_type
 END,
+show_on_checkout = COALESCE(${showOnCheckout}, show_on_checkout),
 updated_at = NOW()
   
         WHERE id = ${id}

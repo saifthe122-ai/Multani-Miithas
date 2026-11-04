@@ -22,6 +22,7 @@ export async function GET() {
 
   try {
     const sql = neon(databaseUrl);
+    await sql`ALTER TABLE business_payment_accounts ADD COLUMN IF NOT EXISTS show_on_checkout boolean NOT NULL DEFAULT false`;
 
     const [methods, accounts] = await Promise.all([
       sql`
@@ -52,11 +53,12 @@ export async function GET() {
           a.currency,
           a.is_primary,
           a.wallet_owner_type,
+          a.show_on_checkout,
           a.qr_image_url,
           a.app_link
         FROM business_payment_accounts AS a
         WHERE a.is_active = true
-          AND a.wallet_owner_type = 'merchant'
+          AND (a.wallet_owner_type = 'merchant' OR a.show_on_checkout = true)
           AND EXISTS (
             SELECT 1
             FROM payment_methods AS pm
