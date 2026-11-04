@@ -819,6 +819,37 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (hasPaymentStatus && normalizedPaymentStatus === "paid") {
+      const [currentPaymentOrder] = await sql`
+        SELECT payment_method, status
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        LIMIT 1
+      `;
+
+      if (!currentPaymentOrder) {
+        return NextResponse.json(
+          { success: false, message: "Order nahi mila." },
+          { status: 404 }
+        );
+      }
+
+      const isCodOrder = /cash on delivery|\\bcod\\b/i.test(String(currentPaymentOrder.payment_method ?? ""));
+      if (isCodOrder && String(currentPaymentOrder.status ?? "").toLowerCase() !== "completed") {
+        return NextResponse.json(
+          { success: false, message: "COD payment sirf delivery complete hone aur cash receive karne ke baad Paid mark karein." },
+          { status: 409 }
+        );
+      }
+
+      if (!isCodOrder && !paymentReference) {
+        return NextResponse.json(
+          { success: false, message: "Manual transfer ko Paid mark karne ke liye verified transaction reference required hai." },
+          { status: 400 }
+        );
+      }
+    }
+
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_restocked_at timestamptz`;
