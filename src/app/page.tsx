@@ -1735,7 +1735,7 @@ const total = cartItems.reduce((sum, item) => {
             <span className="mm-category-symbol">✦</span>
             <span className="mm-category-name">All Products</span>
             <span style={{ color: "#E3BD70" }}>View all ↗</span>
-          </a>
+          </Link>
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && (
