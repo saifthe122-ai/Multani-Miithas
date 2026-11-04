@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 
@@ -1728,9 +1729,9 @@ const total = cartItems.reduce((sum, item) => {
               <span className="mm-category-symbol">❖</span>
               <span className="mm-category-name">{category}</span>
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
-            </a>
+            </Link>
           ))}
-          <a href="/shop" className="mm-category">
+          <Link href="/shop" className="mm-category">
             <span className="mm-category-symbol">✦</span>
             <span className="mm-category-name">All Products</span>
             <span style={{ color: "#E3BD70" }}>View all ↗</span>
@@ -1995,7 +1996,7 @@ const total = cartItems.reduce((sum, item) => {
 </div>
         {regularProducts.length > 4 && selectedCategory === "All" && (
           <div style={{ textAlign: "center", marginTop: 32 }}>
-            <a href="/shop" style={goldButton}>View All Products & Categories →</a>
+            <Link href="/shop" style={goldButton}>View All Products & Categories →</Link>
           </div>
         )}
       </section>
@@ -2262,7 +2263,7 @@ const total = cartItems.reduce((sum, item) => {
 </div>
         {giftProducts.length > 3 && selectedCategory !== "Gift Boxes" && (
           <div style={{ textAlign: "center", marginTop: 28 }}>
-            <a href="/shop/gift-boxes" style={goldButton}>Explore All Gift Boxes →</a>
+            <Link href="/shop/gift-boxes" style={goldButton}>Explore All Gift Boxes →</Link>
           </div>
         )}
 </section>
