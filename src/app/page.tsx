@@ -1725,7 +1725,7 @@ const total = cartItems.reduce((sum, item) => {
         </p>
         <div className="mm-category-grid">
           {categories.map((category) => (
-            <a key={category} href={`/shop/${categorySlug(category)}`} className="mm-category">
+            <Link key={category} href={`/shop/${categorySlug(category)}`} className="mm-category">
               <span className="mm-category-symbol">❖</span>
               <span className="mm-category-name">{category}</span>
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
