@@ -41,22 +41,30 @@ export async function GET() {
       `,
 
      sql`
-  SELECT
-    id,
-    account_name,
-    account_type,
-    provider,
-    account_title,
-    account_number,
-    iban,
-    currency,
-    is_primary,
-    wallet_owner_type,
-    qr_image_url,
-    app_link
-  FROM business_payment_accounts
-  WHERE is_active = true
-  ORDER BY is_primary DESC, id ASC
+        SELECT
+          a.id,
+          a.account_name,
+          a.account_type,
+          a.provider,
+          a.account_title,
+          a.account_number,
+          a.iban,
+          a.currency,
+          a.is_primary,
+          a.wallet_owner_type,
+          a.qr_image_url,
+          a.app_link
+        FROM business_payment_accounts AS a
+        WHERE a.is_active = true
+          AND a.wallet_owner_type = 'merchant'
+          AND EXISTS (
+            SELECT 1
+            FROM payment_methods AS pm
+            WHERE pm.is_enabled = true
+              AND pm.payment_type = 'manual'
+              AND LOWER(COALESCE(pm.provider, '')) = LOWER(COALESCE(a.provider, ''))
+          )
+        ORDER BY a.is_primary DESC, a.id ASC
       `,
     ]);
 
