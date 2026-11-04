@@ -314,6 +314,74 @@ appLink: String(item.app_link ?? ""),
     }
   }
 
+  async function prepareStandardPaymentMethods() {
+    const presets = [
+      {
+        methodKey: "jazzcash",
+        name: "JazzCash",
+        provider: "JazzCash",
+        description: "Pay securely by transferring the exact order amount to the verified business JazzCash account.",
+        instructions: "Transfer the exact order amount to the Multani Mithas JazzCash account shown after placing your order. Send the transaction screenshot on WhatsApp; the team will verify the actual credit before marking payment Paid.",
+      },
+      {
+        methodKey: "easypaisa",
+        name: "Easypaisa",
+        provider: "Easypaisa",
+        description: "Pay by transferring the exact order amount to the verified business Easypaisa account.",
+        instructions: "Transfer the exact order amount to the Multani Mithas Easypaisa account shown after placing your order. Send the transaction screenshot on WhatsApp; the team will verify the actual credit before marking payment Paid.",
+      },
+      {
+        methodKey: "raast",
+        name: "Raast",
+        provider: "Raast",
+        description: "Pay by Raast using the business account details shown after placing your order.",
+        instructions: "Transfer the exact order amount using the Raast details shown after placing your order. Send the transaction screenshot on WhatsApp; the team will verify the actual credit before marking payment Paid.",
+      },
+      {
+        methodKey: "bank_transfer",
+        name: "Bank Transfer",
+        provider: "Bank",
+        description: "Pay by bank transfer to the verified business bank account.",
+        instructions: "Transfer the exact order amount to the bank account shown after placing your order. Send the transaction screenshot on WhatsApp; the team will verify the actual credit before marking payment Paid.",
+      },
+    ];
+
+    try {
+      setSaving(true);
+      setNotice("");
+      const existingKeys = new Set(methods.map((method) => method.methodKey.toLowerCase()));
+      const missing = presets.filter((preset) => !existingKeys.has(preset.methodKey));
+      if (missing.length === 0) {
+        setNotice("JazzCash, Easypaisa, Raast aur Bank Transfer methods pehle se maujood hain. Ab verified business account add karke method enable karein.");
+        return;
+      }
+
+      for (const [index, preset] of missing.entries()) {
+        const response = await fetch("/api/admin/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "create_method",
+            ...preset,
+            paymentType: "manual",
+            displayOrder: methods.length + index + 1,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.success !== true) {
+          throw new Error(result.message || result.error || preset.name + " method create nahi hua.");
+        }
+      }
+
+      await loadPaymentSettings();
+      setNotice("JazzCash, Easypaisa, Raast aur Bank Transfer ke manual checkout options tayyar hain. Ye abhi Disabled hain; verified business account add karne ke baad hi enable karein.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Payment methods prepare nahi ho sake.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function uploadQRImage(): Promise<string> {
     if (!qrFile) return "";
 
@@ -639,6 +707,9 @@ setNotice("Account settings database mein save ho gayi hain.");
           <p style={{ color: "#6b7280" }}>
             JazzCash, Easypaisa, Raast aur bank accounts manage karo.
             Personal wallet aur Merchant account ki details alag save hongi.
+          </p>
+          <p style={{ color: "#92400e", fontSize: 13, background: "#fffbeb", padding: 12, borderRadius: 8 }}>
+            Customer checkout par account dikhane ke liye JazzCash/Easypaisa ke liye Merchant / Business ownership select karo. Personal/test wallets customer ko expose nahi honge. Account details, QR aur optional HTTPS app link tum khud yahan enter karoge.
           </p>
 
           <form
@@ -1057,6 +1128,20 @@ setNotice("Account settings database mein save ho gayi hain.");
           <p style={{ color: "#6b7280" }}>
             Yahan se checkout par payment methods enable ya disable karo.
           </p>
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "14px 0" }}>
+            <button
+              type="button"
+              disabled={saving || loading}
+              onClick={prepareStandardPaymentMethods}
+              style={{ ...buttonStyle, background: "#145b50", color: "#fff", opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Preparing..." : "Prepare JazzCash, Easypaisa, Raast & Bank Transfer"}
+            </button>
+            <span style={{ color: "#6b7280", fontSize: 12 }}>
+              Safe manual options only; no fake gateway or automatic payment claim.
+            </span>
+          </div>
 
           <form
             onSubmit={addPaymentMethod}
