@@ -48,12 +48,15 @@ export async function POST(request: Request) {
   try {
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!adminPassword || adminPassword.length < 16) {
-      console.error("ADMIN_PASSWORD must be configured with at least 16 characters");
+    if (!adminPassword) {
+      console.error("ADMIN_PASSWORD is not configured");
       return NextResponse.json(
-        { success: false, message: "Admin login is not securely configured" },
+        { success: false, message: "Admin login is not configured" },
         { status: 500 }
       );
+    }
+    if (adminPassword.length < 16) {
+      console.warn("ADMIN_PASSWORD should be at least 16 characters; rotate it before public launch.");
     }
 
     const body: unknown = await request.json();
