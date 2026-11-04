@@ -28,6 +28,7 @@ Set these as server-side environment variables on the eventual host:
 | `ADMIN_SESSION_SECRET` | Random HMAC key, minimum 32 characters |
 | `BLOB_READ_WRITE_TOKEN` | Current Vercel Blob media upload/delete token |
 | `BLOB_STORE_ID` | Optional store identifier used by the current media replacement validation |
+| `MEDIA_STORAGE_DRIVER` | Set to `local` on a self-hosted Node.js host with persistent writable disk; defaults to `vercel_blob` |
 
 See `.env.example` for placeholders. Never put real values in GitHub, source code, screenshots, or customer-facing JavaScript. Never use a `NEXT_PUBLIC_` prefix for secrets.
 
@@ -54,7 +55,7 @@ A basic shared hosting plan that only serves PHP/static files is not sufficient 
 
 ## Media storage portability — known work still required
 
-The current admin media uploader imports `@vercel/blob` and uses Vercel Blob for uploads, listing, replacement, and deletion. Existing public image URLs may continue loading after the website moves, but new uploads/deletes will still depend on the Vercel Blob token until a storage adapter is implemented.
+The admin media uploader now supports two modes. The default `vercel_blob` mode keeps the current Vercel Blob behavior. On a self-hosted Node.js host with persistent writable disk, set `MEDIA_STORAGE_DRIVER=local`; new uploads, listing, and deletion then use `public/uploads/multani-mithas`. Existing Vercel Blob image URLs continue to load and are not bulk rewritten. Local media storage is not suitable for ephemeral/serverless filesystems; confirm persistent disk and backup the uploads directory on the selected Hostinger plan.
 
 Before moving the admin uploader to Hostinger, replace this provider-specific route with a configurable storage adapter (for example, Hostinger object storage if included in the chosen plan, or another compatible S3-style provider). Preserve existing image URLs and do not bulk rewrite product records without a tested migration.
 
