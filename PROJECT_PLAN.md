@@ -432,3 +432,28 @@ Keep the project organized and scalable.
 Every major feature should be developed and tested before moving to the next feature.
 
 The final system should be suitable for a real sweets business, not only a demonstration website.
+
+
+## 21. CONFIRMED BUSINESS SCOPE — PRODUCT E-COMMERCE ONLY
+
+Multani Mithas sells physical sweets, bakery products, gift boxes and related packaged products. It is not a general service-booking marketplace. Build and prioritize features that support product discovery, purchase, fulfilment, repeat sales and customer trust.
+
+### Keep and implement
+- Product catalogue, product/weight pricing, per-item packaging and delivery charges, cart and checkout.
+- Customer profiles for saved contact details, delivery addresses and order history.
+- Coupons and promotional discounts with admin controls, validity dates, usage limits and server-side validation.
+- Referral programme for customer-to-customer recommendations, with clear eligibility and abuse prevention.
+- Product reviews and ratings, preferably tied to completed orders and moderated by admin.
+- Order management, cancellation/refund handling, inventory, dispatch and delivery status/tracking appropriate to a product business.
+- Admin sales, inventory, customer, coupon, referral, review, payment and delivery reporting.
+
+### Exclude from launch scope
+- A separate general customer feedback module. Product reviews are sufficient.
+- Generic service bookings, appointment scheduling, or service-provider workflows.
+- Generic service complaints/ticketing unrelated to an order. Order-specific support, cancellation and refund requests remain necessary.
+
+### Delivery meaning
+Delivery is retained because physical products must reach customers. It should cover delivery charges/zones, dispatch, assignment/status and proof of delivery where appropriate; do not build unrelated service-provider functionality.
+
+### Scope rule
+Do not add features merely because they appear in a generic ecommerce template. Keep the customer journey focused: browse products → select pack/weight → see full itemised price → order and pay → receive delivery → review product → optionally use coupon/referral.
