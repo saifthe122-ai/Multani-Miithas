@@ -1,266 +1,85 @@
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#F8F4EA",
-    color: "#263B36",
-    padding: "42px 18px 64px",
-    fontFamily: "Georgia, serif",
-  } as const,
-  container: {
-    maxWidth: "760px",
-    margin: "0 auto",
-  } as const,
-  back: {
-    display: "inline-block",
-    color: "#80602F",
-    textDecoration: "none",
-    fontSize: "14px",
-    marginBottom: "28px",
-  } as const,
-  eyebrow: {
-    color: "#9A7338",
-    fontSize: "12px",
-    letterSpacing: "2px",
-    textTransform: "uppercase" as const,
-  },
-  heading: {
-    color: "#233D39",
-    fontSize: "clamp(32px, 6vw, 46px)",
-    lineHeight: 1.15,
-    fontWeight: 500,
-    margin: "12px 0",
-  } as const,
-  intro: {
-    color: "#59645D",
-    fontSize: "16px",
-    lineHeight: 1.8,
-    marginBottom: "30px",
-  } as const,
-  card: {
-    background: "#FFFDF8",
-    border: "1px solid #DED5C2",
-    borderRadius: "12px",
-    padding: "clamp(20px, 5vw, 34px)",
-  } as const,
-  label: {
-    display: "block",
-    color: "#34443D",
-    fontSize: "14px",
-    marginBottom: "8px",
-  } as const,
-  input: {
-    width: "100%",
-    boxSizing: "border-box" as const,
-    border: "1px solid #D8CEBA",
-    borderRadius: "7px",
-    padding: "13px 14px",
-    background: "#FFFFFF",
-    color: "#263B36",
-    fontSize: "15px",
-    marginBottom: "20px",
-    outlineColor: "#A47D3D",
-  } as const,
-  button: {
-    width: "100%",
-    border: 0,
-    borderRadius: "7px",
-    padding: "15px 20px",
-    background: "#233D39",
-    color: "#F8F4EA",
-    fontSize: "15px",
-    cursor: "pointer",
-    fontFamily: "Georgia, serif",
-  } as const,
+type Product = { id: string | number; name: string };
+const styles: Record<string, React.CSSProperties> = {
+  page: { minHeight: "100vh", background: "#F8F4EA", color: "#263B36", padding: "42px 18px 64px", fontFamily: "Georgia,serif" },
+  container: { maxWidth: 760, margin: "0 auto" },
+  label: { display: "block", color: "#34443D", fontSize: 14, marginBottom: 8 },
+  input: { width: "100%", boxSizing: "border-box", border: "1px solid #D8CEBA", borderRadius: 7, padding: "13px 14px", background: "#fff", color: "#263B36", fontSize: 15, marginBottom: 18 },
 };
 
 export default function ReviewsPage() {
-  const [name, setName] = useState("");
-  const [rating, setRating] = useState("5");
-  const [orderNumber, setOrderNumber] = useState("");
-  const [review, setReview] = useState("");
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [products,setProducts] = useState<Product[]>([]);
+  const [productId,setProductId] = useState("");
+  const [name,setName] = useState("");
+  const [phone,setPhone] = useState("");
+  const [orderNumber,setOrderNumber] = useState("");
+  const [rating,setRating] = useState("5");
+  const [review,setReview] = useState("");
+  const [message,setMessage] = useState("Loading products…");
+  const [submitting,setSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          rating: Number(rating),
-          orderNumber: orderNumber.trim(),
-          review: review.trim(),
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || data.message || "Review submit nahi ho saka."
-        );
+  useEffect(() => {
+    let active = true;
+    fetch("/api/products",{cache:"no-store"}).then(async response => {
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || "Products load nahi huay");
+      if (active) {
+        const list = (data.products || []) as Product[];
+        setProducts(list);
+        setProductId(list[0] ? String(list[0].id) : "");
+        setMessage(list.length ? "" : "Filhal review ke liye koi product available nahi.");
       }
+    }).catch(error => { if(active) setMessage(error instanceof Error ? error.message : "Products load nahi huay"); });
+    return () => { active = false; };
+  },[]);
 
-      setMessage(
-        "Shukriya! Aap ka review submit ho gaya hai. Review publish hone se pehle check kiya ja sakta hai."
-      );
-      setName("");
-      setRating("5");
-      setOrderNumber("");
-      setReview("");
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Review submit nahi ho saka. Dobara koshish karein."
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSubmitting(true); setMessage("");
+    try {
+      const response = await fetch("/api/reviews",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({productId,customerName:name,phone,orderNumber,rating:Number(rating),reviewText:review})
+      });
+      const data = await response.json();
+      if(!response.ok || !data.success) throw new Error(data.message || "Review submit nahi ho saka");
+      setMessage("Shukriya! Aap ka review save ho gaya hai. Admin approval ke baad website par nazar aaye ga.");
+      setName("");setPhone("");setOrderNumber("");setRating("5");setReview("");
+    } catch(error) { setMessage(error instanceof Error ? error.message : "Review submit nahi ho saka"); }
+    finally { setSubmitting(false); }
   }
 
-  return (
-    <main style={styles.page}>
-      <div style={styles.container}>
-        <Link href="/" style={styles.back}>
-          ← Back to Multani Mithas
-        </Link>
-
-        <p style={styles.eyebrow}>Your Experience Matters</p>
-        <h1 style={styles.heading}>Share Your Experience</h1>
-
-        <p style={styles.intro}>
-          Multani Mithas se mithai, Sohan Halwa ya bakery products
-          order kiye? Apna experience share karein. Aap ki feedback
-          humein behtar service dene mein madad karti hai.
-        </p>
-
-        <section style={styles.card}>
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="review-name" style={styles.label}>
-              Your Name *
-            </label>
-            <input
-              id="review-name"
-              name="name"
-              type="text"
-              autoComplete="name"
-              maxLength={80}
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Enter your name"
-              style={styles.input}
-            />
-
-            <label htmlFor="review-rating" style={styles.label}>
-              Your Rating *
-            </label>
-            <select
-              id="review-rating"
-              name="rating"
-              required
-              value={rating}
-              onChange={(event) => setRating(event.target.value)}
-              style={styles.input}
-            >
-              <option value="5">★★★★★ — Excellent</option>
-              <option value="4">★★★★☆ — Very Good</option>
-              <option value="3">★★★☆☆ — Good</option>
-              <option value="2">★★☆☆☆ — Fair</option>
-              <option value="1">★☆☆☆☆ — Poor</option>
-            </select>
-
-            <label htmlFor="review-order" style={styles.label}>
-              Order Number (Optional)
-            </label>
-            <input
-              id="review-order"
-              name="orderNumber"
-              type="text"
-              maxLength={50}
-              value={orderNumber}
-              onChange={(event) => setOrderNumber(event.target.value)}
-              placeholder="Example: MM-1001"
-              style={styles.input}
-            />
-
-            <label htmlFor="review-message" style={styles.label}>
-              Your Review *
-            </label>
-            <textarea
-              id="review-message"
-              name="review"
-              required
-              minLength={10}
-              maxLength={1000}
-              rows={6}
-              value={review}
-              onChange={(event) => setReview(event.target.value)}
-              placeholder="Share your experience with our products and service..."
-              style={{
-                ...styles.input,
-                resize: "vertical",
-                lineHeight: 1.7,
-              }}
-            />
-
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                ...styles.button,
-                opacity: submitting ? 0.65 : 1,
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-            >
-              {submitting ? "Submitting..." : "Submit Your Review"}
-            </button>
-
-            {message && (
-              <p
-                role="status"
-                aria-live="polite"
-                style={{
-                  margin: "18px 0 0",
-                  color: "#52634F",
-                  fontSize: "14px",
-                  lineHeight: 1.7,
-                }}
-              >
-                {message}
-              </p>
-            )}
-          </form>
-        </section>
-
-        <p
-          style={{
-            color: "#73776E",
-            fontSize: "13px",
-            lineHeight: 1.7,
-            marginTop: "20px",
-          }}
-        >
-          Please share honest feedback. Reviews may be checked before
-          they are displayed publicly. Do not include payment passwords,
-          PINs or OTPs in your review.
-        </p>
-      </div>
-    </main>
-  );
+  return <main style={styles.page}><div style={styles.container}>
+    <Link href="/" style={{display:"inline-block",color:"#80602F",textDecoration:"none",marginBottom:28}}>← Back to Multani Mithas</Link>
+    <p style={{color:"#9A7338",fontSize:12,letterSpacing:2,textTransform:"uppercase"}}>Your Experience Matters</p>
+    <h1 style={{color:"#233D39",fontSize:"clamp(32px,6vw,46px)",fontWeight:500,margin:"12px 0"}}>Review a Product</h1>
+    <p style={{color:"#59645D",fontSize:16,lineHeight:1.8,marginBottom:30}}>Review submit karne ke liye apna delivered order number aur wahi phone number dein jo order mein use kiya tha. Sirf order mein shamil product ka review accept hoga.</p>
+    <section style={{background:"#FFFDF8",border:"1px solid #DED5C2",borderRadius:12,padding:"clamp(20px,5vw,34px)"}}>
+      <form onSubmit={submit}>
+        <label style={styles.label} htmlFor="review-product">Product *</label>
+        <select id="review-product" required value={productId} onChange={e=>setProductId(e.target.value)} style={styles.input}>
+          {products.map(product=><option key={product.id} value={String(product.id)}>{product.name}</option>)}
+        </select>
+        <label style={styles.label} htmlFor="review-name">Your name *</label>
+        <input id="review-name" required maxLength={120} value={name} onChange={e=>setName(e.target.value)} style={styles.input} autoComplete="name"/>
+        <label style={styles.label} htmlFor="review-phone">Order phone number *</label>
+        <input id="review-phone" required maxLength={40} value={phone} onChange={e=>setPhone(e.target.value)} style={styles.input} autoComplete="tel" placeholder="Same phone number used for the order"/>
+        <label style={styles.label} htmlFor="review-order">Delivered order number *</label>
+        <input id="review-order" required maxLength={40} value={orderNumber} onChange={e=>setOrderNumber(e.target.value)} style={styles.input} placeholder="MM-XXXXXXXXXXXX"/>
+        <label style={styles.label} htmlFor="review-rating">Rating *</label>
+        <select id="review-rating" value={rating} onChange={e=>setRating(e.target.value)} style={styles.input}>
+          <option value="5">★★★★★ — Excellent</option><option value="4">★★★★☆ — Very Good</option><option value="3">★★★☆☆ — Good</option><option value="2">★★☆☆☆ — Fair</option><option value="1">★☆☆☆☆ — Poor</option>
+        </select>
+        <label style={styles.label} htmlFor="review-text">Your review</label>
+        <textarea id="review-text" rows={5} maxLength={2000} value={review} onChange={e=>setReview(e.target.value)} style={{...styles.input,resize:"vertical",lineHeight:1.7}} placeholder="Share your experience with this product"/>
+        <button type="submit" disabled={submitting || !products.length} style={{width:"100%",border:0,borderRadius:7,padding:15,background:"#233D39",color:"#F8F4EA",fontSize:15,cursor:"pointer",opacity:submitting?0.65:1}}>{submitting?"Submitting…":"Submit Review"}</button>
+      </form>
+      {message && <p role="status" aria-live="polite" style={{marginTop:18,color:"#52634F",lineHeight:1.7}}>{message}</p>}
+    </section>
+    <p style={{color:"#73776E",fontSize:13,lineHeight:1.7,marginTop:20}}>Reviews are checked by the team before public display. Do not share payment PINs, passwords or OTPs.</p>
+  </div></main>;
 }
