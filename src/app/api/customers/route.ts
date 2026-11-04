@@ -56,6 +56,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // This endpoint has no customer authentication/session layer. Keep profile writes
+  // admin-only until a verified customer sign-in flow exists; checkout syncs order data.
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json(
+      { success: false, message: "Admin login required" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body: unknown = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
