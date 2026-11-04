@@ -63,8 +63,8 @@ type Product = {
     weight: number | string;
     price: number | string;
     deliveryFee?: number | string;
-    packagingFee?: number | string;
-    salesTaxRate?: number | string;
+    packagingFee?: number | string | null;
+    salesTaxRate?: number | string | null;
     packagingType?: string;
     salesTaxBase?: string;
   }>;
