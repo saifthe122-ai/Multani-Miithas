@@ -46,6 +46,8 @@ export async function GET(request: Request) {
         o.payment_method,
         o.payment_status,
         o.payment_reference,
+        o.payment_account_id,
+        o.payment_account_snapshot,
         o.subtotal,
         o.delivery_fee,
         o.tax_amount,
@@ -164,6 +166,7 @@ export async function POST(request: Request) {
     }
 
     const isCashOnDelivery = /cash on delivery|\\bcod\\b/i.test(paymentMethod);
+    let selectedPaymentAccount: Record<string, unknown> | null = null;
     if (!isCashOnDelivery) {
       const provider = String(selectedPaymentMethod?.provider ?? "").trim();
       if (!provider) {
@@ -174,18 +177,44 @@ export async function POST(request: Request) {
       }
 
       const configuredAccounts = await sql`
-        SELECT id
+        SELECT
+          id, account_name, account_type, provider,
+          account_title, account_number, iban, currency,
+          is_primary, wallet_owner_type, qr_image_url, app_link
         FROM business_payment_accounts
         WHERE is_active = true
           AND wallet_owner_type = 'merchant'
           AND LOWER(COALESCE(provider, '')) = LOWER(${provider})
-        LIMIT 1
+        ORDER BY is_primary DESC, id ASC
       `;
 
       if (!configuredAccounts.length) {
         return NextResponse.json(
           { success: false, message: "Is payment method ka verified business account abhi available nahi hai. Cash on Delivery select karein." },
           { status: 409 }
+        );
+      }
+
+      const requestedAccountId = data.paymentAccountId == null
+        ? ""
+        : String(data.paymentAccountId).trim();
+      if (requestedAccountId && !/^\\d+$/.test(requestedAccountId)) {
+        return NextResponse.json(
+          { success: false, message: "Selected payment account valid nahi." },
+          { status: 400 }
+        );
+      }
+
+      selectedPaymentAccount = requestedAccountId
+        ? configuredAccounts.find((account) => String(account.id) === requestedAccountId) ?? null
+        : configuredAccounts.length === 1
+          ? configuredAccounts[0]
+          : null;
+
+      if (!selectedPaymentAccount) {
+        return NextResponse.json(
+          { success: false, message: "Payment ke liye available business account select karein." },
+          { status: 400 }
         );
       }
     }
@@ -270,6 +299,8 @@ export async function POST(request: Request) {
       .toUpperCase()}`;
 
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_account_id bigint`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_account_snapshot jsonb`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS address text`;
     await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW()`;
@@ -500,6 +531,8 @@ export async function POST(request: Request) {
           status,
           payment_method,
           payment_status,
+          payment_account_id,
+          payment_account_snapshot,
           subtotal,
           delivery_fee,
           tax_amount,
@@ -517,6 +550,19 @@ export async function POST(request: Request) {
           'pending',
           ${paymentMethod},
           'pending',
+          ${selectedPaymentAccount ? Number(selectedPaymentAccount.id) : null},
+          ${selectedPaymentAccount ? JSON.stringify({
+            id: selectedPaymentAccount.id,
+            accountName: selectedPaymentAccount.account_name,
+            accountType: selectedPaymentAccount.account_type,
+            provider: selectedPaymentAccount.provider,
+            accountTitle: selectedPaymentAccount.account_title,
+            accountNumber: selectedPaymentAccount.account_number,
+            iban: selectedPaymentAccount.iban,
+            currency: selectedPaymentAccount.currency,
+            qrImageUrl: selectedPaymentAccount.qr_image_url,
+            appLink: selectedPaymentAccount.app_link,
+          }) : null}::jsonb,
           t.subtotal,
           t.final_delivery_fee,
           t.tax_amount,
