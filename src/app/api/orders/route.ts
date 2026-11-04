@@ -294,6 +294,17 @@ export async function POST(request: Request) {
         ) AS entry(item)
       ),
 
+      checkout_rules AS MATERIALIZED (
+        SELECT
+          delivery_fee,
+          free_delivery_minimum,
+          packaging_fee,
+          sales_tax_enabled,
+          sales_tax_rate
+        FROM checkout_settings
+        WHERE id = 1
+      ),
+
       product_prices AS MATERIALIZED (
         SELECT
           p.id AS product_id,
@@ -307,13 +318,18 @@ export async function POST(request: Request) {
           r.quantity,
           COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
-          COALESCE(NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
+          COALESCE(
+            NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric,
+            CASE WHEN checkout_rules.sales_tax_enabled THEN checkout_rules.sales_tax_rate ELSE 0 END,
+            0
+          ) AS unit_sales_tax_rate,
           COALESCE(NULLIF(selected_weight_option.option->>'salesTaxBase', ''), 'product') AS unit_sales_tax_base,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingType', ''), '') AS unit_packaging_type,
 
           selected_weight_option.option AS selected_weight_option
 
         FROM requested_items r
+        CROSS JOIN checkout_rules
         INNER JOIN products p
           ON p.id = r.product_id
         LEFT JOIN LATERAL (
@@ -384,8 +400,16 @@ export async function POST(request: Request) {
       ),
 
       calculated AS (
-        SELECT *, delivery_fee AS final_delivery_fee
+        SELECT
+          totals.*,
+          CASE
+            WHEN checkout_rules.free_delivery_minimum > 0
+              AND totals.subtotal >= checkout_rules.free_delivery_minimum
+            THEN 0
+            ELSE totals.delivery_fee
+          END AS final_delivery_fee
         FROM totals
+        CROSS JOIN checkout_rules
       ),
 
       matching_customer AS MATERIALIZED (
