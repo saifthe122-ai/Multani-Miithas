@@ -396,7 +396,7 @@ export async function POST(request: Request) {
           r.weight,
           r.quantity,
           COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
-          COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
+          COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, checkout_rules.packaging_fee, 0) AS unit_packaging_fee,
           COALESCE(
             NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric,
             CASE WHEN checkout_rules.sales_tax_enabled THEN checkout_rules.sales_tax_rate ELSE 0 END,
@@ -488,10 +488,7 @@ export async function POST(request: Request) {
             WHEN totals.delivery_fee > 0 THEN totals.delivery_fee
             ELSE checkout_rules.delivery_fee
           END AS final_delivery_fee,
-          CASE
-            WHEN totals.packaging_fee > 0 THEN totals.packaging_fee
-            ELSE checkout_rules.packaging_fee
-          END AS final_packaging_fee
+          totals.packaging_fee AS final_packaging_fee
         FROM totals
         CROSS JOIN checkout_rules
       ),

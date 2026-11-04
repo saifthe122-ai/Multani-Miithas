@@ -63,8 +63,8 @@ type Product = {
     weight: number | string;
     price: number | string;
     deliveryFee?: number | string;
-    packagingFee?: number | string;
-    salesTaxRate?: number | string;
+    packagingFee?: number | string | null;
+    salesTaxRate?: number | string | null;
     packagingType?: string;
     salesTaxBase?: string;
   }>;
@@ -829,7 +829,7 @@ app_link: String(item.app_link ?? ""),
     const option = getWeightOption(product, weight);
     const unitPrice = priceOverride ?? getProductPrice(product, weight) ?? 0;
     const deliveryFee = Math.max(0, Number(option?.deliveryFee ?? 0) || 0);
-    const packagingFee = Math.max(0, Number(option?.packagingFee ?? 0) || 0);
+    const packagingFee = Math.max(0, Number(option?.packagingFee ?? checkoutSettings.packagingFee) || 0);
     const configuredTaxRate = option?.salesTaxRate ?? (
       checkoutSettings.salesTaxEnabled ? checkoutSettings.salesTaxRate : 0
     );
@@ -1102,7 +1102,7 @@ const total = cartItems.reduce((sum, item) => {
   const deliveryFee = checkoutSettings.freeDeliveryMinimum > 0 && total >= checkoutSettings.freeDeliveryMinimum
     ? 0
     : deliveryBeforeDiscount;
-  const packagingFee = productPackagingFee > 0 ? productPackagingFee : checkoutSettings.packagingFee;
+  const packagingFee = productPackagingFee;
   const taxAmount = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return sum + (product ? getCartUnitCharges(product, item.weight).taxAmount * item.quantity : 0);
