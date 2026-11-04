@@ -360,10 +360,10 @@ export default function CheckoutSettingsPage() {
                 PACKAGING MANAGEMENT
               </div>
               <h2 style={{ color: colors.green, fontSize: "20px", fontWeight: 800, margin: "7px 0" }}>Packaging Cost</h2>
-              <p style={{ color: colors.muted, fontSize: "13px", margin: 0 }}>A fixed packaging charge applied once per order.</p>
+              <p style={{ color: colors.muted, fontSize: "13px", margin: 0 }}>Default packaging charge per product unit when a product weight option has no separate packaging fee.</p>
             </div>
             <div style={{ maxWidth: "420px" }}>
-              <label htmlFor="packagingFee" style={labelStyle}>Packaging Fee (PKR)</label>
+              <label htmlFor="packagingFee" style={labelStyle}>Default Packaging Fee Per Item (PKR)</label>
               <input id="packagingFee" type="number" min="0" max="1000000" step="0.01" value={settings.packagingFee} onChange={(event) => updateSetting("packagingFee", Number(event.target.value))} style={inputStyle} required />
               <p style={{ color: colors.muted, fontSize: "11px" }}>0 rakhne par packaging charge apply nahi hoga.</p>
             </div>
