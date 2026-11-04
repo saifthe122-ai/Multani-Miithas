@@ -27,6 +27,7 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     let active = true;
+    fetch("/api/reviews",{cache:"no-store"}).then(async response => { const data = await response.json(); if (response.ok && data.success && active) setPublishedReviews(data.reviews || []); }).catch(() => undefined);
     fetch("/api/products",{cache:"no-store"}).then(async response => {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || "Products load nahi huay");
