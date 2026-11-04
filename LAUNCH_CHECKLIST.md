@@ -56,7 +56,10 @@ This checklist is for the final pre-production review. Do not merge or promote t
 ## Known items that still need a separate implementation or provider setup
 
 - The generic `/api/payments` endpoint remains testing-only. No live card/payment gateway is connected. Manual bank/wallet transfer and COD are separate from automatic gateway processing.
-- Coupon, referral, customer-profile and standalone feedback modules are out of scope and removed from this branch. Reviews and delivery still require live end-to-end validation; delivery provider/location features must not be described as live until configured and tested.
+- Coupon, referral, customer-profile and standalone feedback modules are out of scope and removed from this branch.
+- Product reviews now have database persistence, delivered-order/product/phone verification, one review per product per order, and admin approve/reject moderation. Public listing shows approved reviews only. Verify this against the production database before launch.
+- Delivery now persists order assignments, provider, rider contact, tracking reference, notes and parcel status in the database, and synchronizes delivery progress to the order status. It does not provide live GPS tracking or a third-party courier API integration; those require a selected provider/staff tracking app.
+- Admin Delivery is an in-house/manual dispatch register. Verify real order assignment and status transitions against the production database before launch.
 - Payment verification history records status changes and references; it is not a provider settlement/reconciliation feed.
 - Login rate limiting and session revocation need a dedicated production security review.
 - Actual production database behavior and real payment account verification must be tested before launch. No live database or payment credentials are included in this repository checklist.
@@ -68,3 +71,11 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - No separate customer feedback module; retain product reviews and ratings.
 - Delivery remains in scope because physical products must be dispatched to customers.
 - No generic service bookings or complaint-ticketing system; order-specific cancellation/refund/support remains in scope.
+
+
+## Additional review and delivery end-to-end checks
+17. Submit a review for a delivered order using its exact order number, order phone and a product included in that order; verify it is saved as pending.
+18. Attempt a review for a non-delivered order, wrong phone, or product not in the order; verify it is rejected.
+19. Approve a review in Admin → Reviews; verify it appears on the public Reviews page. Reject it and verify it is no longer public.
+20. In Admin → Delivery, assign a provider/rider and update a real order through assigned → dispatched → in transit → delivered; verify values persist after refresh and order status synchronizes.
+21. Verify archived orders cannot be assigned for delivery and no delivery status is incorrectly represented as live GPS tracking.
