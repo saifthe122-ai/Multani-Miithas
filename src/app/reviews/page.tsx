@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 
 type Product = { id: string | number; name: string };
+type PublishedReview = { id: number; product_name: string; customer_name: string; rating: number; review_text: string; admin_reply: string | null; created_at: string };
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: "100vh", background: "#F8F4EA", color: "#263B36", padding: "42px 18px 64px", fontFamily: "Georgia,serif" },
   container: { maxWidth: 760, margin: "0 auto" },
@@ -14,6 +15,7 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function ReviewsPage() {
   const [products,setProducts] = useState<Product[]>([]);
+  const [publishedReviews,setPublishedReviews] = useState<PublishedReview[]>([]);
   const [productId,setProductId] = useState("");
   const [name,setName] = useState("");
   const [phone,setPhone] = useState("");
@@ -80,6 +82,6 @@ export default function ReviewsPage() {
       </form>
       {message && <p role="status" aria-live="polite" style={{marginTop:18,color:"#52634F",lineHeight:1.7}}>{message}</p>}
     </section>
-    <p style={{color:"#73776E",fontSize:13,lineHeight:1.7,marginTop:20}}>Reviews are checked by the team before public display. Do not share payment PINs, passwords or OTPs.</p>
+    <section style={{marginTop:32}}><h2 style={{color:"#233D39",fontSize:28,fontWeight:500}}>Customer Reviews</h2>{publishedReviews.length ? publishedReviews.map(item => <article key={item.id} style={{background:"#FFFDF8",border:"1px solid #DED5C2",borderRadius:10,padding:18,marginTop:12}}><strong>{item.product_name}</strong><div style={{color:"#9A7338",margin:"8px 0"}}>{"★".repeat(item.rating)}{"☆".repeat(5-item.rating)}</div><p style={{lineHeight:1.7}}>{item.review_text || "Rated this product."}</p><small style={{color:"#64748b"}}>By {item.customer_name}</small>{item.admin_reply && <p style={{borderTop:"1px solid #e5dccb",paddingTop:10}}><strong>Multani Mithas:</strong> {item.admin_reply}</p>}</article>) : <p style={{color:"#64748b"}}>Abhi approved reviews maujood nahi hain. Aap apna verified order review kar sakte hain.</p>}</section>\n    <p style={{color:"#73776E",fontSize:13,lineHeight:1.7,marginTop:20}}>Reviews are checked by the team before public display. Do not share payment PINs, passwords or OTPs.</p>
   </div></main>;
 }
