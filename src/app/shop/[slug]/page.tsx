@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -40,14 +41,14 @@ export default function CategoryPage() {
   return (
     <main style={{ minHeight: "100vh", background: "#FFF8EA", color: "#123F42", fontFamily: "Georgia, serif" }}>
       <header style={{ padding: "20px 6%", background: "#092F32", color: "#F6E9D0", display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <a href="/" style={{ color: "#E4BD69", textDecoration: "none", letterSpacing: 2 }}>✧ MULTANI MITHAS ✧</a>
-        <nav style={{ display: "flex", gap: 18 }}><a href="/" style={{ color: "#F6E9D0" }}>Home</a><a href="/shop" style={{ color: "#F6E9D0" }}>All Categories</a></nav>
+        <Link href="/" style={{ color: "#E4BD69", textDecoration: "none", letterSpacing: 2 }}>✧ MULTANI MITHAS ✧</Link>
+        <nav style={{ display: "flex", gap: 18 }}><Link href="/" style={{ color: "#F6E9D0" }}>Home</Link><Link href="/shop" style={{ color: "#F6E9D0" }}>All Categories</Link></nav>
       </header>
       <section style={{ padding: "52px 6% 24px", textAlign: "center" }}>
         <p style={{ color: "#A16B16", letterSpacing: 3, fontSize: 12 }}>MULTANI MITHAS COLLECTION</p>
         <h1 style={{ fontWeight: 400, fontSize: "clamp(32px,5vw,52px)", margin: "8px 0" }}>{categoryName}</h1>
         <p style={{ color: "#6C5A43" }}>Explore our complete {categoryName.toLowerCase()} collection.</p>
-        <p><a href="/shop" style={{ color: "#8B642B" }}>← All categories</a></p>
+        <p><Link href="/shop" style={{ color: "#8B642B" }}>← All categories</Link></p>
       </section>
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : categoryProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
         <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 22 }}>
@@ -65,7 +66,7 @@ export default function CategoryPage() {
                 <strong style={{ fontSize: 19 }}>{money(finalPrice)}{product.price_type === "per_kg" ? " / kg" : ""}</strong>
                 {Number(product.discount || 0) > 0 && <span style={{ color: "#8B642B", fontSize: 12 }}>{product.discount}% discount</span>}
                 <span style={{ color: product.stock > 0 ? "#356B45" : "#9A3B32", fontSize: 13, margin: "8px 0 14px" }}>{product.stock > 0 ? "In stock" : "Out of stock"}</span>
-                <a href={`/?category=${encodeURIComponent(product.category)}#${slugify(product.category) === "gift-boxes" ? "gift-products" : "products"}`} style={{ marginTop: "auto", textAlign: "center", padding: "12px 16px", background: "#D8AC55", color: "#092F32", textDecoration: "none", fontWeight: 700, borderRadius: 4 }}>View & Order →</a>
+                <Link href={`/?category=${encodeURIComponent(product.category)}#${slugify(product.category) === "gift-boxes" ? "gift-products" : "products"}`} style={{ marginTop: "auto", textAlign: "center", padding: "12px 16px", background: "#D8AC55", color: "#092F32", textDecoration: "none", fontWeight: 700, borderRadius: 4 }}>View & Order →</Link>
               </div>
             </article>;
           })}
