@@ -2,6 +2,7 @@ import { del, list, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { homedir } from "node:os";
 import { isAdminRequest } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
@@ -9,8 +10,11 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const MEDIA_PREFIX = "multani-mithas/media/";
-const LOCAL_MEDIA_DIRECTORY = path.join(process.cwd(), "public", "uploads", "multani-mithas");
-const LOCAL_MEDIA_URL_PREFIX = "/uploads/multani-mithas/";
+const configuredMediaDirectory = process.env.MEDIA_STORAGE_DIRECTORY;
+const LOCAL_MEDIA_DIRECTORY = configuredMediaDirectory && path.isAbsolute(configuredMediaDirectory)
+  ? configuredMediaDirectory
+  : path.join(homedir(), ".multani-mithas", "uploads");
+const LOCAL_MEDIA_URL_PREFIX = "/api/media/";
 const STORAGE_DRIVER = process.env.MEDIA_STORAGE_DRIVER === "local" ? "local" : "vercel_blob";
 
 const ALLOWED_TYPES = [
@@ -25,7 +29,9 @@ const ALLOWED_TYPES = [
 function isSafeLocalMediaPath(pathname: string) {
   if (!pathname.startsWith(LOCAL_MEDIA_URL_PREFIX)) return false;
   const filename = pathname.slice(LOCAL_MEDIA_URL_PREFIX.length);
-  return Boolean(filename) && filename === path.basename(filename) && !filename.includes("..");
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,179}$/.test(filename) &&
+    filename === path.basename(filename) &&
+    !filename.includes("..");
 }
 
 function localMediaUrl(request: Request, filename: string) {
@@ -47,7 +53,7 @@ export async function GET(request: Request) {
         if (!details.isFile()) return null;
         return {
           url: localMediaUrl(request, filename),
-          pathname: `uploads/multani-mithas/${filename}`,
+          pathname: `multani-mithas/${filename}`,
           uploadedAt: details.mtime.toISOString(),
           size: details.size,
         };
@@ -103,7 +109,8 @@ export async function POST(request: Request) {
       .replace(/-+/g, "-")
       .replace(/^[-.]+|[-.]+$/g, "")
       .slice(-100);
-    const filename = `${crypto.randomUUID()}-${safeName || `upload.${extension}`}`;
+    const baseName = safeName.replace(/\.[^.]*$/, "").slice(-90) || "upload";
+    const filename = `${crypto.randomUUID()}-${baseName}.${extension}`;
 
     if (STORAGE_DRIVER === "local") {
       await mkdir(LOCAL_MEDIA_DIRECTORY, { recursive: true });
@@ -111,7 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         url: localMediaUrl(request, filename),
-        pathname: `uploads/multani-mithas/${filename}`,
+        pathname: `multani-mithas/${filename}`,
         type: file.type.startsWith("video/") ? "video" : "image",
       });
     }

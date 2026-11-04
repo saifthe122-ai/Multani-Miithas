@@ -32,7 +32,8 @@ Set these as server-side environment variables on the eventual host:
 | `ADMIN_SESSION_SECRET` | Random HMAC key, minimum 32 characters |
 | `BLOB_READ_WRITE_TOKEN` | Current Vercel Blob media upload/delete token |
 | `BLOB_STORE_ID` | Optional store identifier used by the current media replacement validation |
-| `MEDIA_STORAGE_DRIVER` | Set to `local` on a self-hosted Node.js host with persistent writable disk; defaults to `vercel_blob` |
+| `MEDIA_STORAGE_DRIVER` | Set to `local` on a self-hosted Node.js host; defaults to `vercel_blob` |
+| `MEDIA_STORAGE_DIRECTORY` | Optional absolute persistent directory for local uploads; defaults to `~/.multani-mithas/uploads` outside versioned releases |
 
 See `.env.example` for placeholders. Never put real values in GitHub, source code, screenshots, or customer-facing JavaScript. Never use a `NEXT_PUBLIC_` prefix for secrets.
 
@@ -53,17 +54,26 @@ After deploying the app and setting `DATABASE_URL`, open `https://your-domain.ex
 
 This project is a Next.js application with server-side API routes, PostgreSQL access, secure admin cookies, and file-upload endpoints. It is **not** a static HTML website.
 
-Before purchasing or connecting a Hostinger plan, confirm that the exact plan supports:
-- Node.js 20 or newer (prefer the current supported LTS version compatible with the app).
-- Running a Next.js production server / Node.js application with server-side API routes.
-- Build and start commands, persistent environment variables, HTTPS, and adequate memory.
-- Outbound TLS connections to the PostgreSQL database.
+Hostinger's current support documentation lists **Business Web Hosting** and **Cloud Startup / Cloud Professional / Cloud Enterprise / Cloud Enterprise Plus** as plans that support Node.js web applications. The project uses Next.js server-side API routes, so do not buy a plan that only supports static/PHP websites.
 
-A basic shared hosting plan that only serves PHP/static files is not sufficient for this application. A Hostinger VPS or a plan explicitly supporting Next.js/Node.js may be required. Confirm the plan's current features before buying.
+Before purchasing, confirm the exact plan supports:
+- Node.js 20, 22 or another currently supported version compatible with the app.
+- Next.js server-side rendering and API routes (not just static export).
+- Build/start commands and server-side environment variables.
+- Persistent home-directory storage for local media uploads, plus backups.
+- Outbound TLS connections to the existing PostgreSQL database.
+- Enough memory/process capacity for the expected traffic.
+
+Official Hostinger references:
+- [Node.js web app deployment and supported plans](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/)
+- [Node.js hosting options](https://www.hostinger.com/support/node-js-hosting-options-at-hostinger/)
+- [Node.js plan limits](https://www.hostinger.com/support/hostinger-node-js-limits-for-web-and-cloud-plans/)
+
+A VPS is another option but requires more server administration. Confirm current plan features and renewal pricing before buying.
 
 ## Media storage portability — known work still required
 
-The admin media uploader now supports two modes. The default `vercel_blob` mode keeps the current Vercel Blob behavior. On a self-hosted Node.js host with persistent writable disk, set `MEDIA_STORAGE_DRIVER=local`; new uploads, listing, and deletion then use `public/uploads/multani-mithas`. Existing Vercel Blob image URLs continue to load and are not bulk rewritten. Local media storage is not suitable for ephemeral/serverless filesystems; confirm persistent disk and backup the uploads directory on the selected Hostinger plan.
+The admin media uploader supports two modes. The default `vercel_blob` mode keeps the current Vercel Blob behavior. On a self-hosted Node.js host, set `MEDIA_STORAGE_DRIVER=local`; new uploads, listing and deletion use `~/.multani-mithas/uploads` by default, outside the versioned application release. The public `/api/media/...` route serves those files without exposing the filesystem path. If the host requires a different location, set `MEDIA_STORAGE_DIRECTORY` to an absolute persistent directory. Back up that directory. Existing Vercel Blob image URLs continue to load and are not bulk rewritten. Do not use local mode on an ephemeral filesystem.
 
 For the planned Hostinger move, use `MEDIA_STORAGE_DRIVER=local` only after confirming the chosen Node.js plan has persistent writable disk and that the `public/uploads/multani-mithas` directory is included in backups. If the plan uses an ephemeral filesystem, do not enable local mode; keep a supported remote object-storage provider instead. Existing Vercel Blob image URLs are not migrated or rewritten by this setting.
 

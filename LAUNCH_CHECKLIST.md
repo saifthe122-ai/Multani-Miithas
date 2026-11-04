@@ -120,3 +120,32 @@ This checklist is for a Production-first release. GitHub Actions and Vercel buil
 - [ ] Personal, inactive and unassigned accounts remain excluded from customer-facing payment options.
 - [ ] Verify account replacement/deactivation does not rewrite account details on historical orders.
 - [ ] Branch IDs and branch-level routing remain a separate phase before opening multiple physical branches; do not assign an order to an imaginary branch.
+
+
+## Free hosting and final operations readiness — 2026-11-04
+
+### Code changes completed
+- [x] Keep the project free during development; GitHub Actions runs lint and production build without requiring Vercel Pro.
+- [x] Add a Hostinger migration guide and environment-variable template.
+- [x] Configure canonical domain through `SITE_URL`; update metadata, robots and dynamic category sitemap.
+- [x] Add a read-only `/api/health` database connection check.
+- [x] Keep admin media uploads outside versioned releases when using local storage; use `MEDIA_STORAGE_DRIVER=local` and the persistent home-directory media path.
+- [x] Keep admin routes behind the signed session and rate-limit failed admin login attempts.
+- [x] Add admin logout and live database-backed dashboard metrics.
+- [x] Hide unfinished demo-only admin modules from the main navigation until they are connected to real data.
+- [x] Show correct category listing prices for per-kg and fixed-size products.
+- [x] Apply packaging charges per product unit, using weight-specific packaging fees or the global per-item default.
+- [x] Allow weight options to inherit checkout tax and packaging defaults; explicit zero remains a valid override.
+
+### Must be completed when the real hosting/domain and business details are available
+- [ ] Select a Hostinger plan that explicitly supports Node.js and Next.js server-side API routes (Business Web Hosting or Cloud; VPS is another option).
+- [ ] Set `SITE_URL` to the purchased HTTPS domain.
+- [ ] Set `DATABASE_URL`, `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` in Hostinger's server-side environment settings.
+- [ ] Set `MEDIA_STORAGE_DRIVER=local`; verify the home-directory media path survives redeployments and include it in backups.
+- [ ] Set verified WhatsApp, business phone and support email values.
+- [ ] Enter the real product catalogue, selling prices, weights, stock, images and per-weight packaging configuration. Do not use placeholder prices or stock.
+- [ ] Add the brother's verified merchant-owned JazzCash/Easypaisa/bank/Raast accounts through Admin Payments; keep personal/test wallets inactive.
+- [ ] Keep COD enabled as appropriate; enable manual transfer methods only after account details are verified.
+- [ ] Confirm backup and restore of the existing PostgreSQL database before pointing the domain at Hostinger.
+- [ ] Verify `/api/health`, admin login/logout, product editing, customer checkout, order creation, stock reservation, payment verification and delivery workflow on the actual Hostinger production domain.
+- [ ] Confirm privacy, delivery, refund and cancellation policy text and public business contact details.
