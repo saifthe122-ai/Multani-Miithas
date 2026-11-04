@@ -62,7 +62,23 @@ export async function GET() {
             FROM payment_methods AS pm
             WHERE pm.is_enabled = true
               AND pm.payment_type = 'manual'
-              AND LOWER(COALESCE(pm.provider, '')) = LOWER(COALESCE(a.provider, ''))
+              AND (
+                LOWER(COALESCE(pm.provider, '')) = LOWER(COALESCE(a.provider, ''))
+                OR (
+                  (
+                    LOWER(COALESCE(pm.method_key, '')) LIKE '%bank%'
+                    OR LOWER(COALESCE(pm.name, '')) LIKE '%bank transfer%'
+                  )
+                  AND LOWER(COALESCE(a.account_type, '')) = 'bank'
+                )
+                OR (
+                  (
+                    LOWER(COALESCE(pm.method_key, '')) LIKE '%raast%'
+                    OR LOWER(COALESCE(pm.name, '')) LIKE '%raast%'
+                  )
+                  AND LOWER(COALESCE(a.account_type, '')) = 'raast'
+                )
+              )
           )
         ORDER BY a.is_primary DESC, a.id ASC
       `,

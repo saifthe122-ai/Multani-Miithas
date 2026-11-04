@@ -109,3 +109,14 @@ This checklist is for a Production-first release. GitHub Actions and Vercel buil
 - [ ] Keep COD available only if the business can fulfil and collect cash on delivery.
 - [ ] Do not advertise JazzCash/Easypaisa automatic payment until merchant gateway approval and signed server-side provider verification are complete.
 - [ ] Confirm admin authentication, secret rotation and rate limiting before public launch.
+
+
+## Payment account selection and order history hardening — 2026-11-04
+
+- [ ] Customer selects the actual merchant-owned account before placing a manual transfer order; COD does not require an account.
+- [ ] The order stores the selected account ID and an immutable snapshot of its display/payment details at order time.
+- [ ] Admin Orders shows the payment account snapshot for new orders; older orders correctly show that no snapshot was recorded.
+- [ ] Public checkout can list multiple merchant bank accounts for a Bank Transfer method and Raast accounts for a Raast method.
+- [ ] Personal, inactive and unassigned accounts remain excluded from customer-facing payment options.
+- [ ] Verify account replacement/deactivation does not rewrite account details on historical orders.
+- [ ] Branch IDs and branch-level routing remain a separate phase before opening multiple physical branches; do not assign an order to an imaginary branch.
