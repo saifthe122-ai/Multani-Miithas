@@ -36,6 +36,10 @@ Set these as server-side environment variables on the eventual host:
 
 See `.env.example` for placeholders. Never put real values in GitHub, source code, screenshots, or customer-facing JavaScript. Never use a `NEXT_PUBLIC_` prefix for secrets.
 
+## Host connection health check
+
+After deploying the app and setting `DATABASE_URL`, open `https://your-domain.example/api/health`. A healthy response is `{ "status": "ok", "database": "connected" }`. An unavailable response returns HTTP 503 without exposing credentials or database error details. This endpoint performs only a read-only `SELECT 1` check.
+
 ## Database and customer data safety
 
 - The current app uses PostgreSQL through `DATABASE_URL`; the production database is separate from the web host.
