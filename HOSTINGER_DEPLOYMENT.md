@@ -24,6 +24,9 @@ Set these as server-side environment variables on the eventual host:
 | Variable | Purpose |
 | --- | --- |
 | `SITE_URL` | Canonical HTTPS domain used for metadata, robots and sitemap |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Public WhatsApp business number in international digits-only format |
+| `NEXT_PUBLIC_BUSINESS_PHONE` | Public customer-service phone number |
+| `NEXT_PUBLIC_BUSINESS_EMAIL` | Public customer-service email address |
 | `DATABASE_URL` | PostgreSQL / Neon database connection string |
 | `ADMIN_PASSWORD` | Secret admin login password |
 | `ADMIN_SESSION_SECRET` | Random HMAC key, minimum 32 characters |
@@ -83,6 +86,7 @@ Before moving the admin uploader to Hostinger, replace this provider-specific ro
 - [ ] Admin can process an order from Pending through delivery and payment reconciliation.
 - [ ] Mobile and desktop customer journeys are checked on the actual production host.
 - [ ] Set `SITE_URL` to the final HTTPS domain and verify DNS/SSL before launch.
+- [ ] Set the WhatsApp number, business phone and support email to verified business contact details.
 - [ ] Domain, contact information, privacy/returns/delivery policies are correct.
 
 A GitHub green check is a code-quality gate, not proof that the live business is ready to accept orders.
