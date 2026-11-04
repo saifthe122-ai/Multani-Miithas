@@ -734,8 +734,13 @@ setNotice("Account settings database mein save ho gayi hain.");
     placeholder="https://..."
     style={inputStyle}
   />
-  <small style={{ color: "#6b7280" }}>
-    Optional · Sirf verified HTTPS link enter karein
+  <small style={{ color: "#6b7280", display: "block", lineHeight: 1.6 }}>
+    Optional · Sirf provider ka verified HTTPS payment/deep link enter karein.
+    Agar provider support karta ho to placeholders use karein:
+    <code>{"{amount}"}</code>, <code>{"{amount_pkr}"}</code>,
+    <code>{"{orderNumber}"}</code>, <code>{"{accountNumber}"}</code>.
+    Customer ke exact order amount aur order number se link populate hoga.
+    Har wallet app amount prefill support nahi karti; pehle test karein.
   </small>
 </label>
           
