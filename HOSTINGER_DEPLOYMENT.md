@@ -65,7 +65,7 @@ A basic shared hosting plan that only serves PHP/static files is not sufficient 
 
 The admin media uploader now supports two modes. The default `vercel_blob` mode keeps the current Vercel Blob behavior. On a self-hosted Node.js host with persistent writable disk, set `MEDIA_STORAGE_DRIVER=local`; new uploads, listing, and deletion then use `public/uploads/multani-mithas`. Existing Vercel Blob image URLs continue to load and are not bulk rewritten. Local media storage is not suitable for ephemeral/serverless filesystems; confirm persistent disk and backup the uploads directory on the selected Hostinger plan.
 
-Before moving the admin uploader to Hostinger, replace this provider-specific route with a configurable storage adapter (for example, Hostinger object storage if included in the chosen plan, or another compatible S3-style provider). Preserve existing image URLs and do not bulk rewrite product records without a tested migration.
+For the planned Hostinger move, use `MEDIA_STORAGE_DRIVER=local` only after confirming the chosen Node.js plan has persistent writable disk and that the `public/uploads/multani-mithas` directory is included in backups. If the plan uses an ephemeral filesystem, do not enable local mode; keep a supported remote object-storage provider instead. Existing Vercel Blob image URLs are not migrated or rewritten by this setting.
 
 ## Payments and launch gates
 
