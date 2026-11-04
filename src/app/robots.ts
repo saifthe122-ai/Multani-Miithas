@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+const SITE_URL = (process.env.SITE_URL || "https://multani-mithas.vercel.app").replace(/\/$/, "");
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
@@ -7,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/admin/", "/admin-login"],
     },
-    sitemap: "https://multani-mithas.vercel.app/sitemap.xml",
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }
