@@ -26,6 +26,8 @@ export async function GET(request: Request) {
   try {
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_account_id bigint`;
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_account_snapshot jsonb`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS delivery_fee numeric(12,2) NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS packaging_fee numeric(12,2) NOT NULL DEFAULT 0`;
