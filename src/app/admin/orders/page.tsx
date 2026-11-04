@@ -28,6 +28,7 @@ packagingFee: number;
 taxAmount: number;
 amount: number;
   paymentMethod: string;
+  paymentAccountSnapshot: string;
   paymentStatus: PaymentStatus;
   status: OrderStatus;
   address: string;
@@ -55,6 +56,18 @@ function mapOrder(row: Record<string, unknown>): Order {
   };
 
   const method = String(row.payment_method ?? "Not provided");
+  const paymentAccount = row.payment_account_snapshot && typeof row.payment_account_snapshot === "object"
+    ? row.payment_account_snapshot as Record<string, unknown>
+    : null;
+  const paymentAccountSnapshot = paymentAccount
+    ? [
+        paymentAccount.provider,
+        paymentAccount.accountName,
+        paymentAccount.accountTitle,
+        paymentAccount.accountNumber,
+        paymentAccount.iban,
+      ].filter(Boolean).join(" · ")
+    : "Not recorded for this order";
   const rawPaymentStatus = String(
     row.payment_status ?? "pending"
   ).toLowerCase();
@@ -125,6 +138,7 @@ function mapOrder(row: Record<string, unknown>): Order {
     taxAmount: Number(row.tax_amount ?? 0),
     amount: Number(row.total ?? row.subtotal ?? 0),
     paymentMethod: method,
+    paymentAccountSnapshot,
     paymentStatus,
     status: statusMap[rawStatus] ?? "Pending",
     address: String(
@@ -890,6 +904,10 @@ export default function OrdersDashboard() {
               <Detail
                 label="Payment Status"
                 value={selectedOrder.paymentStatus}
+              />
+              <Detail
+                label="Payment Account at Order Time"
+                value={selectedOrder.paymentAccountSnapshot}
               />
               <Detail
                 label="Delivery Address"
