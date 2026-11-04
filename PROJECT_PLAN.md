@@ -51,19 +51,14 @@
 - Filters
 - Wishlist
 - Shopping cart
-- Coupons
 - Checkout
 - Order confirmation
 
-### Customer Account
-- Registration/login
-- Profile
-- Saved addresses
-- Order history
-- Current orders
+### Customer Experience
+- Guest checkout using order contact and delivery details
+- Order confirmation and order-status lookup
 - Wishlist
-- Reviews
-- Complaints
+- Product reviews
 
 ---
 
@@ -122,7 +117,6 @@ Customer should be able to track the order status.
 - Out for delivery
 - Delivered orders
 - Cancelled orders
-- Customers
 - Products
 - Low stock
 - Complaints
@@ -152,13 +146,6 @@ Customer should be able to track the order status.
 - Featured products
 - Best sellers
 
-### Customer Management
-- Customer list
-- Customer profile
-- Orders
-- Addresses
-- Reviews
-- Complaints
 
 ### Delivery Management
 - Delivery boys
@@ -174,26 +161,6 @@ Customer should be able to track the order status.
 - Customer ratings
 - Admin replies
 
-### Complaint Management
-- New complaints
-- In progress
-- Resolved
-- Priority
-- Staff response
-- Complaint history
-
-### Booking Management
-- Wedding bookings
-- Birthday bookings
-- Corporate orders
-- Event orders
-- Custom orders
-- Date/time
-- Quantity
-- Location
-- Customer details
-- Booking status
-
 ---
 
 ## 6. FORMS
@@ -206,29 +173,6 @@ Customer should be able to track the order status.
 - Delivery date
 - Delivery time
 - Payment method
-
-### Booking Form
-- Name
-- Phone
-- Email
-- Event type
-- Event date
-- Number of people
-- Required products
-- Quantity
-- Budget
-- Location
-- Additional requirements
-
-### Complaint Form
-- Customer name
-- Order number
-- Phone/email
-- Complaint category
-- Description
-- Image/file attachment
-- Priority
-- Admin response
 
 ### Review Form
 - Customer name
@@ -271,7 +215,6 @@ Map provider will be selected during development.
 
 ## 9. BUSINESS FEATURES
 
-- Coupons
 - Discounts
 - Promotional banners
 - Gift cards
@@ -281,7 +224,6 @@ Map provider will be selected during development.
 - Best sellers
 - Recently viewed products
 - Related products
-- Referral system
 
 ---
 
@@ -298,11 +240,6 @@ Map provider will be selected during development.
 - Low stock
 - Product performance
 - Category performance
-
-### Customer Reports
-- New customers
-- Repeat customers
-- Customer order history
 
 ### Delivery Reports
 - Delivery performance
@@ -394,9 +331,6 @@ Shopping cart
 Stage 6:
 Checkout/order system
 
-Stage 7:
-Customer accounts
-
 Stage 8:
 Admin panel
 
@@ -407,10 +341,7 @@ Stage 10:
 Maps and delivery tracking
 
 Stage 11:
-Reviews and complaints
-
-Stage 12:
-Booking system
+Product reviews
 
 Stage 13:
 Reports and analytics
@@ -434,20 +365,23 @@ Every major feature should be developed and tested before moving to the next fea
 The final system should be suitable for a real sweets business, not only a demonstration website.
 
 
-## 21. CONFIRMED BUSINESS SCOPE — PRODUCT E-COMMERCE ONLY
+## 21. PREVIOUS SCOPE NOTE (SUPERSEDED BY SECTION 22)
+
+## 22. FINAL CONFIRMED BUSINESS SCOPE — NO COUPONS, REFERRALS OR CUSTOMER ACCOUNTS
 
 Multani Mithas sells physical sweets, bakery products, gift boxes and related packaged products. It is not a general service-booking marketplace. Build and prioritize features that support product discovery, purchase, fulfilment, repeat sales and customer trust.
 
 ### Keep and implement
-- Product catalogue, product/weight pricing, per-item packaging and delivery charges, cart and checkout.
-- Customer profiles for saved contact details, delivery addresses and order history.
-- Coupons and promotional discounts with admin controls, validity dates, usage limits and server-side validation.
-- Referral programme for customer-to-customer recommendations, with clear eligibility and abuse prevention.
-- Product reviews and ratings, preferably tied to completed orders and moderated by admin.
+- Product catalogue, product/weight pricing, per-item packaging and delivery charges, cart and guest checkout.
+- Customer name, phone and delivery address captured only as required to fulfil an order; no customer account/profile module.
+- Product reviews and ratings moderated by admin.
 - Order management, cancellation/refund handling, inventory, dispatch and delivery status/tracking appropriate to a product business.
-- Admin sales, inventory, customer, coupon, referral, review, payment and delivery reporting.
+- Admin sales, inventory, order, review, payment and delivery reporting.
 
 ### Exclude from launch scope
+- Coupons, coupon codes and coupon-management workflows.
+- Referral programmes, referral codes and referral rewards.
+- Customer registration, login, profiles, saved-address accounts and customer self-service account dashboards.
 - A separate general customer feedback module. Product reviews are sufficient.
 - Generic service bookings, appointment scheduling, or service-provider workflows.
 - Generic service complaints/ticketing unrelated to an order. Order-specific support, cancellation and refund requests remain necessary.
@@ -456,4 +390,4 @@ Multani Mithas sells physical sweets, bakery products, gift boxes and related pa
 Delivery is retained because physical products must reach customers. It should cover delivery charges/zones, dispatch, assignment/status and proof of delivery where appropriate; do not build unrelated service-provider functionality.
 
 ### Scope rule
-Do not add features merely because they appear in a generic ecommerce template. Keep the customer journey focused: browse products → select pack/weight → see full itemised price → order and pay → receive delivery → review product → optionally use coupon/referral.
+Do not add features merely because they appear in a generic ecommerce template. Keep the customer journey focused: browse products → select pack/weight → see full itemised price → guest checkout → order and pay → receive delivery → review product.
