@@ -27,6 +27,7 @@ type BusinessAccount = {
   isPrimary: boolean;
   isActive: boolean;
   walletOwnerType: string;
+  showOnCheckout: boolean;
   qrImageUrl: string;
   appLink: string;
 };
@@ -116,6 +117,7 @@ const [editingWalletOwnerType, setEditingWalletOwnerType] = useState("personal")
 const [currency, setCurrency] = useState("PKR");
   const [isPrimary, setIsPrimary] = useState(false);
   const [walletOwnerType, setWalletOwnerType] = useState("personal");
+  const [showOnCheckout, setShowOnCheckout] = useState(false);
   const [qrFile, setQrFile] = useState<File | null>(null);
 
   async function loadPaymentSettings() {
@@ -160,6 +162,7 @@ const [currency, setCurrency] = useState("PKR");
             isPrimary: Boolean(item.is_primary),
             isActive: Boolean(item.is_active),
           walletOwnerType: String(item.wallet_owner_type ?? "personal"),
+            showOnCheckout: Boolean(item.show_on_checkout),
 qrImageUrl: String(item.qr_image_url ?? ""),
 appLink: String(item.app_link ?? ""),
           })
@@ -449,6 +452,7 @@ appLink: String(item.app_link ?? ""),
           currency,
           isPrimary,
          walletOwnerType,
+          showOnCheckout,
 qrImageUrl: uploadedQRUrl,
 appLink: appLink.trim(),
         }),
@@ -467,6 +471,7 @@ setIban("");
 setAppLink("");
 setIsPrimary(false);
 setWalletOwnerType("personal");
+setShowOnCheckout(false);
 setQrFile(null);
 
       const fileInput = document.getElementById(
@@ -493,6 +498,7 @@ async function updateAccount(
     isPrimary?: boolean;
     appLink?: string;
     walletOwnerType?: string;
+    showOnCheckout?: boolean;
   }
 ) {
   try {
@@ -709,7 +715,7 @@ setNotice("Account settings database mein save ho gayi hain.");
             Personal wallet aur Merchant account ki details alag save hongi.
           </p>
           <p style={{ color: "#92400e", fontSize: 13, background: "#fffbeb", padding: 12, borderRadius: 8 }}>
-            Customer checkout par account dikhane ke liye JazzCash/Easypaisa ke liye Merchant / Business ownership select karo. Personal/test wallets customer ko expose nahi honge. Account details, QR aur optional HTTPS app link tum khud yahan enter karoge.
+            Customer checkout par account tabhi dikhay ga jab tum "Allow this account..." select karoge ya saved account par "Show on Customer Checkout" dabao. Personal wallet ko personal hi label kiya jayega; merchant hone ka ghalat claim nahi hoga. Account details, QR aur optional HTTPS app link tum khud yahan enter karoge.
           </p>
 
           <form
@@ -774,6 +780,15 @@ setNotice("Account settings database mein save ho gayi hain.");
                 </select>
               </label>
             )}
+
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={showOnCheckout}
+                onChange={(e) => setShowOnCheckout(e.target.checked)}
+              />
+              Allow this account to appear in customer checkout
+            </label>
 
             <label>
               Account Title *
@@ -1088,6 +1103,18 @@ setNotice("Account settings database mein save ho gayi hain.");
                   )}
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() =>
+                        updateAccount(account, { showOnCheckout: !account.showOnCheckout })
+                      }
+                      style={{
+                        ...buttonStyle,
+                        background: account.showOnCheckout ? "#dcfce7" : "#e0f2fe",
+                        color: account.showOnCheckout ? "#166534" : "#075985",
+                      }}
+                    >
+                      {account.showOnCheckout ? "Hide from Customer Checkout" : "Show on Customer Checkout"}
+                    </button>
                     <button
                       onClick={() =>
                         updateAccount(account, { isActive: !account.isActive })
