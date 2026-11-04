@@ -1,7 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+type DashboardMetrics = {
+  totalOrders: number;
+  todayOrders: number;
+  todayPaidRevenue: number;
+  activeOrders: number;
+  pendingPayments: number;
+  activeProducts: number;
+  lowStockProducts: number;
+  totalCustomers: number;
+  activeDeliveries: number;
+  pendingDeliveries: number;
+};
 
 const menuGroups = [ 
 {
@@ -54,7 +68,43 @@ const menuGroups = [
 ];
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/dashboard", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || payload.success !== true) {
+          throw new Error(payload.message || "Dashboard data load nahi hui.");
+        }
+        if (!cancelled) setMetrics(payload.metrics as DashboardMetrics);
+      })
+      .catch((error) => {
+        if (!cancelled) setDashboardError(error instanceof Error ? error.message : "Dashboard unavailable.");
+      })
+      .finally(() => {
+        if (!cancelled) setDashboardLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function logout() {
+    try {
+      const response = await fetch("/api/admin/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout failed");
+      router.replace("/admin-login");
+      router.refresh();
+    } catch {
+      setDashboardError("Logout nahi ho saka. Browser close karke session dobara check karein.");
+    }
+  }
+
+  const money = (value: number) => "Rs. " + Number(value || 0).toLocaleString("en-PK", { maximumFractionDigits: 2 });
 
   return (
     <main
@@ -149,9 +199,9 @@ export default function AdminDashboard() {
               }}
             >
               <strong>System Status</strong>
-              <div>● API system ready</div>
-              <div>● Testing mode</div>
-              <div>● Live connections: 0</div>
+              <div>● {metrics ? "Database connected" : dashboardLoading ? "Checking database…" : "Database status unavailable"}</div>
+              <div>● Admin APIs protected</div>
+              <div>● Manual payments require verification</div>
             </div>
           </div>
         </aside>
@@ -189,6 +239,12 @@ export default function AdminDashboard() {
               <span style={{ fontSize: "13px", color: "#65766d" }}>
                 Business Admin
               </span>
+              <button
+                onClick={logout}
+                style={{ border: "1px solid #d1ddd5", background: "#fff", color: "#104d36", borderRadius: 8, padding: "9px 13px", cursor: "pointer", fontWeight: 700 }}
+              >
+                Log out
+              </button>
 
               <div
                 style={{
@@ -210,6 +266,11 @@ export default function AdminDashboard() {
 
           {/* CONTENT */}
           <div style={{ padding: "30px" }}>
+            {dashboardError && (
+              <p role="alert" style={{ padding: 12, background: "#fff1f0", color: "#9a3028", borderRadius: 8, marginBottom: 18 }}>
+                {dashboardError}
+              </p>
+            )}
             <div style={{ marginBottom: "28px" }}>
               <div
                 style={{
@@ -253,9 +314,12 @@ export default function AdminDashboard() {
               }}
             >
               {[
-                ["Today's Orders", "0", "No live orders yet", "#2563eb"],
-                ["Revenue", "Rs. 0", "Live accounting pending", "#15803d"],
-                ["Delivery", "0", "No active deliveries", "#d97706"],
+                ["Today's Orders", dashboardLoading ? "…" : String(metrics?.todayOrders ?? "—"), "Orders created today", "#2563eb"],
+                ["Today's Paid Revenue", dashboardLoading ? "…" : metrics ? money(metrics.todayPaidRevenue) : "—", "Only verified Paid orders", "#15803d"],
+                ["Active Deliveries", dashboardLoading ? "…" : String(metrics?.activeDeliveries ?? "—"), "Assigned, dispatched or in transit", "#d97706"],
+                ["Pending Payments", dashboardLoading ? "…" : String(metrics?.pendingPayments ?? "—"), "Awaiting payment reconciliation", "#b45309"],
+                ["Active Products", dashboardLoading ? "…" : String(metrics?.activeProducts ?? "—"), metrics ? `${metrics.lowStockProducts} low-stock products` : "Live catalogue", "#0f766e"],
+                ["Customers", dashboardLoading ? "…" : String(metrics?.totalCustomers ?? "—"), "Customer records in database", "#7c3aed"],
               ].map(([title, value, detail, color]) => (
                 <div
                   key={title}
@@ -353,10 +417,10 @@ export default function AdminDashboard() {
                 </Link>
 
                 <Link
-                  href="/admin/customers"
+                  href="/admin/payments"
                   style={quickButton}
                 >
-                  ♙ Customers
+                  💳 Payment Review
                 </Link>
               </div>
             </div>
