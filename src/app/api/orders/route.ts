@@ -436,8 +436,13 @@ export async function POST(request: Request) {
             WHEN checkout_rules.free_delivery_minimum > 0
               AND totals.subtotal >= checkout_rules.free_delivery_minimum
             THEN 0
-            ELSE totals.delivery_fee
-          END AS final_delivery_fee
+            WHEN totals.delivery_fee > 0 THEN totals.delivery_fee
+            ELSE checkout_rules.delivery_fee
+          END AS final_delivery_fee,
+          CASE
+            WHEN totals.packaging_fee > 0 THEN totals.packaging_fee
+            ELSE checkout_rules.packaging_fee
+          END AS final_packaging_fee
         FROM totals
         CROSS JOIN checkout_rules
       ),
@@ -515,8 +520,8 @@ export async function POST(request: Request) {
           t.subtotal,
           t.final_delivery_fee,
           t.tax_amount,
-          t.packaging_fee,
-          t.subtotal + t.final_delivery_fee + t.packaging_fee + t.tax_amount
+          t.final_packaging_fee,
+          t.subtotal + t.final_delivery_fee + t.final_packaging_fee + t.tax_amount
 
         FROM resolved_customer c
         CROSS JOIN calculated t
