@@ -576,3 +576,60 @@ Multani Mithas sells physical sweets, bakery products and gift boxes. It is not 
 
 ### Customer journey
 Browse products → select weight/pack → view exact itemised charges → guest checkout → pay → receive parcel → optionally review the product.
+
+
+## 21. EXPANDED PAKISTANI PRODUCT CATALOGUE & CATEGORY MANAGEMENT
+
+Multani Mithas is a Pakistani food-products storefront, not a sweets-only catalogue. The catalogue must support these launch collections:
+- Sweets: Sohan Halwa, Barfi, Gulab Jamun, Ladoo, Patisa and Mix Mithai.
+- Gift Boxes: assorted mithai boxes, premium gift boxes, festive and corporate hampers.
+- Desi Ghee: pure desi ghee and future pack sizes.
+- Pure Honey: honey varieties and jar sizes.
+- Dry Fruits: almonds, pistachios, cashews, walnuts, raisins and mixed dry fruits.
+- Bakery: biscuits, rusks and bakery products.
+- Cakes: whole cakes and other cake products.
+- Namkeen: savoury snacks and namkeen.
+- Seasonal & Special: Eid, wedding, winter and limited-edition products.
+
+Category rules:
+- Admin product entry must offer category suggestions and allow a new category to be typed without a code change.
+- Storefront category directory must be database-driven and automatically show collections that contain active products.
+- A category with no active products must not be advertised as an available collection.
+- Preserve existing category names on current products; do not silently rename or migrate live products.
+- Product data must support per-product pack/weight options, price, stock, discount, packaging type/fee and delivery/tax settings.
+- Product attributes such as ingredients, origin, storage instructions, shelf life and allergen information should be available for products where relevant; do not invent claims such as "organic", "pure", "chemical-free" or health benefits without verified business evidence.
+
+## 22. MULTI-ACCOUNT, MULTI-BRANCH PAYMENT ARCHITECTURE
+
+Payment methods and payment receiving accounts are separate records. The system must support:
+- Cash on Delivery.
+- JazzCash with multiple business accounts.
+- Easypaisa with multiple business accounts.
+- Raast IDs.
+- At least two bank accounts at launch, with the ability to add more later.
+- Future official merchant-gateway providers without replacing the manual-payment workflow.
+
+Account and branch rules:
+- Each receiving account belongs to a business owner/entity and may be assigned to one or more branches.
+- Before multiple branches exist, use one default/head-office branch context.
+- When branches are introduced, authorised admins can assign payment accounts to specific branches and select the active account per payment method/branch.
+- Account records must be editable, replaceable, activatable/deactivatable and auditable by authorised admins; routine changes should not be necessary.
+- Do not hard-code personal wallet numbers or bank details in source code.
+- Do not expose inactive, unassigned or test-only account details through public APIs.
+- The temporary family wallet used for initial testing must remain clearly marked test-only and must never be treated as a production merchant gateway.
+- Customer checkout may show only a configured active account for the selected method and branch.
+- Snapshot the selected account display details and account identifier into each order/payment record at order time, so future account changes never rewrite historical orders.
+- A screenshot or customer-submitted reference is a payment claim only. Admin verifies actual received funds before marking a manual payment Paid.
+- COD becomes Paid only after cash is collected and confirmed.
+- Never collect/store wallet PINs, OTPs, passwords or internet-banking credentials.
+- Future JazzCash/Easypaisa gateway support must use official merchant credentials on the server, signed/verified provider callbacks and server-side transaction verification; app deep links alone are not proof of payment.
+- Require role-based access, audit events for account changes, masked account details where appropriate, and rate limits on sensitive payment/admin actions.
+
+## 23. PAKISTAN-FIRST CUSTOMER EXPERIENCE
+
+- Use PKR/Rs display, Pakistan phone-number validation and familiar Pakistani address/delivery wording.
+- Keep checkout mobile-first, low-friction, readable and suitable for customers who prefer simple interfaces.
+- Use clear Urdu/Roman Urdu-friendly labels where appropriate while retaining a polished modern visual identity.
+- Explain COD and manual wallet/bank transfer steps plainly; do not imply automatic payment when it is manual.
+- Do not force customers to use WhatsApp to complete checkout or payment verification.
+- Make WhatsApp a helpful optional support/receipt-sharing channel.

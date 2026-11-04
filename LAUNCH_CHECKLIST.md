@@ -79,3 +79,19 @@ This checklist is for the final pre-production review. Do not merge or promote t
 19. Approve a review in Admin → Reviews; verify it appears on the public Reviews page. Reject it and verify it is no longer public.
 20. In Admin → Delivery, assign a provider/rider and update a real order through assigned → dispatched → in transit → delivered; verify values persist after refresh and order status synchronizes.
 21. Verify archived orders cannot be assigned for delivery and no delivery status is incorrectly represented as live GPS tracking.
+
+
+## Expanded catalogue and future branch/payment requirements
+
+- [ ] Admin product form offers Sweets, Gift Boxes, Desi Ghee, Pure Honey, Dry Fruits, Bakery, Cakes, Namkeen and Seasonal & Special, and permits a new category name.
+- [ ] Add one test product in each collection on Preview; verify the category directory automatically lists each active collection and category pages show the correct products.
+- [ ] Verify products in existing categories retain their current category names and links.
+- [ ] Verify pack sizes, stock, discounts, packaging type/fee and delivery/tax breakdown separately for honey jars, ghee jars, dry-fruit packs, gift boxes and per-weight sweets.
+- [ ] Design and implement persistent payment-account management separately from payment methods, with account ownership, branch assignment, active/test status, primary selection and audit history.
+- [ ] Keep the initial family wallet account test-only; do not expose it to customers or activate it for live collection.
+- [ ] Add Easypaisa, Raast and at least two bank accounts only after the business confirms the final account details and authorises activation.
+- [ ] Implement branch-aware payment account assignment before opening additional branches; snapshot the selected account in every order/payment record.
+- [ ] Verify account changes do not alter payment details on historic orders.
+- [ ] Verify public payment APIs never return inactive, test-only or unassigned account details.
+- [ ] Confirm COD is marked Paid only after cash collection; manual wallet/bank payments only after actual funds are verified.
+- [ ] Official JazzCash/Easypaisa gateway integration remains blocked until merchant approval and secure provider credentials are obtained.
