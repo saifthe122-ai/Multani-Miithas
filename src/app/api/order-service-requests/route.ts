@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const orderNumber = String(data.orderNumber ?? "").trim().toUpperCase();
     const customerName = String(data.customerName ?? "").trim();
     const phone = String(data.phone ?? "").trim();
-    const digits = phone.replace(/\\D/g, "");
+    const digits = phone.replace(/\D/g, "");
     const reason = String(data.reason ?? "").trim();
     const details = String(data.details ?? "").trim();
     const requestedAmount = data.requestedAmount === "" || data.requestedAmount == null ? null : Number(data.requestedAmount);
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     if (!orders.length) return NextResponse.json({ success: false, message: "Is order number ka record nahi mila." }, { status: 404 });
 
     const order = orders[0];
-    const orderDigits = String(order.customer_phone ?? "").replace(/\\D/g, "");
+    const orderDigits = String(order.customer_phone ?? "").replace(/\D/g, "");
     if (!orderDigits || orderDigits.slice(-10) !== digits.slice(-10)) {
       return NextResponse.json({ success: false, message: "Order number aur phone number match nahi karte." }, { status: 403 });
     }
