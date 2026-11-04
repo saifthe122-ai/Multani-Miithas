@@ -102,6 +102,14 @@ type PaymentAccount = {
   app_link?: string;
 };
 
+type CheckoutSettings = {
+  deliveryFee: number;
+  freeDeliveryMinimum: number;
+  packagingFee: number;
+  salesTaxEnabled: boolean;
+  salesTaxRate: number;
+};
+
 const WEIGHT_OPTIONS = [0.5, 1, 1.5, 2, 5];
 
 const cartKey = (productId: number, weight: number) =>
@@ -301,6 +309,15 @@ export default function Home() {
   const [publishedSettings, setPublishedSettings] =
     useState<PublishedSettings | null>(null);
 
+  const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettings>({
+    deliveryFee: 0,
+    freeDeliveryMinimum: 0,
+    packagingFee: 0,
+    salesTaxEnabled: false,
+    salesTaxRate: 0,
+  });
+  const [checkoutSettingsLoaded, setCheckoutSettingsLoaded] = useState(false);
+
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -331,6 +348,34 @@ const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
   useEffect(() => {
     const requestedCategory = new URLSearchParams(window.location.search).get("category");
     if (requestedCategory) setSelectedCategory(requestedCategory);
+  }, []);
+
+  // Server checkout settings load karein taa-ke customer estimate final server total se match kare.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/checkout-settings", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Checkout settings load nahi huin.");
+        return response.json();
+      })
+      .then((payload: unknown) => {
+        if (!payload || typeof payload !== "object" || cancelled) return;
+        const data = payload as { success?: boolean; settings?: Record<string, unknown> };
+        if (!data.success || !data.settings) throw new Error("Checkout settings available nahi.");
+        setCheckoutSettings({
+          deliveryFee: Math.max(0, Number(data.settings.deliveryFee) || 0),
+          freeDeliveryMinimum: Math.max(0, Number(data.settings.freeDeliveryMinimum) || 0),
+          packagingFee: Math.max(0, Number(data.settings.packagingFee) || 0),
+          salesTaxEnabled: data.settings.salesTaxEnabled === true,
+          salesTaxRate: Math.min(100, Math.max(0, Number(data.settings.salesTaxRate) || 0)),
+        });
+        setCheckoutSettingsLoaded(true);
+      })
+      .catch((error) => {
+        console.error("Checkout settings load failed:", error);
+        if (!cancelled) setCheckoutSettingsLoaded(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   // Products database se load karein.
@@ -784,7 +829,10 @@ app_link: String(item.app_link ?? ""),
     const unitPrice = priceOverride ?? getProductPrice(product, weight) ?? 0;
     const deliveryFee = Math.max(0, Number(option?.deliveryFee ?? 0) || 0);
     const packagingFee = Math.max(0, Number(option?.packagingFee ?? 0) || 0);
-    const salesTaxRate = Math.min(100, Math.max(0, Number(option?.salesTaxRate ?? 0) || 0));
+    const configuredTaxRate = option?.salesTaxRate ?? (
+      checkoutSettings.salesTaxEnabled ? checkoutSettings.salesTaxRate : 0
+    );
+    const salesTaxRate = Math.min(100, Math.max(0, Number(configuredTaxRate) || 0));
     const salesTaxBase = option?.salesTaxBase === "all_charges" ? "all_charges" : "product";
     const packagingType = String(option?.packagingType ?? "");
     const taxableAmount = salesTaxBase === "all_charges" ? unitPrice + deliveryFee + packagingFee : unitPrice;
@@ -1041,14 +1089,19 @@ const total = cartItems.reduce((sum, item) => {
   return sum + unitPrice * item.quantity;
 }, 0);
 
-  const deliveryFee = cartItems.reduce((sum, item) => {
+  const productDeliveryFee = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return sum + (product ? getCartUnitCharges(product, item.weight).deliveryFee * item.quantity : 0);
   }, 0);
-  const packagingFee = cartItems.reduce((sum, item) => {
+  const productPackagingFee = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return sum + (product ? getCartUnitCharges(product, item.weight).packagingFee * item.quantity : 0);
   }, 0);
+  const deliveryBeforeDiscount = productDeliveryFee > 0 ? productDeliveryFee : checkoutSettings.deliveryFee;
+  const deliveryFee = checkoutSettings.freeDeliveryMinimum > 0 && total >= checkoutSettings.freeDeliveryMinimum
+    ? 0
+    : deliveryBeforeDiscount;
+  const packagingFee = productPackagingFee > 0 ? productPackagingFee : checkoutSettings.packagingFee;
   const taxAmount = cartItems.reduce((sum, item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return sum + (product ? getCartUnitCharges(product, item.weight).taxAmount * item.quantity : 0);
@@ -1072,6 +1125,11 @@ const total = cartItems.reduce((sum, item) => {
     event.preventDefault();
 
     if (submittingOrder) return;
+
+    if (!checkoutSettingsLoaded) {
+      setMessage("Checkout charges load ho rahe hain. Thori dair baad dobara try karein.");
+      return;
+    }
 
     if (cartCount === 0) {
       setMessage("Pehle cart mein product add karein.");
