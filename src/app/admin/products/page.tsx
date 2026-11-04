@@ -220,8 +220,8 @@ export default function ProductsPage() {
                   weight: option.weight,
                   price: Number(option.price),
                   deliveryFee: Number(option.deliveryFee ?? 0),
-                  packagingFee: Number(option.packagingFee ?? 0),
-                  salesTaxRate: Number(option.salesTaxRate ?? 0),
+                  packagingFee: option.packagingFee == null ? null : Number(option.packagingFee),
+                  salesTaxRate: option.salesTaxRate == null ? null : Number(option.salesTaxRate),
                   packagingType: String(option.packagingType ?? ""),
                   salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
                 }))
