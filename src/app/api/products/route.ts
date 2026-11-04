@@ -133,15 +133,15 @@ function validateProduct(data: ProductInput) {
       }
 
       if (
-        typeof item.deliveryFee !== "undefined" &&
+        item.deliveryFee !== undefined && item.deliveryFee !== null &&
         (typeof item.deliveryFee !== "number" || !Number.isFinite(item.deliveryFee) || item.deliveryFee < 0)
       ) return "Weight option delivery fee must be a valid non-negative amount";
       if (
-        typeof item.packagingFee !== "undefined" &&
+        item.packagingFee !== undefined && item.packagingFee !== null &&
         (typeof item.packagingFee !== "number" || !Number.isFinite(item.packagingFee) || item.packagingFee < 0)
       ) return "Weight option packaging fee must be a valid non-negative amount";
       if (
-        typeof item.salesTaxRate !== "undefined" &&
+        item.salesTaxRate !== undefined && item.salesTaxRate !== null &&
         (typeof item.salesTaxRate !== "number" || !Number.isFinite(item.salesTaxRate) || item.salesTaxRate < 0 || item.salesTaxRate > 100)
       ) return "Weight option sales tax must be between 0 and 100";
 
