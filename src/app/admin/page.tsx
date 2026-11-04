@@ -17,16 +17,16 @@ type DashboardMetrics = {
   pendingDeliveries: number;
 };
 
-const menuGroups = [ 
-{
-  title: "MAIN",
-  items: [
-    { icon: "▦", label: "Dashboard", href: "/admin" },
-    { icon: "▣", label: "Products", href: "/admin/products" },
-    { icon: "🛍", label: "Orders", href: "/admin/orders" },
-    { icon: "🎨", label: "Website Design & Media", href: "/admin/website-design" },
-  ],
-},
+const menuGroups = [
+  {
+    title: "MAIN",
+    items: [
+      { icon: "▦", label: "Dashboard", href: "/admin" },
+      { icon: "▣", label: "Products", href: "/admin/products" },
+      { icon: "🛍", label: "Orders", href: "/admin/orders" },
+      { icon: "🎨", label: "Website Design & Media", href: "/admin/website-design" },
+    ],
+  },
   {
     title: "OPERATIONS",
     items: [
@@ -35,34 +35,15 @@ const menuGroups = [
     ],
   },
   {
-    title: "MARKETING",
-    items: [
-      { icon: "📣", label: "Marketing", href: "/admin/marketing" },
-    { icon: "📱", label: "Social Media", href: "/admin/social-media" },
-      { icon: "📊", label: "Analytics", href: "/admin/analytics" },
-    ],
-  },
-  {
     title: "FINANCE",
     items: [
-     { icon: "💳", label: "Payments", href: "/admin/payments" },
-{ icon: "🧾", label: "Invoices", href: "/admin/invoices" },
-{ icon: "🧾", label: "Accounting", href: "/admin/accounting" },
-{ icon: "📈", label: "Reports", href: "/admin/reports" },
-    ],
-  },
-  {
-    title: "TEAM",
-    items: [
-      { icon: "👥", label: "Staff & Permissions", href: "/admin/staff" },
+      { icon: "💳", label: "Payments", href: "/admin/payments" },
     ],
   },
   {
     title: "SYSTEM",
     items: [
-     { icon: "🔌", label: "API & Integrations", href: "/admin/integrations" },
-    { icon: "🧾", label: "Checkout Settings", href: "/admin/checkout-settings" },
-    { icon: "⚙", label: "Settings", href: "/admin/settings" },
+      { icon: "🧾", label: "Checkout Settings", href: "/admin/checkout-settings" },
     ],
   },
 ];
