@@ -553,3 +553,26 @@ Do not rely on one global delivery, packaging or tax amount for new orders. Admi
 - Verify customer product selection → cart → checkout → method-specific wallet → order confirmation → WhatsApp evidence submission → admin order/payment verification.
 - Verify admin price edits update new customer quotations/orders while historical order snapshots remain unchanged.
 - Verify cancellation/refund requests, status transitions, stock restoration, and audit logs before declaring launch readiness.
+
+## 22. FINAL BUSINESS SCOPE — GUEST PRODUCT E-COMMERCE ONLY (OVERRIDES EARLIER SECTIONS)
+
+Multani Mithas sells physical sweets, bakery products and gift boxes. It is not a service-booking platform.
+
+### Keep
+- Product catalogue, categories, product/weight pricing, per-product/per-weight packaging and delivery charges, cart and guest checkout.
+- Collect customer name, phone, optional email and delivery address only as needed to fulfil each order. No customer registration, login, profile dashboard, saved-address account or customer-management module.
+- Order confirmation, order lookup/status, order cancellation/refund handling, admin order and payment management.
+- Delivery dispatch, zones/charges, assignment and delivery status for physical parcels.
+- Product reviews and ratings with moderation.
+- Admin product, inventory, order, payment, delivery, review and sales reporting.
+- Product discounts, seasonal promotions and promotional banners only when configured as product pricing/marketing content; no coupon-code subsystem.
+
+### Remove / do not implement
+- Coupon codes, coupon management and coupon APIs.
+- Referral programme, referral codes, rewards and referral APIs.
+- Customer accounts, registration/login, profile management, saved-address accounts and customer profile APIs/pages.
+- Separate feedback module.
+- Generic complaint ticketing, appointment bookings and service-booking workflows. Order-specific cancellation/refund/support remains part of order fulfilment.
+
+### Customer journey
+Browse products → select weight/pack → view exact itemised charges → guest checkout → pay → receive parcel → optionally review the product.
