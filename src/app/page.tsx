@@ -1990,7 +1990,6 @@ const total = cartItems.reduce((sum, item) => {
         </div>
         <div>
           <p className="mm-eyebrow">Our Heritage</p>
-          <h2>From the Heart of Multan</h2>
           <h2>{aboutUs?.heading || "From the Heart of Multan"}</h2>
           <p>{aboutUs?.story || "Multani Mithas is more than sweets. It is a celebration of tradition, family, hospitality and the cultural richness of South Punjab."}</p>
           <p>{aboutUs?.mission || "Inspired by Multan’s iconic blue tilework, historic architecture and the warmth of the Saraiki Wasib, we bring a taste of heritage to every special moment."}</p>
@@ -3055,7 +3054,6 @@ style={{
             fontSize: 13,
           }}
         >
-          <a href="#about">About Us</a>
           <a href="#about">About Us</a>
           <a href="#policies">Customer Policies</a>
           <a href="#delivery">Delivery</a>
