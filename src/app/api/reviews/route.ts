@@ -10,26 +10,20 @@ function database() {
   return neon(process.env.DATABASE_URL);
 }
 
-async function ensureReviews(sql: ReturnType<typeof neon>) {
-  await sql`CREATE TABLE IF NOT EXISTS product_reviews (
-    id bigserial PRIMARY KEY,
-    order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    product_id bigint NOT NULL REFERENCES products(id),
-    customer_name text NOT NULL,
-    rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    review_text text NOT NULL DEFAULT '',
-    status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
-    admin_reply text,
-    created_at timestamptz NOT NULL DEFAULT NOW(),
-    updated_at timestamptz NOT NULL DEFAULT NOW(),
-    UNIQUE(order_id, product_id)
-  )`;
-}
-
 export async function GET(request: Request) {
   try {
     const sql = database();
-    await ensureReviews(sql);
+    await sql`CREATE TABLE IF NOT EXISTS product_reviews (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id bigint NOT NULL REFERENCES products(id),
+      customer_name text NOT NULL,
+      rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      review_text text NOT NULL DEFAULT '',
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_reply text, created_at timestamptz NOT NULL DEFAULT NOW(),
+      updated_at timestamptz NOT NULL DEFAULT NOW(), UNIQUE(order_id, product_id)
+    )`;
     const admin = await isAdminRequest(request);
     const reviews = admin
       ? await sql`SELECT r.id, r.order_id, o.order_number, r.product_id, p.name AS product_name,
@@ -67,7 +61,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Order number, phone, name and a 1–5 rating are required." }, { status: 400 });
     }
     const sql = database();
-    await ensureReviews(sql);
+    await sql`CREATE TABLE IF NOT EXISTS product_reviews (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id bigint NOT NULL REFERENCES products(id),
+      customer_name text NOT NULL,
+      rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      review_text text NOT NULL DEFAULT '',
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_reply text, created_at timestamptz NOT NULL DEFAULT NOW(),
+      updated_at timestamptz NOT NULL DEFAULT NOW(), UNIQUE(order_id, product_id)
+    )`;
     const order = await sql`SELECT o.id, o.status FROM orders o
       JOIN order_items oi ON oi.order_id=o.id
       WHERE o.order_number=${orderNumber} AND o.customer_phone=${phone}
@@ -103,7 +107,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, message: "Review update values are invalid" }, { status: 400 });
     }
     const sql = database();
-    await ensureReviews(sql);
+    await sql`CREATE TABLE IF NOT EXISTS product_reviews (
+      id bigserial PRIMARY KEY,
+      order_id bigint NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id bigint NOT NULL REFERENCES products(id),
+      customer_name text NOT NULL,
+      rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      review_text text NOT NULL DEFAULT '',
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      admin_reply text, created_at timestamptz NOT NULL DEFAULT NOW(),
+      updated_at timestamptz NOT NULL DEFAULT NOW(), UNIQUE(order_id, product_id)
+    )`;
     const rows = await sql`UPDATE product_reviews SET
       status=COALESCE(${typeof status === "string" ? status : null}, status),
       admin_reply=CASE WHEN ${reply !== null} THEN ${reply} ELSE admin_reply END,
