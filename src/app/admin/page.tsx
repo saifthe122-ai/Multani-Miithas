@@ -11,14 +11,12 @@ const menuGroups = [
     { icon: "▣", label: "Products", href: "/admin/products" },
     { icon: "🛍", label: "Orders", href: "/admin/orders" },
     { icon: "🎨", label: "Website Design & Media", href: "/admin/website-design" },
-    { icon: "♙", label: "Customers", href: "/admin/customers" },
   ],
 },
   {
     title: "OPERATIONS",
     items: [
       { icon: "📍", label: "Delivery & Tracking", href: "/admin/delivery" },
-      { icon: "💬", label: "Feedback & Complaints", href: "/admin/feedback" },
       { icon: "⭐", label: "Reviews", href: "/admin/reviews" },
     ],
   },
@@ -26,8 +24,6 @@ const menuGroups = [
     title: "MARKETING",
     items: [
       { icon: "📣", label: "Marketing", href: "/admin/marketing" },
-      { icon: "🎟", label: "Coupons", href: "/admin/coupons" },
-      { icon: "🔗", label: "Referrals", href: "/admin/referrals" },
     { icon: "📱", label: "Social Media", href: "/admin/social-media" },
       { icon: "📊", label: "Analytics", href: "/admin/analytics" },
     ],
@@ -259,7 +255,6 @@ export default function AdminDashboard() {
               {[
                 ["Today's Orders", "0", "No live orders yet", "#2563eb"],
                 ["Revenue", "Rs. 0", "Live accounting pending", "#15803d"],
-                ["Customers", "0", "Database pending", "#9333ea"],
                 ["Delivery", "0", "No active deliveries", "#d97706"],
               ].map(([title, value, detail, color]) => (
                 <div

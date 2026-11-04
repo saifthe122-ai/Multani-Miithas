@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://multani-miithas.vercel.app"),
+  metadataBase: new URL("https://multani-mithas.vercel.app"),
   title: {
     default: "Multani Mithas | Authentic Multani Sweets & Sohan Halwa",
     template: "%s | Multani Mithas",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "Multani Mithas | Multan ki mithas, dil se",
     description:
       "Discover authentic Multani Sohan Halwa, traditional mithai and premium sweet gift boxes.",
-    url: "https://multani-miithas.vercel.app",
+    url: "https://multani-mithas.vercel.app",
     siteName: "Multani Mithas",
     locale: "en_PK",
     type: "website",

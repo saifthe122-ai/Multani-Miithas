@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/"],
+      disallow: ["/admin/", "/admin-login"],
     },
-    sitemap: "https://multani-miithas.vercel.app/sitemap.xml",
+    sitemap: "https://multani-mithas.vercel.app/sitemap.xml",
   };
 }

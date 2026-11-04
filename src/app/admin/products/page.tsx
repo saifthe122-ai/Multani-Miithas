@@ -8,6 +8,11 @@ type PriceType = "per_kg" | "fixed";
 type WeightOption = {
   weight: string;
   price: number;
+  deliveryFee: number;
+  packagingFee: number;
+  salesTaxRate: number;
+  packagingType?: string;
+  salesTaxBase?: string;
 };
 
 type Product = {
@@ -214,6 +219,11 @@ export default function ProductsPage() {
                 .map((option) => ({
                   weight: option.weight,
                   price: Number(option.price),
+                  deliveryFee: Number(option.deliveryFee ?? 0),
+                  packagingFee: Number(option.packagingFee ?? 0),
+                  salesTaxRate: Number(option.salesTaxRate ?? 0),
+                  packagingType: String(option.packagingType ?? ""),
+                  salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
                 }))
             : [],
           image: product.image ?? "🍬",
@@ -309,14 +319,14 @@ export default function ProductsPage() {
       ...current,
       weight_options: [
         ...current.weight_options,
-        { weight: "", price: 0 },
+        { weight: "", price: 0, deliveryFee: 0, packagingFee: 0, salesTaxRate: 0, packagingType: "", salesTaxBase: "product" },
       ],
     }));
   }
 
   function updateWeightOption(
     index: number,
-    field: "weight" | "price",
+    field: "weight" | "price" | "deliveryFee" | "packagingFee" | "salesTaxRate" | "packagingType" | "salesTaxBase",
     value: string
   ) {
     setForm((current) => ({
@@ -325,7 +335,7 @@ export default function ProductsPage() {
         optionIndex === index
           ? {
               ...option,
-              [field]: field === "price" ? Number(value) : value,
+              [field]: field === "weight" || field === "packagingType" || field === "salesTaxBase" ? value : Number(value),
             }
           : option
       ),
@@ -497,6 +507,11 @@ export default function ProductsPage() {
                   Number(form.price)
                 ) ?? 0
               : Number(option.price),
+          deliveryFee: Number(option.deliveryFee ?? 0),
+          packagingFee: Number(option.packagingFee ?? 0),
+          salesTaxRate: Number(option.salesTaxRate ?? 0),
+          packagingType: String(option.packagingType ?? ""),
+          salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
         })),
         rating: isEditing
           ? products.find((product) => product.id === editingId)?.rating ?? 5
@@ -554,21 +569,25 @@ export default function ProductsPage() {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || data.error || "Product delete nahi ho saka."
+          data.message || data.error || "Product deactivate nahi ho saka."
         );
       }
 
       setProducts((current) =>
-        current.filter((product) => product.id !== deleteProduct.id)
+        current.map((product) =>
+          product.id === deleteProduct.id
+            ? { ...product, status: "Inactive" }
+            : product
+        )
       );
 
       setDeleteProduct(null);
-      alert("Product database se delete ho gaya!");
+      alert("Product deactivate ho gaya. Record database mein محفوظ hai.");
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : "Product delete karte waqt masla hua."
+          : "Product deactivate karte waqt masla hua."
       );
     }
   }
@@ -822,7 +841,7 @@ export default function ProductsPage() {
                             onClick={() => setDeleteProduct(product)}
                             style={deleteButtonStyle}
                           >
-                            Delete
+                            Deactivate
                           </button>
                         </div>
                       </td>
@@ -1094,8 +1113,7 @@ export default function ProductsPage() {
                       key={index}
                       style={{
                         display: "grid",
-                        gridTemplateColumns:
-                          "minmax(120px, 1fr) minmax(120px, 1fr) auto",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
                         gap: 10,
                         alignItems: "end",
                         padding: 12,
@@ -1179,6 +1197,30 @@ export default function ProductsPage() {
                         </Field>
                       )}
 
+                      <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 8 }}>
+                        {([
+                          ["deliveryFee", "Delivery charge (Rs.)"],
+                          ["packagingFee", "Packaging charge (Rs.)"],
+                          ["salesTaxRate", "Sales tax (%)"],
+                        ] as const).map(([field, label]) => (
+                          <Field key={field} label={label}>
+                            <input type="number" min="0" step="0.01" max={field === "salesTaxRate" ? "100" : undefined}
+                              value={option[field] ?? 0}
+                              onChange={(event) => updateWeightOption(index, field, event.target.value)}
+                              style={inputStyle} />
+                          </Field>
+                        ))}
+                        <Field label="Packaging type (box / tin / jar)">
+                          <input type="text" maxLength={80} value={option.packagingType ?? ""} placeholder="e.g. Premium tin box"
+                            onChange={(event) => updateWeightOption(index, "packagingType", event.target.value)} style={inputStyle} />
+                        </Field>
+                        <Field label="Sales tax applies to">
+                          <select value={option.salesTaxBase ?? "product"} onChange={(event) => updateWeightOption(index, "salesTaxBase", event.target.value)} style={inputStyle}>
+                            <option value="product">Product price only</option>
+                            <option value="all_charges">Product + delivery + packaging</option>
+                          </select>
+                        </Field>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeWeightOption(index)}
@@ -1453,9 +1495,9 @@ export default function ProductsPage() {
         <div style={overlayStyle}>
           <div style={deleteModalStyle}>
             <div style={{ fontSize: 42 }}>🗑️</div>
-            <h2 style={{ color: colors.teal }}>Remove Product?</h2>
+            <h2 style={{ color: colors.teal }}>Deactivate Product?</h2>
             <p style={detailTextStyle}>
-              Are you sure you want to remove{" "}
+              Are you sure you want to deactivate{" "}
               <strong>{deleteProduct.name}</strong>?
             </p>
 
@@ -1470,7 +1512,7 @@ export default function ProductsPage() {
                 onClick={removeProduct}
                 style={{ ...deleteButtonStyle, flex: 1, padding: 12 }}
               >
-                Yes, Remove
+                Yes, Deactivate
               </button>
             </div>
           </div>

@@ -25,7 +25,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [methods, accounts, gateways] = await Promise.all([
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS payment_status_events (
+        id bigserial PRIMARY KEY,
+        order_number text NOT NULL,
+        previous_status text,
+        new_status text NOT NULL,
+        payment_reference text,
+        changed_by text NOT NULL DEFAULT 'admin',
+        created_at timestamptz NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    const [methods, accounts, gateways, paymentEvents] = await Promise.all([
       sql`
         SELECT *
         FROM payment_methods
@@ -48,6 +61,13 @@ ORDER BY is_primary DESC, id ASC
         FROM payment_gateway_configs
         ORDER BY provider ASC
       `,
+      sql`
+        SELECT id, order_number, previous_status, new_status,
+               payment_reference, changed_by, created_at
+        FROM payment_status_events
+        ORDER BY created_at DESC
+        LIMIT 500
+      `,
     ]);
 
     return NextResponse.json({
@@ -55,6 +75,7 @@ ORDER BY is_primary DESC, id ASC
       methods,
       accounts,
       gateways,
+      paymentEvents,
       databaseConnected: true,
     });
   } catch (error) {
