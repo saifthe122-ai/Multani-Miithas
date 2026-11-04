@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const SITE_URL = process.env.SITE_URL || "https://multani-mithas.vercel.app";
+const SITE_URL = (process.env.SITE_URL || "https://multani-mithas.vercel.app").replace(/\/$/, "");
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
