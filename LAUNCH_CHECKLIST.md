@@ -13,8 +13,8 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - Order API locks product rows, validates available stock, and deducts inventory in the same SQL statement as order creation.
 - Orders are archived, not permanently deleted; products are deactivated, not permanently deleted.
 - Admin payment status changes store a verified payment reference and an audit event.
-- Customer checkout creates or updates the customer record by phone; name, phone, and delivery address are synced from orders.
-- Admin Customers page reads real customer records and shows order counts, last order date, and verified-paid totals.
+- Guest checkout captures only order fulfilment details (name, phone, optional email and delivery address); no customer account/profile is required.
+- Admin Orders displays customer contact and delivery details attached to each order; there is no separate customer-profile module.
 - Canonical metadata, robots sitemap URL, and sitemap use https://multani-mithas.vercel.app.
 - Broken fallback media paths are replaced with existing product image fallbacks; an unpublished brand film shows a coming-soon placeholder.
 - GitHub Actions workflow added for lint and production build.
@@ -56,7 +56,15 @@ This checklist is for the final pre-production review. Do not merge or promote t
 ## Known items that still need a separate implementation or provider setup
 
 - The generic `/api/payments` endpoint remains testing-only. No live card/payment gateway is connected. Manual bank/wallet transfer and COD are separate from automatic gateway processing.
-- Delivery, coupons, reviews, feedback, newsletter, and referrals APIs still contain demo/testing-mode behavior. Customer profiles now have a database-backed API and admin read view, but profile editing controls and customer self-service account workflows still need implementation.
+- Coupon, referral, customer-profile and standalone feedback modules are out of scope and removed from this branch. Reviews and delivery still require live end-to-end validation; delivery provider/location features must not be described as live until configured and tested.
 - Payment verification history records status changes and references; it is not a provider settlement/reconciliation feed.
 - Login rate limiting and session revocation need a dedicated production security review.
 - Actual production database behavior and real payment account verification must be tested before launch. No live database or payment credentials are included in this repository checklist.
+
+
+## Confirmed product-business scope
+- Guest checkout only; collect contact/address data per order, with no customer registration, profile or saved-address accounts.
+- No coupon-code or referral programme.
+- No separate customer feedback module; retain product reviews and ratings.
+- Delivery remains in scope because physical products must be dispatched to customers.
+- No generic service bookings or complaint-ticketing system; order-specific cancellation/refund/support remains in scope.
