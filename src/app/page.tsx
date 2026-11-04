@@ -874,6 +874,19 @@ app_link: String(item.app_link ?? ""),
     );
 };
   
+  // Admin-configured payment links may use provider-supported placeholders.
+  // A wallet will prefill the amount only if its own deep-link format supports it.
+  const getPaymentAppUrl = (account: PaymentAccount) => {
+    const template = account.app_link?.trim();
+    if (!template) return "";
+    return template
+      .replaceAll("{amount}", encodeURIComponent(savedOrderAmount.toFixed(2)))
+      .replaceAll("{amount_pkr}", encodeURIComponent(String(Math.round(savedOrderAmount * 100) / 100)))
+      .replaceAll("{orderNumber}", encodeURIComponent(savedOrderNumber))
+      .replaceAll("{accountNumber}", encodeURIComponent(account.account_number))
+      .replaceAll("{accountTitle}", encodeURIComponent(account.account_title));
+  };
+
   const copyPaymentDetail = async (
     value: string,
     label: string
@@ -2500,65 +2513,47 @@ const total = cartItems.reduce((sum, item) => {
   </div>
 )}
 
-{account.app_link &&
-  account.app_link.startsWith("https://") && (
+{getPaymentAppUrl(account).startsWith("https://") && (
     <a
-      href={account.app_link}
+      href={getPaymentAppUrl(account)}
       target="_blank"
       rel="noopener noreferrer"
-     style={{
-  display: "inline-block",
-  padding: "12px 20px",
-  marginTop: 12,
-  textDecoration: "none",
-  background: "linear-gradient(145deg, #123F42, #1B5555)",
-  color: "#E6BD6C",
-  border: "1px solid #D8B66A",
-  borderRadius: 9,
-  fontWeight: 700,
-}}
+      style={{
+        display: "inline-block",
+        padding: "12px 20px",
+        marginTop: 12,
+        textDecoration: "none",
+        background: "linear-gradient(145deg, #123F42, #1B5555)",
+        color: "#E6BD6C",
+        border: "1px solid #D8B66A",
+        borderRadius: 9,
+        fontWeight: 700,
+      }}
     >
-      Open {account.provider}
+      Open {account.provider} Payment App
     </a>
   )}
+  <button
+    type="button"
+    className="mm-gold-button"
+    onClick={() => copyPaymentDetail(String(savedOrderAmount.toFixed(2)), `Amount ${String(account.id)}`)}
+    style={{ marginTop: 12, marginLeft: 8 }}
+  >
+    {copiedPaymentDetail === `Amount ${String(account.id)}` ? "Amount Copied ✓" : "Copy Exact Payable Amount"}
+  </button>
 </div>
                          ))}
                     
                        {isJazzCash(savedPaymentMethod) &&
   !getMatchingPaymentAccounts(savedPaymentMethod).some(
-    (account) =>
-      Boolean(
-        account.app_link &&
-        account.app_link.startsWith("https://")
-      )
+    (account) => Boolean(account.app_link && account.app_link.startsWith("https://"))
   ) && (
-                          <div style={{ marginTop: 18 }}>
-                            <a
-                              href="https://www.jazzcash.com.pk/deeplink/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                             style={{
-  display: "inline-block",
-  padding: "12px 20px",
-  textDecoration: "none",
-  background: "linear-gradient(145deg, #123F42, #1B5555)",
-  color: "#E6BD6C",
-  border: "1px solid #D8B66A",
-  borderRadius: 9,
-  fontWeight: 700,
-}}
-                            >
-                              Open JazzCash
-                            </a>
-
-                            <p style={{ fontSize: 12 }}>
-                              JazzCash ka official link hai. App opening
-                              aur payment amount filling device ke mutabiq
-                              different ho sakti hai. Payment khud verify
-                              karein.
-                            </p>
-                          </div>
-                                               )}
+    <p style={{ marginTop: 16, fontSize: 13 }}>
+      JazzCash ka payment-app link Admin → Payments mein configure nahi hai.
+      Neeche diye gaye account number ya QR se payment karein. Admin mein
+      provider ka verified payment link add karne ke baad yahan app button show hoga.
+    </p>
+  )}
                       </>
                     )}
 
