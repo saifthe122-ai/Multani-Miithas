@@ -9,8 +9,8 @@ type WeightOption = {
   weight: string;
   price: number;
   deliveryFee: number;
-  packagingFee: number;
-  salesTaxRate: number;
+  packagingFee: number | null;
+  salesTaxRate: number | null;
   packagingType?: string;
   salesTaxBase?: string;
 };
@@ -319,7 +319,7 @@ export default function ProductsPage() {
       ...current,
       weight_options: [
         ...current.weight_options,
-        { weight: "", price: 0, deliveryFee: 0, packagingFee: 0, salesTaxRate: 0, packagingType: "", salesTaxBase: "product" },
+        { weight: "", price: 0, deliveryFee: 0, packagingFee: null, salesTaxRate: null, packagingType: "", salesTaxBase: "product" },
       ],
     }));
   }
@@ -335,7 +335,11 @@ export default function ProductsPage() {
         optionIndex === index
           ? {
               ...option,
-              [field]: field === "weight" || field === "packagingType" || field === "salesTaxBase" ? value : Number(value),
+              [field]: field === "weight" || field === "packagingType" || field === "salesTaxBase"
+                ? value
+                : value.trim() === "" && (field === "packagingFee" || field === "salesTaxRate")
+                  ? null
+                  : Number(value),
             }
           : option
       ),
@@ -508,8 +512,8 @@ export default function ProductsPage() {
                 ) ?? 0
               : Number(option.price),
           deliveryFee: Number(option.deliveryFee ?? 0),
-          packagingFee: Number(option.packagingFee ?? 0),
-          salesTaxRate: Number(option.salesTaxRate ?? 0),
+          packagingFee: option.packagingFee == null ? null : Number(option.packagingFee),
+          salesTaxRate: option.salesTaxRate == null ? null : Number(option.salesTaxRate),
           packagingType: String(option.packagingType ?? ""),
           salesTaxBase: option.salesTaxBase === "all_charges" ? "all_charges" : "product",
         })),
@@ -1222,7 +1226,8 @@ export default function ProductsPage() {
                         ] as const).map(([field, label]) => (
                           <Field key={field} label={label}>
                             <input type="number" min="0" step="0.01" max={field === "salesTaxRate" ? "100" : undefined}
-                              value={option[field] ?? 0}
+                              value={option[field] ?? (field === "packagingFee" || field === "salesTaxRate" ? "" : 0)}
+                              placeholder={field === "packagingFee" || field === "salesTaxRate" ? "Use checkout default" : "0"}
                               onChange={(event) => updateWeightOption(index, field, event.target.value)}
                               style={inputStyle} />
                           </Field>
