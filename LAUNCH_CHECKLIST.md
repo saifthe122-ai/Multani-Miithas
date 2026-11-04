@@ -1,6 +1,6 @@
 # Multani Mithas — Final Launch Checklist
 
-This checklist is for the final pre-production review. Do not merge or promote this branch until the preview build and the manual checks below pass.
+This checklist is for a Production-first release. GitHub Actions and Vercel build checks are safety validation only; the business owner is not required to use or test a Preview website. Never run stock-changing or payment tests against live customer data.
 
 ## Code changes in this round
 
@@ -34,24 +34,24 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - [x] Vercel generated a Ready preview deployment for this branch: https://multani-miithas-git-final-launch-hardening-2026-11-03-webgen3.vercel.app.
 - [ ] Manually inspect preview browser console, mobile/desktop layouts, protected routes, and all real database-backed workflows.
 
-## Required manual checks on preview
+## Production verification (read-only first; no test orders or stock changes)
 
-1. Open the storefront on desktop and a mobile phone.
+1. Open the live Production storefront on desktop and a mobile phone; verify page load, navigation and responsive layout.
 2. Confirm product cards show database products only; inactive products are not visible.
-3. Set one product stock to zero in admin; confirm Add to Cart and Buy Now are disabled.
-4. Set a small stock quantity; place an order up to that quantity; confirm stock decreases exactly by the ordered quantity.
-5. Try ordering more than available stock; confirm the order is rejected and stock is unchanged.
-6. Submit an order and retry the same request after a network interruption; confirm only one order exists.
-7. Verify per-kg and fixed-price products, custom weights, discounts, delivery fee, free-delivery threshold, and tax totals.
-8. Enable a manual payment method in admin; confirm it appears in checkout and the order saves.
+3. Review stock and Add to Cart / Buy Now behavior through code checks or a separate approved test fixture; do not change real Production stock just to test.
+4. Verify stock reservation logic through automated tests or an isolated test fixture; do not place a synthetic order against live inventory.
+5. Verify insufficient-stock rejection through automated tests or an isolated test fixture.
+6. Verify idempotency with automated tests or an isolated test fixture; do not create duplicate Production orders.
+7. Verify per-kg and fixed-price pricing, custom weights, discounts, per-weight packaging/delivery, free-delivery threshold, and tax calculations using deterministic test cases.
+8. Confirm only approved, configured payment methods appear in Production checkout; do not activate personal/test wallets.
 9. Confirm gateway-only payment methods are not offered until a real provider integration is configured and tested.
-10. Mark a manual payment Paid only after verifying the funds in the business wallet/bank account; enter the transaction reference and confirm it appears in the payment dashboard and history.
+10. Never mark a manual payment Paid until funds are actually visible in the business wallet/bank account; then enter its transaction reference and verify audit history.
 11. Archive an order and deactivate a product; confirm records remain in the database.
 12. Confirm admin routes redirect to login when unauthenticated.
 13. Confirm product API responses to a public request do not contain `cost_price`.
 14. Check browser console and network requests for failed assets, API errors, or broken links.
 15. Confirm homepage shows no more than four regular products and three gift boxes, and category links open their own pages.
-16. Add a new active product in admin under an existing category; confirm it appears on that category page without expanding the homepage. Add an inactive product and confirm it remains hidden publicly.
+16. Verify category pages are driven by active database products; only add actual sale inventory and verified product information before launch.
 
 ## Known items that still need a separate implementation or provider setup
 
@@ -95,3 +95,17 @@ This checklist is for the final pre-production review. Do not merge or promote t
 - [ ] Verify public payment APIs never return inactive, test-only or unassigned account details.
 - [ ] Confirm COD is marked Paid only after cash collection; manual wallet/bank payments only after actual funds are verified.
 - [ ] Official JazzCash/Easypaisa gateway integration remains blocked until merchant approval and secure provider credentials are obtained.
+
+
+## Production-first hardening update — 2026-11-04
+
+- [x] PR #6 merged: product admin accepts suggested and custom category names.
+- [x] PR #7 merged: public payment-options API filters out personal accounts and requires an active merchant-owned account matching an enabled manual payment method.
+- [ ] PR #8: server-side checkout applies the configured global sales-tax rate when a product weight option does not specify a rate, and applies the free-delivery threshold to the order delivery total. Merge only after GitHub Actions and Vercel checks succeed.
+- [ ] Confirm the official customer domain and Production deployment are Ready.
+- [ ] Confirm real business payment account ownership and merchant status before enabling manual wallet/bank collection.
+- [ ] Add real inventory, correct prices, weight options, product photos, packaging type and packaging fees before accepting paid orders.
+- [ ] Verify order totals, stock, payment status and historical account snapshots without creating test orders or changing live stock.
+- [ ] Keep COD available only if the business can fulfil and collect cash on delivery.
+- [ ] Do not advertise JazzCash/Easypaisa automatic payment until merchant gateway approval and signed server-side provider verification are complete.
+- [ ] Confirm admin authentication, secret rotation and rate limiting before public launch.

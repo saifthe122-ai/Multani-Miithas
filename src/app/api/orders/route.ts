@@ -126,14 +126,17 @@ export async function POST(request: Request) {
         : "";
 
     const enabledPaymentMethods = await sql`
-      SELECT name
+      SELECT name, provider
       FROM payment_methods
       WHERE is_enabled = true
         AND payment_type = 'manual'
     `;
-    const paymentMethod = enabledPaymentMethods
-      .map((row) => String(row.name ?? ""))
-      .find((method) => method.toLowerCase() === submittedPayment.toLowerCase());
+    const selectedPaymentMethod = enabledPaymentMethods.find(
+      (row) => String(row.name ?? "").toLowerCase() === submittedPayment.toLowerCase()
+    );
+    const paymentMethod = selectedPaymentMethod
+      ? String(selectedPaymentMethod.name)
+      : undefined;
 
     if (
       !customerName ||
@@ -158,6 +161,33 @@ export async function POST(request: Request) {
         { success: false, message: "Payment method valid nahi hai." },
         { status: 400 }
       );
+    }
+
+    const isCashOnDelivery = /cash on delivery|\\bcod\\b/i.test(paymentMethod);
+    if (!isCashOnDelivery) {
+      const provider = String(selectedPaymentMethod?.provider ?? "").trim();
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: "Is payment method ka business account abhi configure nahi hai. Cash on Delivery select karein." },
+          { status: 409 }
+        );
+      }
+
+      const configuredAccounts = await sql`
+        SELECT id
+        FROM business_payment_accounts
+        WHERE is_active = true
+          AND wallet_owner_type = 'merchant'
+          AND LOWER(COALESCE(provider, '')) = LOWER(${provider})
+        LIMIT 1
+      `;
+
+      if (!configuredAccounts.length) {
+        return NextResponse.json(
+          { success: false, message: "Is payment method ka verified business account abhi available nahi hai. Cash on Delivery select karein." },
+          { status: 409 }
+        );
+      }
     }
 
     if (
@@ -294,6 +324,17 @@ export async function POST(request: Request) {
         ) AS entry(item)
       ),
 
+      checkout_rules AS MATERIALIZED (
+        SELECT
+          delivery_fee,
+          free_delivery_minimum,
+          packaging_fee,
+          sales_tax_enabled,
+          sales_tax_rate
+        FROM checkout_settings
+        WHERE id = 1
+      ),
+
       product_prices AS MATERIALIZED (
         SELECT
           p.id AS product_id,
@@ -307,13 +348,18 @@ export async function POST(request: Request) {
           r.quantity,
           COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, 0) AS unit_packaging_fee,
-          COALESCE(NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric, 0) AS unit_sales_tax_rate,
+          COALESCE(
+            NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric,
+            CASE WHEN checkout_rules.sales_tax_enabled THEN checkout_rules.sales_tax_rate ELSE 0 END,
+            0
+          ) AS unit_sales_tax_rate,
           COALESCE(NULLIF(selected_weight_option.option->>'salesTaxBase', ''), 'product') AS unit_sales_tax_base,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingType', ''), '') AS unit_packaging_type,
 
           selected_weight_option.option AS selected_weight_option
 
         FROM requested_items r
+        CROSS JOIN checkout_rules
         INNER JOIN products p
           ON p.id = r.product_id
         LEFT JOIN LATERAL (
@@ -384,8 +430,21 @@ export async function POST(request: Request) {
       ),
 
       calculated AS (
-        SELECT *, delivery_fee AS final_delivery_fee
+        SELECT
+          totals.*,
+          CASE
+            WHEN checkout_rules.free_delivery_minimum > 0
+              AND totals.subtotal >= checkout_rules.free_delivery_minimum
+            THEN 0
+            WHEN totals.delivery_fee > 0 THEN totals.delivery_fee
+            ELSE checkout_rules.delivery_fee
+          END AS final_delivery_fee,
+          CASE
+            WHEN totals.packaging_fee > 0 THEN totals.packaging_fee
+            ELSE checkout_rules.packaging_fee
+          END AS final_packaging_fee
         FROM totals
+        CROSS JOIN checkout_rules
       ),
 
       matching_customer AS MATERIALIZED (
@@ -461,8 +520,8 @@ export async function POST(request: Request) {
           t.subtotal,
           t.final_delivery_fee,
           t.tax_amount,
-          t.packaging_fee,
-          t.subtotal + t.final_delivery_fee + t.packaging_fee + t.tax_amount
+          t.final_packaging_fee,
+          t.subtotal + t.final_delivery_fee + t.final_packaging_fee + t.tax_amount
 
         FROM resolved_customer c
         CROSS JOIN calculated t
@@ -758,6 +817,37 @@ export async function PATCH(request: Request) {
         { success: false, message: "Payment reference 120 characters se kam rakhein." },
         { status: 400 }
       );
+    }
+
+    if (hasPaymentStatus && normalizedPaymentStatus === "paid") {
+      const [currentPaymentOrder] = await sql`
+        SELECT payment_method, status
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        LIMIT 1
+      `;
+
+      if (!currentPaymentOrder) {
+        return NextResponse.json(
+          { success: false, message: "Order nahi mila." },
+          { status: 404 }
+        );
+      }
+
+      const isCodOrder = /cash on delivery|\\bcod\\b/i.test(String(currentPaymentOrder.payment_method ?? ""));
+      if (isCodOrder && String(currentPaymentOrder.status ?? "").toLowerCase() !== "completed") {
+        return NextResponse.json(
+          { success: false, message: "COD payment sirf delivery complete hone aur cash receive karne ke baad Paid mark karein." },
+          { status: 409 }
+        );
+      }
+
+      if (!isCodOrder && !paymentReference) {
+        return NextResponse.json(
+          { success: false, message: "Manual transfer ko Paid mark karne ke liye verified transaction reference required hai." },
+          { status: 400 }
+        );
+      }
     }
 
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
