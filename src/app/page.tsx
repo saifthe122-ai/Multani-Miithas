@@ -2303,9 +2303,9 @@ const total = cartItems.reduce((sum, item) => {
               Share the sweetness of Multan with family, friends
               and loved ones.
             </p>
-            <a href="/shop/gift-boxes" style={goldButton}>
+            <Link href="/shop/gift-boxes" style={goldButton}>
               Explore Gift Boxes →
-            </a>
+            </Link>
           </div>
         </div>
 
