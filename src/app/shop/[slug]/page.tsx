@@ -35,8 +35,31 @@ export default function CategoryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categoryProducts = useMemo(() => products.filter((p) => slugify(p.category) === slug), [products, slug]);
-  const categoryName = categoryProducts[0]?.category || slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+  const collectionNames: Record<string, string> = {
+    mithai: "Mithai",
+    barfi: "Barfi",
+    "sohan-halwa": "Sohan Halwa",
+    "desi-ghee": "Desi Ghee",
+    "honey-dry-fruits": "Honey & Dry Fruits",
+    "gift-boxes": "Gift Boxes",
+  };
+  const matchesCollection = (product: Product) => {
+    const category = `${product.category} ${product.name}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+    const name = product.name.toLowerCase();
+    if (slug === "gift-boxes") return /gift\s*box|gift\s*hamper/.test(category);
+    if (slug === "barfi") return /barfi/.test(category);
+    if (slug === "sohan-halwa") return /sohan/.test(category);
+    if (slug === "desi-ghee") return /\bghee\b/.test(category);
+    if (slug === "honey-dry-fruits") return /honey|dry\s*fruit|kheer|gajar|carrot\s*halwa/.test(category);
+    if (slug === "mithai") {
+      const excluded = /barfi|sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(category);
+      return !excluded && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut/.test(category) || /traditional/.test(product.category.toLowerCase()));
+    }
+    return slugify(product.category) === slug;
+  };
+  const categoryProducts = useMemo(() => products.filter(matchesCollection), [products, slug]);
+  const categoryName = collectionNames[slug] || categoryProducts[0]?.category || slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+  const subcategories = Array.from(new Set(categoryProducts.map((product) => product.category).filter(Boolean)));
 
   return (
     <main style={{ minHeight: "100vh", background: "#FFF8EA", color: "#123F42", fontFamily: "Georgia, serif" }}>
@@ -48,6 +71,7 @@ export default function CategoryPage() {
         <p style={{ color: "#A16B16", letterSpacing: 3, fontSize: 12 }}>MULTANI MITHAS COLLECTION</p>
         <h1 style={{ fontWeight: 400, fontSize: "clamp(32px,5vw,52px)", margin: "8px 0" }}>{categoryName}</h1>
         <p style={{ color: "#6C5A43" }}>Explore our complete {categoryName.toLowerCase()} collection.</p>
+        {subcategories.length > 1 && <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, margin: "18px auto", maxWidth: 900 }}>{subcategories.map((item) => <span key={item} style={{ border: "1px solid #D8C59F", borderRadius: 30, padding: "7px 13px", fontSize: 12, background: "#FFFCF5" }}>{item}</span>)}</div>}
         <p><Link href="/shop" style={{ color: "#8B642B" }}>← All categories</Link></p>
       </section>
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : categoryProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
