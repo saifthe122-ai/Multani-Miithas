@@ -291,6 +291,7 @@ export default function Home() {
     useState<Product[]>([]);
   const [productsLoadError, setProductsLoadError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [offersOnly, setOffersOnly] = useState(false);
 
   const [cart, setCart] =
     useState<Record<string, CartItem>>({});
@@ -1120,8 +1121,13 @@ const total = cartItems.reduce((sum, item) => {
   }, 0);
   const estimatedGrandTotal = total + deliveryFee + packagingFee + taxAmount;
 
-  const regularProducts = products.filter((product) => product.category !== "Gift Boxes" && isProductEnabled(product) && (selectedCategory === "All" || product.category === selectedCategory));
-  const homeRegularProducts = selectedCategory === "All" ? regularProducts.slice(0, 4) : regularProducts;
+  const regularProducts = products.filter((product) =>
+    normalizeName(product.category) !== "giftboxes" &&
+    isProductEnabled(product) &&
+    (selectedCategory === "All" || product.category === selectedCategory) &&
+    (!offersOnly || Number(product.discount || 0) > 0)
+  );
+  const homeRegularProducts = selectedCategory === "All" && !offersOnly ? regularProducts.slice(0, 4) : regularProducts;
 
   const giftProducts = products.filter(
     (product) =>
@@ -1288,32 +1294,23 @@ const total = cartItems.reduce((sum, item) => {
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  // Keep storefront navigation curated. Gift Boxes have their own separate button.
-  const categoryOrder = [
-    "Sweets & Mithai", "Sweets", "Barfi", "Sohan Halwa",
-    "Desi Ghee", "Ghee", "Honey", "Dry Fruits", "Desserts",
-    "Bakery", "Namkeen",
+  // Customer-facing collections: only the main collection names appear in navigation.
+  const mainCollections = [
+    { title: "Mithai", slug: "mithai", symbol: "🍬" },
+    { title: "Barfi", slug: "barfi", symbol: "◇" },
+    { title: "Sohan Halwa", slug: "sohan-halwa", symbol: "✦" },
+    { title: "Desi Ghee", slug: "desi-ghee", symbol: "🫙" },
+    { title: "Honey & Dry Fruits", slug: "honey-dry-fruits", symbol: "🍯" },
   ];
-  const categories = Array.from(
-    new Set(
-      products.filter(isProductEnabled)
-        .map((product) => product.category.trim())
-        .filter((category) => category && normalizeName(category) !== "giftboxes")
-    )
-  ).sort((a, b) => {
-    const aIndex = categoryOrder.findIndex((item) => normalizeName(item) === normalizeName(a));
-    const bIndex = categoryOrder.findIndex((item) => normalizeName(item) === normalizeName(b));
-    if (aIndex >= 0 || bIndex >= 0) {
-      if (aIndex < 0) return 1;
-      if (bIndex < 0) return -1;
-      return aIndex - bIndex;
-    }
-    return a.localeCompare(b);
-  });
   const hasGiftBoxes = products.some(
     (product) => normalizeName(product.category) === "giftboxes" && isProductEnabled(product)
   );
-  const categorySlug = (value: string) => value.toLowerCase().trim().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const packagingChoices = Array.from(new Map(
+    products.flatMap((product) => (product.weight_options || []).map((option) => ({
+      name: String(option.packagingType || "Standard Packaging"),
+      fee: Math.max(0, Number(option.packagingFee ?? checkoutSettings.packagingFee) || 0),
+    }))).map((choice) => [`${normalizeName(choice.name)}-${choice.fee}`, choice])
+  ).values());
 
   return (
     <main
@@ -1775,8 +1772,9 @@ const total = cartItems.reduce((sum, item) => {
 
               <nav className="mm-nav">
           <a href="#home">Home</a>
-          <a href="#products">Shop</a>
-          <a href="#offers">Offers</a>
+          <a href="#categories">Collections</a>
+          <a href="#packaging-costs">Packaging</a>
+          <a href="#offers" onClick={() => setOffersOnly(true)}>Offers</a>
           <a href="#about">Our Story</a>
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
@@ -1800,6 +1798,7 @@ const total = cartItems.reduce((sum, item) => {
         }}
       >
         <div className="mm-hero-content">
+          {brandLogo && <img src={brandLogo} alt="Multani Mithas logo" fetchPriority="high" style={{ width: "clamp(110px, 17vw, 190px)", height: "auto", maxHeight: 100, objectFit: "contain", display: "block", margin: "0 0 16px", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.22))" }} />}
           <p className="mm-eyebrow">Authentic Multani Sweets</p>
           <h1>
             {heroTitle}
@@ -1830,10 +1829,10 @@ const total = cartItems.reduce((sum, item) => {
           Browse collections by category. Product prices are shown in PKR; delivery, packaging and applicable tax are itemised before checkout.
         </p>
         <div className="mm-category-grid">
-          {categories.map((category) => (
-            <Link key={category} href={`/shop/${categorySlug(category)}`} className="mm-category">
-              <span className="mm-category-symbol">❖</span>
-              <span className="mm-category-name">{category}</span>
+          {mainCollections.map((collection) => (
+            <Link key={collection.slug} href={`/shop/${collection.slug}`} className="mm-category">
+              <span className="mm-category-symbol">{collection.symbol}</span>
+              <span className="mm-category-name">{collection.title}</span>
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
             </Link>
           ))}
@@ -1844,11 +1843,6 @@ const total = cartItems.reduce((sum, item) => {
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
             </Link>
           )}
-          <Link href="/shop" className="mm-category">
-            <span className="mm-category-symbol">✦</span>
-            <span className="mm-category-name">All Products</span>
-            <span style={{ color: "#E3BD70" }}>View all ↗</span>
-          </Link>
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && (
@@ -1921,18 +1915,17 @@ const total = cartItems.reduce((sum, item) => {
                     {offer.description}
                   </p>
 
-                  {offer.buttonText && offer.buttonLink && (
-                    <a
-                      href={offer.buttonLink}
-                      style={{
-                        ...goldButton,
-                        display: "inline-block",
-                        marginTop: 15,
-                      }}
-                    >
-                      {offer.buttonText} →
-                    </a>
-                  )}
+                  <a
+                    href="#products"
+                    onClick={() => setOffersOnly(true)}
+                    style={{
+                      ...goldButton,
+                      display: "inline-block",
+                      marginTop: 15,
+                    }}
+                  >
+                    {offer.buttonText || "Shop Offers"} →
+                  </a>
                 </article>
               ))}
           </div>
@@ -1943,7 +1936,8 @@ const total = cartItems.reduce((sum, item) => {
         style={{ ...sectionStyle, background: "#FFF8EA" }}
       >
         <div className="mm-ornament">✦ ❖ ✦</div>
-        <h2 className="mm-section-heading">The Taste of Multan</h2>
+        <h2 className="mm-section-heading">{offersOnly ? "Special Offer Products" : "The Taste of Multan"}</h2>
+        {offersOnly && <div style={{ textAlign: "center", marginBottom: 18 }}><p>Sirf woh products jin par active discount laga hua hai.</p><button type="button" className="mm-outline-button" onClick={() => setOffersOnly(false)}>Show All Products</button></div>}
         <p className="mm-section-intro">
           Explore our traditional sweets and bakery favourites. Prices
           are displayed in Pakistani rupees.
@@ -2282,7 +2276,7 @@ const total = cartItems.reduce((sum, item) => {
               Share the sweetness of Multan with family, friends
               and loved ones.
             </p>
-            <a href="#gift-products" style={goldButton}>
+            <a href="/shop/gift-boxes" style={goldButton}>
               Explore Gift Boxes →
             </a>
           </div>
@@ -3047,6 +3041,21 @@ style={{
           </section>
         </div>
       )}
+
+      <section id="packaging-costs" style={{ ...sectionStyle, background: "#E8D6B4" }}>
+        <div className="mm-ornament">✦ ❖ ✦</div>
+        <h2 className="mm-section-heading">Packaging Options & Cost</h2>
+        <p className="mm-section-intro">Har product aur selected weight ke mutabiq packaging charge checkout se pehle alag show hota hai. Gift-style packaging aur simple packaging ka rate product settings mein manage hota hai.</p>
+        <div style={{ maxWidth: 760, margin: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+          {(packagingChoices.length ? packagingChoices : [{name:"Simple Packaging",fee:0},{name:"Gift Packaging",fee:0}]).map((choice) => (
+            <article key={`${choice.name}-${choice.fee}`} className="mm-info-card">
+              <h3 style={{ marginTop: 0 }}>{choice.name}</h3>
+              <strong style={{ fontSize: 22, color: "#8A5630" }}>{money(choice.fee)}</strong>
+              <p style={{ marginBottom: 0, fontSize: 12 }}>Per selected product / weight option. Final fee cart mein item-wise detail ke saath nazar aayegi.</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section id="delivery" style={{ ...sectionStyle, background: "#FFF8EA" }}>
         <h2 className="mm-section-heading">Delivery Information</h2>
