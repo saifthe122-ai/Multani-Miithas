@@ -3074,13 +3074,18 @@ style={{
         <h2 className="mm-section-heading">Packaging Options & Cost</h2>
         <p className="mm-section-intro">Har product aur selected weight ke mutabiq packaging charge checkout se pehle alag show hota hai. Gift-style packaging aur simple packaging ka rate product settings mein manage hota hai.</p>
         <div style={{ maxWidth: 760, margin: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
-          {(packagingChoices.length ? packagingChoices : [{name:"Simple Packaging",fee:0},{name:"Gift Packaging",fee:0}]).map((choice) => (
+          {packagingChoices.length > 0 ? packagingChoices.map((choice) => (
             <article key={`${choice.name}-${choice.fee}`} className="mm-info-card">
               <h3 style={{ marginTop: 0 }}>{choice.name}</h3>
               <strong style={{ fontSize: 22, color: "#8A5630" }}>{money(choice.fee)}</strong>
               <p style={{ marginBottom: 0, fontSize: 12 }}>Per selected product / weight option. Final fee cart mein item-wise detail ke saath nazar aayegi.</p>
             </article>
-          ))}
+          )) : (
+            <article className="mm-info-card" style={{ gridColumn: "1 / -1" }}>
+              <h3 style={{ marginTop: 0 }}>Simple & Gift Packaging</h3>
+              <p style={{ marginBottom: 0 }}>Packaging rates abhi configure ho rahe hain. Final amount order confirm karne se pehle cart mein show hoga.</p>
+            </article>
+          )}
         </div>
       </section>
 
