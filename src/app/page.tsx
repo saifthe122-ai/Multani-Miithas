@@ -1304,8 +1304,14 @@ const total = cartItems.reduce((sum, item) => {
     }
     const clean = value.replace(/^\/+/, "");
     if (platform === "YouTube") {
-      const path = clean.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//i, "");
-      return `https://www.youtube.com/${path}`;
+      const youtubeValue = clean.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//i, "");
+      if (/^(youtu\.be\/)/i.test(youtubeValue)) {
+        return `https://${youtubeValue}`;
+      }
+      if (/^(watch\?|shorts\/|live\/|channel\/|c\/|user\/|@)/i.test(youtubeValue)) {
+        return `https://www.youtube.com/${youtubeValue}`;
+      }
+      return `https://www.youtube.com/@${youtubeValue.replace(/^@/, "")}`;
     }
     const host = platform === "Facebook" ? "facebook.com/" : platform === "Instagram" ? "instagram.com/" : "www.tiktok.com/";
     const hasPlatformDomain = /^(www\.)?(facebook|instagram|tiktok)\.com\//i.test(clean);
@@ -1315,16 +1321,15 @@ const total = cartItems.reduce((sum, item) => {
   const contactEmail = BUSINESS_EMAIL.trim();
 
   // Customer-facing collections: only the main collection names appear in navigation.
+  // Exactly five clear customer-facing collection buttons. Detailed product
+  // categories remain inside each collection page; Gift Boxes is a dedicated button.
   const mainCollections = [
-    { title: "Mithai", slug: "mithai", symbol: "🍬" },
-    { title: "Barfi", slug: "barfi", symbol: "◇" },
+    { title: "Sweets & Mithai", slug: "mithai", symbol: "🍬" },
     { title: "Sohan Halwa", slug: "sohan-halwa", symbol: "✦" },
     { title: "Desi Ghee", slug: "desi-ghee", symbol: "🫙" },
-    { title: "Honey & Dry Fruits", slug: "honey-dry-fruits", symbol: "🍯" },
+    { title: "Honey, Dry Fruits & Desserts", slug: "honey-dry-fruits", symbol: "🍯" },
+    { title: "Gift Boxes", slug: "gift-boxes", symbol: "🎁" },
   ];
-  const hasGiftBoxes = products.some(
-    (product) => normalizeName(product.category) === "giftboxes" && isProductEnabled(product)
-  );
   const packagingChoices = products
     .flatMap((product) => (product.weight_options || []).map((option) => ({
       name: String(option.packagingType || "Standard Packaging"),
@@ -1825,12 +1830,30 @@ const total = cartItems.reduce((sum, item) => {
         }}
       >
         <div className="mm-hero-content">
-          {brandLogo && <img src={brandLogo} alt="Multani Mithas logo" fetchPriority="high" style={{ width: "clamp(110px, 17vw, 190px)", height: "auto", maxHeight: 100, objectFit: "contain", display: "block", margin: "0 0 16px", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.22))" }} />}
           <p className="mm-eyebrow">Authentic Multani Sweets</p>
-          <h1>
-            {heroTitle}
-            {!heroTitle.toLowerCase().includes("dil se") && (
-              <span className="mm-hero-script"> Dil Se</span>
+          <h1 style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", flexWrap: "wrap", gap: 10 }}>
+            <span>
+              {heroTitle}
+              {!heroTitle.toLowerCase().includes("dil se") && (
+                <span className="mm-hero-script"> Dil Se</span>
+              )}
+            </span>
+            {brandLogo && (
+              <img
+                src={brandLogo}
+                alt="Multani Mithas logo"
+                fetchPriority="high"
+                style={{
+                  width: "clamp(76px, 10vw, 128px)",
+                  height: "auto",
+                  maxHeight: 78,
+                  objectFit: "contain",
+                  display: "inline-block",
+                  opacity: 0.9,
+                  verticalAlign: "middle",
+                  filter: "drop-shadow(0 2px 8px rgba(0,0,0,.28))",
+                }}
+              />
             )}
           </h1>
           <p className="mm-hero-description">{heroSubtitle}</p>
@@ -1863,13 +1886,6 @@ const total = cartItems.reduce((sum, item) => {
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
             </Link>
           ))}
-          {hasGiftBoxes && (
-            <Link href="/shop/gift-boxes" className="mm-category" aria-label="Explore Gift Boxes collection">
-              <span className="mm-category-symbol">🎁</span>
-              <span className="mm-category-name">Gift Boxes</span>
-              <span style={{ color: "#E3BD70" }}>Explore ↗</span>
-            </Link>
-          )}
         </div>
       </section>
       {publishedSettings?.offers?.some((offer) => offer.enabled) && products.some((product) => isProductEnabled(product) && Number(product.discount || 0) > 0) && (
