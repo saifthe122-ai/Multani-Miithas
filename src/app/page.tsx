@@ -1277,7 +1277,31 @@ const total = cartItems.reduce((sum, item) => {
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  const categories = Array.from(new Set(products.filter(isProductEnabled).map((product) => product.category))).sort((a, b) => a.localeCompare(b));
+  // Keep storefront navigation curated. Gift Boxes have their own separate button.
+  const categoryOrder = [
+    "Sweets & Mithai", "Sweets", "Barfi", "Sohan Halwa",
+    "Desi Ghee", "Ghee", "Honey", "Dry Fruits", "Desserts",
+    "Bakery", "Namkeen",
+  ];
+  const categories = Array.from(
+    new Set(
+      products.filter(isProductEnabled)
+        .map((product) => product.category.trim())
+        .filter((category) => category && normalizeName(category) !== "giftboxes")
+    )
+  ).sort((a, b) => {
+    const aIndex = categoryOrder.findIndex((item) => normalizeName(item) === normalizeName(a));
+    const bIndex = categoryOrder.findIndex((item) => normalizeName(item) === normalizeName(b));
+    if (aIndex >= 0 || bIndex >= 0) {
+      if (aIndex < 0) return 1;
+      if (bIndex < 0) return -1;
+      return aIndex - bIndex;
+    }
+    return a.localeCompare(b);
+  });
+  const hasGiftBoxes = products.some(
+    (product) => normalizeName(product.category) === "giftboxes" && isProductEnabled(product)
+  );
   const categorySlug = (value: string) => value.toLowerCase().trim().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   return (
@@ -1802,6 +1826,13 @@ const total = cartItems.reduce((sum, item) => {
               <span style={{ color: "#E3BD70" }}>Explore ↗</span>
             </Link>
           ))}
+          {hasGiftBoxes && (
+            <Link href="/shop/gift-boxes" className="mm-category" aria-label="Explore Gift Boxes collection">
+              <span className="mm-category-symbol">🎁</span>
+              <span className="mm-category-name">Gift Boxes</span>
+              <span style={{ color: "#E3BD70" }}>Explore ↗</span>
+            </Link>
+          )}
           <Link href="/shop" className="mm-category">
             <span className="mm-category-symbol">✦</span>
             <span className="mm-category-name">All Products</span>
