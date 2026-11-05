@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    const previousOrdersView = new URL(request.url).searchParams.get("view") === "previous";
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_account_id bigint`;
@@ -81,7 +82,10 @@ export async function GET(request: Request) {
           '[]'::json
         ) AS items
       FROM orders o
-      WHERE o.archived_at IS NULL
+      WHERE (
+        (${previousOrdersView} = true AND o.archived_at IS NOT NULL)
+        OR (${previousOrdersView} = false AND o.archived_at IS NULL)
+      )
       ORDER BY o.created_at DESC
       LIMIT 500
     `;
