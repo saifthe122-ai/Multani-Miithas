@@ -1807,6 +1807,7 @@ const total = cartItems.reduce((sum, item) => {
           {publishedSettings?.offers?.some((offer) => offer.enabled) && products.some((product) => isProductEnabled(product) && Number(product.discount || 0) > 0) && (
             <a href="#offers" onClick={() => { setOffersOnly(true); setSelectedCategory("All"); }}>Offers</a>
           )}
+          <a href="#packaging-costs">Packaging</a>
           <a href="#about">Our Story</a>
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
