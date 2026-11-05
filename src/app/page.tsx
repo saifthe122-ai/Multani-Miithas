@@ -1943,7 +1943,7 @@ const total = cartItems.reduce((sum, item) => {
                   </p>
 
                   <a
-                    href={regularProducts.length > 0 ? "#products" : "#gift-products"}
+                    href={products.some((product) => isProductEnabled(product) && normalizeName(product.category) !== "giftboxes" && Number(product.discount || 0) > 0) ? "#products" : "#gift-products"}
                     onClick={() => { setOffersOnly(true); setSelectedCategory("All"); }}
                     style={{
                       ...goldButton,
