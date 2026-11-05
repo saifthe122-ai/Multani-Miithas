@@ -396,7 +396,7 @@ export default function OrdersDashboard() {
 
   async function permanentlyDeleteOrder(orderNumber: string) {
     const confirmed = window.confirm(
-      `Order ${orderNumber} ko permanently delete karna hai? Ye action wapas nahi ho sakta. Paid aur partially refunded orders protected hain.`
+      `Order ${orderNumber} ko permanently delete karna hai? Ye action wapas nahi ho sakta. Paid, refunded aur partially refunded orders protected hain.`
     );
     if (!confirmed) return;
 
