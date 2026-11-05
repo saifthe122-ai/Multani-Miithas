@@ -164,6 +164,7 @@ const statusColors: Record<OrderStatus, string> = {
 export default function OrdersDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPreviousOrders, setShowPreviousOrders] = useState(false);
   const [apiError, setApiError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -172,12 +173,12 @@ export default function OrdersDashboard() {
     null
   );
 
-  async function loadOrders() {
+  async function loadOrders(previous = showPreviousOrders) {
     setLoading(true);
     setApiError("");
 
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch(`/api/orders?view=${previous ? "previous" : "current"}`, {
         cache: "no-store",
       });
 
@@ -512,6 +513,16 @@ export default function OrdersDashboard() {
           </button>
 
           <button
+            style={{ ...styles.refreshButton, background: showPreviousOrders ? "#e0f2fe" : "#ecfdf5" }}
+            onClick={() => {
+              const nextView = !showPreviousOrders;
+              setShowPreviousOrders(nextView);
+              void loadOrders(nextView);
+            }}
+          >
+            {showPreviousOrders ? "← Current Orders" : "Previous Orders"}
+          </button>
+          <button
             style={styles.exportButton}
             onClick={exportOrdersToCSV}
           >
@@ -538,12 +549,12 @@ export default function OrdersDashboard() {
             ? "Loading customer orders…"
             : apiError
             ? "Orders could not be loaded"
-            : "Live customer orders"}
+            : showPreviousOrders ? "Previous / Archived Orders" : "Live Current Orders"}
         </strong>
 
         <p style={{ margin: "5px 0 10px", lineHeight: 1.6 }}>
           {apiError ||
-            "Orders are loaded from the orders API. Payment status changes are saved to the database."}
+            showPreviousOrders ? "Archived orders are kept separately for history and can still be exported to CSV." : "New customer orders appear here. Archived orders are kept in Previous Orders."}
         </p>
 
         <button
