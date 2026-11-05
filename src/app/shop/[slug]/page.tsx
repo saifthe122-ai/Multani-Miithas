@@ -36,7 +36,7 @@ export default function CategoryPage() {
   }, []);
 
   const collectionNames: Record<string, string> = {
-    mithai: "Mithai",
+    mithai: "Sweets & Mithai",
     barfi: "Barfi",
     "sohan-halwa": "Sohan Halwa",
     "desi-ghee": "Desi Ghee",
