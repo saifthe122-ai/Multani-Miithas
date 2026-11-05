@@ -476,3 +476,50 @@ updated_at = NOW()
     return jsonError("Payment settings update nahi ho sakin.", 500);
   }
 }
+
+
+export async function DELETE(request: Request) {
+  if (!(await requireAdmin(request))) {
+    return jsonError("Admin login required", 401);
+  }
+
+  try {
+    const body: unknown = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return jsonError("Invalid request body.");
+    }
+    const id = Number((body as Record<string, unknown>).id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return jsonError("Account ID valid nahi.");
+    }
+
+    const [account] = await sql`
+      SELECT id, is_active
+      FROM business_payment_accounts
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    if (!account) return jsonError("Payment account nahi mila.", 404);
+    if (account.is_active === true) {
+      return jsonError("Pehle account deactivate karein, phir permanently delete karein.", 409);
+    }
+
+    await sql`UPDATE orders SET payment_account_id = NULL WHERE payment_account_id = ${id}`;
+    const deleted = await sql`
+      DELETE FROM business_payment_accounts
+      WHERE id = ${id} AND is_active = false
+      RETURNING id
+    `;
+    if (!deleted.length) return jsonError("Account delete nahi ho saka.", 409);
+
+    return NextResponse.json({
+      success: true,
+      deleted: true,
+      id: String(deleted[0].id),
+      message: "Account permanently delete aur orders se unlink ho gaya. Historical order snapshots محفوظ hain.",
+    });
+  } catch (error) {
+    console.error("Payment account delete failed:", error);
+    return jsonError("Payment account delete nahi ho saka.", 500);
+  }
+}
