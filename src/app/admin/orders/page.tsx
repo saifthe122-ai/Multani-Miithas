@@ -539,16 +539,6 @@ export default function OrdersDashboard() {
             ↓ Export CSV
           </button>
 
-          <button
-            style={styles.primaryButton}
-            onClick={() =>
-              alert(
-                "New order form will be connected to the customer checkout/API."
-              )
-            }
-          >
-            + New Order
-          </button>
         </div>
       </section>
 
@@ -563,8 +553,7 @@ export default function OrdersDashboard() {
         </strong>
 
         <p style={{ margin: "5px 0 10px", lineHeight: 1.6 }}>
-          {apiError ||
-            showPreviousOrders ? "Archived orders are kept separately for history and can still be exported to CSV." : "New customer orders appear here. Archived orders are kept in Previous Orders."}
+          {apiError || (showPreviousOrders ? "Archived orders are kept separately for history and can still be exported to CSV." : "New customer orders appear here. Archived orders are kept in Previous Orders.")}
         </p>
 
         <button
