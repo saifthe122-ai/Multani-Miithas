@@ -189,7 +189,7 @@ export async function POST(request: Request) {
           is_primary, wallet_owner_type, qr_image_url, app_link
         FROM business_payment_accounts
         WHERE is_active = true
-          AND wallet_owner_type = 'merchant'
+          AND (wallet_owner_type = 'merchant' OR show_on_checkout = true)
           AND (
             LOWER(COALESCE(provider, '')) = LOWER(${provider})
             OR (
