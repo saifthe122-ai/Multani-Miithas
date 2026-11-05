@@ -528,6 +528,35 @@ setNotice("Account settings database mein save ho gayi hain.");
   }
 }
 
+  async function permanentlyDeleteAccount(account: BusinessAccount) {
+    if (account.isActive) {
+      setNotice("Pehle account deactivate karein.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `${account.provider} — ${account.accountName} ko permanently delete aur customer checkout se unlink karna hai?`
+    );
+    if (!confirmed) return;
+    try {
+      setSaving(true);
+      const response = await fetch("/api/admin/payments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: Number(account.id) }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success !== true) {
+        throw new Error(result.message || "Account delete nahi hua.");
+      }
+      await loadPaymentSettings();
+      setNotice("Payment account permanently delete aur unlink ho gaya. Purane orders ki payment snapshot محفوظ hai.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Account delete nahi hua.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updatePaymentStatus(
     payment: PaymentRecord,
     status: PaymentRecord["status"]
@@ -1142,6 +1171,14 @@ setNotice("Account settings database mein save ho gayi hain.");
                         Make Primary
                       </button>
                     )}
+                    <button
+                      onClick={() => void permanentlyDeleteAccount(account)}
+                      disabled={account.isActive || saving}
+                      title={account.isActive ? "Pehle deactivate karein" : "Permanently delete and unlink"}
+                      style={{ ...buttonStyle, background: account.isActive ? "#f3f4f6" : "#fee2e2", color: account.isActive ? "#9ca3af" : "#991b1b", cursor: account.isActive ? "not-allowed" : "pointer" }}
+                    >
+                      Permanently Delete
+                    </button>
                   </div>
                 </div>
               ))}
