@@ -394,6 +394,30 @@ export default function OrdersDashboard() {
     }
   }
 
+  async function permanentlyDeleteOrder(orderNumber: string) {
+    const confirmed = window.confirm(
+      `Order ${orderNumber} ko permanently delete karna hai? Ye action wapas nahi ho sakta. Paid aur partially refunded orders protected hain.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderNumber, action: "permanent_delete" }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.success !== true) {
+        throw new Error(data.message || "Order permanently delete nahi ho saka.");
+      }
+      setSelectedOrder(null);
+      await loadOrders(true);
+      alert("Archived unpaid order permanently delete ho gaya.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Order permanently delete nahi ho saka.");
+    }
+  }
+
   function assignRider(id: string, rider: string) {
     setOrders((current) =>
       current.map((order) =>
@@ -771,12 +795,21 @@ export default function OrdersDashboard() {
                           View
                         </button>
 
-                        <button
-                          style={styles.deleteButton}
-                          onClick={() => void deleteOrder(order.id)}
-                        >
-                          Move to Previous
-                        </button>
+                        {showPreviousOrders ? (
+                          <button
+                            style={styles.deleteButton}
+                            onClick={() => void permanentlyDeleteOrder(order.id)}
+                          >
+                            Permanently Delete
+                          </button>
+                        ) : (
+                          <button
+                            style={styles.deleteButton}
+                            onClick={() => void deleteOrder(order.id)}
+                          >
+                            Move to Previous
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
