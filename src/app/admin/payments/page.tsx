@@ -611,7 +611,9 @@ setNotice("Account settings database mein save ho gayi hain.");
         )
       );
 
-      setNotice("Payment status database mein save ho gaya.");
+      await loadPaymentSettings();
+      await loadPayments();
+      setNotice("Payment status database mein save ho gaya. Orders aur payment verification history refresh ho gayi.");
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : "Payment status save nahi hua."
