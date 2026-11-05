@@ -51,14 +51,31 @@ export default function CategoryPage() {
     if (slug === "desi-ghee") return /\bghee\b/.test(category);
     if (slug === "honey-dry-fruits") return /honey|dry\s*fruit|kheer|gajar|carrot\s*halwa/.test(category);
     if (slug === "mithai") {
-      const excluded = /barfi|sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(category);
+      const excluded = /sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(category);
       return !excluded && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut/.test(category) || /traditional/.test(product.category.toLowerCase()));
     }
     return slugify(product.category) === slug;
   };
   const categoryProducts = useMemo(() => products.filter(matchesCollection), [products, slug]);
   const categoryName = collectionNames[slug] || categoryProducts[0]?.category || slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
-  const subcategories = Array.from(new Set(categoryProducts.map((product) => product.category).filter(Boolean)));
+  const getSubcategory = (product: Product) => {
+    const details = `${product.category} ${product.name}`.toLowerCase();
+    if (/mix\s*mithai/.test(details)) return "Mix Mithai";
+    if (/special\s*mithai/.test(details)) return "Special Mithai";
+    if (/barfi/.test(details)) return "Barfi";
+    if (/kheer/.test(details)) return "Kheer";
+    if (/gajar|carrot/.test(details)) return "Gajar ka Halwa";
+    if (/dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(details)) return "Dry Fruits";
+    if (/honey|shahad/.test(details)) return "Honey";
+    if (/ghee/.test(details)) return "Desi Ghee";
+    if (/sohan/.test(details)) return /akhrot|walnut/.test(details) ? "Akhroti Sohan Halwa" : "Simple Sohan Halwa";
+    return product.category || "Other";
+  };
+  const subcategories = Array.from(new Set(categoryProducts.map(getSubcategory))).sort((a, b) => a.localeCompare(b));
+  const [selectedSubcategory, setSelectedSubcategory] = useState("All");
+  const visibleProducts = selectedSubcategory === "All"
+    ? categoryProducts
+    : categoryProducts.filter((product) => getSubcategory(product) === selectedSubcategory);
 
   return (
     <main style={{ minHeight: "100vh", background: "#FFF8EA", color: "#123F42", fontFamily: "Georgia, serif" }}>
@@ -70,12 +87,15 @@ export default function CategoryPage() {
         <p style={{ color: "#A16B16", letterSpacing: 3, fontSize: 12 }}>MULTANI MITHAS COLLECTION</p>
         <h1 style={{ fontWeight: 400, fontSize: "clamp(32px,5vw,52px)", margin: "8px 0" }}>{categoryName}</h1>
         <p style={{ color: "#6C5A43" }}>Explore our complete {categoryName.toLowerCase()} collection.</p>
-        {subcategories.length > 1 && <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, margin: "18px auto", maxWidth: 900 }}>{subcategories.map((item) => <span key={item} style={{ border: "1px solid #D8C59F", borderRadius: 30, padding: "7px 13px", fontSize: 12, background: "#FFFCF5" }}>{item}</span>)}</div>}
+        {subcategories.length > 0 && <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, margin: "18px auto", maxWidth: 1000 }}>
+          <button type="button" onClick={() => setSelectedSubcategory("All")} style={{ border: "1px solid #D8C59F", borderRadius: 30, padding: "8px 14px", fontSize: 12, background: selectedSubcategory === "All" ? "#123F42" : "#FFFCF5", color: selectedSubcategory === "All" ? "#FFF8EA" : "#123F42", cursor: "pointer" }}>All</button>
+          {subcategories.map((item) => <button key={item} type="button" onClick={() => setSelectedSubcategory(item)} style={{ border: "1px solid #D8C59F", borderRadius: 30, padding: "8px 14px", fontSize: 12, background: selectedSubcategory === item ? "#123F42" : "#FFFCF5", color: selectedSubcategory === item ? "#FFF8EA" : "#123F42", cursor: "pointer" }}>{item}</button>)}
+        </div>}
         <p><Link href="/shop" style={{ color: "#8B642B" }}>← All categories</Link></p>
       </section>
-      {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : categoryProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
+      {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : visibleProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
         <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 22 }}>
-          {categoryProducts.map((product) => {
+          {visibleProducts.map((product) => {
             const optionPrices = (product.weight_options ?? [])
               .map((option) => Number(option.price))
               .filter((price) => Number.isFinite(price) && price >= 0);
