@@ -491,6 +491,17 @@ weight_options: Array.isArray(item.weight_options)
     };
   }, []);
 
+  // Honour collection links coming from /shop/[slug] and keep the selected
+  // collection focused after the customer returns to the main storefront.
+  useEffect(() => {
+    const requestedCategory = new URLSearchParams(window.location.search).get("category");
+    if (!requestedCategory || products.length === 0) return;
+    const matchingProduct = products.find(
+      (product) => normalizeName(product.category) === normalizeName(requestedCategory)
+    );
+    if (matchingProduct) setSelectedCategory(matchingProduct.category);
+  }, [products]);
+
   // Website media settings load karein.
   useEffect(() => {
     let cancelled = false;
