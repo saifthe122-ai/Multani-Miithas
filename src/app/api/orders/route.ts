@@ -1120,13 +1120,14 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const deleteData = body as Record<string, unknown>;
     const orderNumber =
-      typeof (body as Record<string, unknown>).orderNumber === "string"
-        ? (
-            (body as Record<string, unknown>)
-              .orderNumber as string
-          ).trim()
+      typeof deleteData.orderNumber === "string"
+        ? deleteData.orderNumber.trim()
         : "";
+    const action = deleteData.action === "permanent_delete"
+      ? "permanent_delete"
+      : "archive";
 
     if (!orderNumber) {
       return NextResponse.json(
@@ -1136,6 +1137,61 @@ export async function DELETE(request: Request) {
     }
 
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS archived_at timestamptz`;
+
+    if (action === "permanent_delete") {
+      const [target] = await sql`
+        SELECT id, archived_at, payment_status
+        FROM orders
+        WHERE order_number = ${orderNumber}
+        LIMIT 1
+        FOR UPDATE
+      `;
+
+      if (!target) {
+        return NextResponse.json(
+          { success: false, message: "Order nahi mila." },
+          { status: 404 }
+        );
+      }
+
+      if (!target.archived_at) {
+        return NextResponse.json(
+          { success: false, message: "Pehle order ko Previous Orders mein archive karein." },
+          { status: 409 }
+        );
+      }
+
+      const paymentStatus = String(target.payment_status ?? "").toLowerCase();
+      if (["paid", "partially_refunded"].includes(paymentStatus)) {
+        return NextResponse.json(
+          { success: false, message: "Paid ya partially refunded order ko accounting record ki hifazat ke liye permanently delete nahi kar sakte." },
+          { status: 409 }
+        );
+      }
+
+      await sql`DELETE FROM payment_status_events WHERE order_number = ${orderNumber}`;
+      await sql`DELETE FROM order_items WHERE order_id = ${target.id}`;
+      const removed = await sql`
+        DELETE FROM orders
+        WHERE id = ${target.id} AND archived_at IS NOT NULL
+        RETURNING order_number
+      `;
+
+      if (!removed.length) {
+        return NextResponse.json(
+          { success: false, message: "Order delete nahi ho saka." },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        permanentlyDeleted: true,
+        message: "Archived unpaid order permanently delete ho gaya.",
+        orderNumber,
+      });
+    }
+
     const result = await sql`
       UPDATE orders
       SET archived_at = NOW()
@@ -1144,11 +1200,9 @@ export async function DELETE(request: Request) {
       RETURNING order_number
     `;
 
-    const deletedOrders = result;
-
-    if (!deletedOrders || deletedOrders.length === 0) {
+    if (!result.length) {
       return NextResponse.json(
-        { success: false, message: "Order nahi mila." },
+        { success: false, message: "Order nahi mila ya pehle hi archive ho chuka hai." },
         { status: 404 }
       );
     }
