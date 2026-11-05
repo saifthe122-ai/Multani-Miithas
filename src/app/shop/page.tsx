@@ -29,7 +29,21 @@ export default function ShopPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = Array.from(new Set(products.map((p) => p.category))).sort((a, b) => a.localeCompare(b));
+  const categoryOrder = ["Sweets & Mithai", "Sweets", "Barfi", "Sohan Halwa", "Desi Ghee", "Ghee", "Honey", "Dry Fruits", "Desserts", "Bakery", "Namkeen"];
+  const isGiftCategory = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "") === "giftboxes";
+  const categories = Array.from(new Set(products.map((p) => p.category.trim()).filter((category) => category && !isGiftCategory(category))))
+    .sort((a, b) => {
+      const ai = categoryOrder.findIndex((item) => item.toLowerCase().replace(/[^a-z0-9]/g, "") === a.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      const bi = categoryOrder.findIndex((item) => item.toLowerCase().replace(/[^a-z0-9]/g, "") === b.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      if (ai >= 0 || bi >= 0) {
+        if (ai < 0) return 1;
+        if (bi < 0) return -1;
+        return ai - bi;
+      }
+      return a.localeCompare(b);
+    });
+  const giftProducts = products.filter((p) => isGiftCategory(p.category));
+  const giftCover = giftProducts.find((p) => p.image_url || p.image);
 
   return (
     <main style={{ minHeight: "100vh", background: "#FFF8EA", color: "#123F42", fontFamily: "Georgia, serif" }}>
@@ -42,8 +56,15 @@ export default function ShopPage() {
         <h1 style={{ fontWeight: 400, fontSize: "clamp(32px,5vw,52px)", margin: "8px 0" }}>Our Products</h1>
         <p style={{ color: "#6C5A43" }}>Browse every collection in its own space. New active products appear here automatically.</p>
       </section>
-      {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading collections…</p> : categories.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>Products are being updated. Please check back shortly.</p> : (
+      {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading collections…</p> : categories.length === 0 && giftProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>Products are being updated. Please check back shortly.</p> : (
         <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 20 }}>
+          {giftProducts.length > 0 && (
+            <Link href="/shop/gift-boxes" style={{ minHeight: 230, padding: 24, border: "2px solid #C69A4A", borderRadius: 12, background: giftCover?.image_url || giftCover?.image ? `linear-gradient(0deg,rgba(9,47,50,.94),rgba(9,47,50,.16)),url("${giftCover.image_url || giftCover.image}")` : "linear-gradient(145deg,#145154,#082F32)", color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "end", backgroundSize: "cover", backgroundPosition: "center" }}>
+              <span style={{ color: "#F6E9D0", fontSize: 12 }}>{giftProducts.length} {giftProducts.length === 1 ? "product" : "products"}</span>
+              <h2 style={{ color: "#FFF1D7", fontWeight: 400, margin: "6px 0" }}>🎁 Gift Boxes</h2>
+              <span style={{ color: "#E6BD6C" }}>Explore gift collection →</span>
+            </Link>
+          )}
           {categories.map((category) => {
             const items = products.filter((p) => p.category === category);
             const cover = items.find((p) => p.image_url || p.image);
