@@ -79,7 +79,7 @@ export default function ShopPage() {
               <h2 style={{ color: "#FFF1D7", fontWeight: 400, margin: "6px 0" }}>{collection.title}</h2>
               <span style={{ color: "#E6BD6C" }}>Explore collection →</span>
             </Link>
-          ))}}
+          ))}
         </section>
       )}
       <footer style={{ padding: 24, textAlign: "center", background: "#092F32", color: "#F6E9D0" }}>Multani Mithas · Multan ki Mithas, Dil Se</footer>
