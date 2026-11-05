@@ -38,9 +38,9 @@ export default function ShopPage() {
     const value = `${product.category} ${product.name}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
     if (slug === "barfi") return /barfi/.test(value);
     if (slug === "sohan-halwa") return /sohan/.test(value);
-    if (slug === "desi-ghee") return /\\bghee\\b/.test(value);
-    if (slug === "honey-dry-fruits") return /honey|dry\\s*fruit|kheer|gajar|carrot\\s*halwa/.test(value);
-    if (slug === "mithai") return !/barfi|sohan|\\bghee\\b|honey|dry\\s*fruit|kheer|gajar|carrot\\s*halwa|gift\\s*box/.test(value) && (/mithai|sweet|gulab\\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\\s*cham|patisa|petha|coconut|traditional/.test(value));
+    if (slug === "desi-ghee") return /\bghee\b/.test(value);
+    if (slug === "honey-dry-fruits") return /honey|dry\s*fruit|kheer|gajar|carrot\s*halwa/.test(value);
+    if (slug === "mithai") return !/barfi|sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(value) && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut|traditional/.test(value));
     return false;
   };
   const collectionCards = collections.map((collection) => {
