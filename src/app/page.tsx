@@ -1325,12 +1325,17 @@ const total = cartItems.reduce((sum, item) => {
   const hasGiftBoxes = products.some(
     (product) => normalizeName(product.category) === "giftboxes" && isProductEnabled(product)
   );
-  const packagingChoices = Array.from(new Map(
-    products.flatMap((product) => (product.weight_options || []).map((option) => ({
+  const packagingChoices = products
+    .flatMap((product) => (product.weight_options || []).map((option) => ({
       name: String(option.packagingType || "Standard Packaging"),
       fee: Math.max(0, Number(option.packagingFee ?? checkoutSettings.packagingFee) || 0),
-    }))).map((choice) => [`${normalizeName(choice.name)}-${choice.fee}`, choice])
-  ).values());
+    })))
+    .reduce<Array<{ name: string; fee: number }>>((choices, choice) => {
+      if (!choices.some((saved) => normalizeName(saved.name) === normalizeName(choice.name) && saved.fee === choice.fee)) {
+        choices.push(choice);
+      }
+      return choices;
+    }, []);
 
   return (
     <main
