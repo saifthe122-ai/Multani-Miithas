@@ -1131,8 +1131,9 @@ const total = cartItems.reduce((sum, item) => {
 
   const giftProducts = products.filter(
     (product) =>
-      product.category === "Gift Boxes" &&
-      isProductEnabled(product)
+      normalizeName(product.category) === "giftboxes" &&
+      isProductEnabled(product) &&
+      (!offersOnly || Number(product.discount || 0) > 0)
   );
   const homeGiftProducts = selectedCategory === "Gift Boxes" ? giftProducts : giftProducts.slice(0, 3);
 
@@ -3227,6 +3228,7 @@ style={{
           <a href="#payments">Payments</a>
           <a href="#contact">Contact</a>
           <a href="#home">Back to Top ↑</a>
+          <a href="/admin-login">Business Admin</a>
         </div>
         {publishedSettings?.socialLinks && (
   <div
