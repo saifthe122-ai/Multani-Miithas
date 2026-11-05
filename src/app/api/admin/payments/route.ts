@@ -429,6 +429,23 @@ if (
 ) {
   return jsonError("Wallet ownership type valid nahi.");
 }
+
+const accountTitleProvided = typeof data.accountTitle === "string";
+const accountTitle = accountTitleProvided ? data.accountTitle.trim() : null;
+const accountNumberProvided = typeof data.accountNumber === "string";
+const accountNumber = accountNumberProvided ? data.accountNumber.trim() : null;
+const ibanProvided = typeof data.iban === "string";
+const iban = ibanProvided ? data.iban.trim() : null;
+
+if (accountTitleProvided && (!accountTitle || accountTitle.length > 150)) {
+  return jsonError("Account title required hai aur 150 characters se kam hona chahiye.");
+}
+if ((accountNumber?.length ?? 0) > 50 || (iban?.length ?? 0) > 50) {
+  return jsonError("Account number ya IBAN ki length valid nahi hai.");
+}
+if (accountNumberProvided && ibanProvided && !accountNumber && !iban) {
+  return jsonError("Account number ya IBAN mein se kam az kam ek zaroor dein.");
+}
       
       if (makePrimary) {
         await sql`
@@ -448,6 +465,18 @@ if (
 app_link = CASE
   WHEN ${appLinkProvided} THEN ${appLink}
   ELSE app_link
+END,
+account_title = CASE
+  WHEN ${accountTitleProvided} THEN ${accountTitle}
+  ELSE account_title
+END,
+account_number = CASE
+  WHEN ${accountNumberProvided} THEN ${accountNumber}
+  ELSE account_number
+END,
+iban = CASE
+  WHEN ${ibanProvided} THEN ${iban}
+  ELSE iban
 END,
 wallet_owner_type = CASE
   WHEN ${walletOwnerTypeProvided} THEN ${walletOwnerType}
