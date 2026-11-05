@@ -1292,6 +1292,21 @@ const total = cartItems.reduce((sum, item) => {
     }
   };
 
+  const getSocialHref = (platform: string, rawValue?: string) => {
+    const value = String(rawValue || "").trim();
+    if (!value) return "";
+    if (/^https:\/\//i.test(value)) return value;
+    if (/^http:\/\//i.test(value)) return value.replace(/^http:\/\//i, "https://");
+    if (platform === "WhatsApp") {
+      const digits = value.replace(/\D/g, "");
+      return digits.length >= 8 ? `https://wa.me/${digits}` : `https://${value.replace(/^\/+/, "")}`;
+    }
+    if (platform === "YouTube") {
+      return `https://www.youtube.com/${value.replace(/^\/+/, "").replace(/^youtube\.com\//i, "")}`;
+    }
+    return `https://${value.replace(/^\/+/, "")}`;
+  };
+
   const contactEmail = BUSINESS_EMAIL.trim();
 
   // Customer-facing collections: only the main collection names appear in navigation.
@@ -1774,7 +1789,7 @@ const total = cartItems.reduce((sum, item) => {
           <a href="#home">Home</a>
           <a href="#categories">Collections</a>
           <a href="#packaging-costs">Packaging</a>
-          <a href="#offers" onClick={() => setOffersOnly(true)}>Offers</a>
+          <a href="#offers" onClick={() => { setOffersOnly(true); setSelectedCategory("All"); }}>Offers</a>
           <a href="#about">Our Story</a>
           <a href="#gallery">Gallery</a>
           <a href="#video">Our Video</a>
@@ -1917,7 +1932,7 @@ const total = cartItems.reduce((sum, item) => {
 
                   <a
                     href="#products"
-                    onClick={() => setOffersOnly(true)}
+                    onClick={() => { setOffersOnly(true); setSelectedCategory("All"); }}
                     style={{
                       ...goldButton,
                       display: "inline-block",
@@ -3227,27 +3242,27 @@ style={{
       {
         name: "Facebook",
         label: "f",
-        url: publishedSettings.socialLinks.facebook,
+        url: getSocialHref("Facebook", publishedSettings.socialLinks.facebook),
       },
       {
         name: "Instagram",
         label: "◎",
-        url: publishedSettings.socialLinks.instagram,
+        url: getSocialHref("Instagram", publishedSettings.socialLinks.instagram),
       },
       {
         name: "TikTok",
         label: "♪",
-        url: publishedSettings.socialLinks.tiktok,
+        url: getSocialHref("TikTok", publishedSettings.socialLinks.tiktok),
       },
       {
         name: "YouTube",
         label: "▶",
-        url: publishedSettings.socialLinks.youtube,
+        url: getSocialHref("YouTube", publishedSettings.socialLinks.youtube),
       },
       {
         name: "WhatsApp",
         label: "☏",
-        url: publishedSettings.socialLinks.whatsapp,
+        url: getSocialHref("WhatsApp", publishedSettings.socialLinks.whatsapp),
       },
     ]
       .filter((social) => social.url?.trim())
