@@ -775,7 +775,7 @@ export default function OrdersDashboard() {
                           style={styles.deleteButton}
                           onClick={() => void deleteOrder(order.id)}
                         >
-                          Archive
+                          Move to Previous
                         </button>
                       </div>
                     </td>
