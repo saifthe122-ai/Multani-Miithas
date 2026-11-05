@@ -45,7 +45,6 @@ export default function CategoryPage() {
   };
   const matchesCollection = (product: Product) => {
     const category = `${product.category} ${product.name}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
-    const name = product.name.toLowerCase();
     if (slug === "gift-boxes") return /gift\s*box|gift\s*hamper/.test(category);
     if (slug === "barfi") return /barfi/.test(category);
     if (slug === "sohan-halwa") return /sohan/.test(category);
