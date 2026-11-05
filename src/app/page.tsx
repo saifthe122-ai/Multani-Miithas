@@ -1135,7 +1135,7 @@ const total = cartItems.reduce((sum, item) => {
       isProductEnabled(product) &&
       (!offersOnly || Number(product.discount || 0) > 0)
   );
-  const homeGiftProducts = selectedCategory === "Gift Boxes" ? giftProducts : giftProducts.slice(0, 3);
+  const homeGiftProducts = selectedCategory === "Gift Boxes" || offersOnly ? giftProducts : giftProducts.slice(0, 3);
 
   // Customer order submit karein.
   const placeOrder = async (
@@ -1943,7 +1943,7 @@ const total = cartItems.reduce((sum, item) => {
                   </p>
 
                   <a
-                    href="#products"
+                    href={regularProducts.length > 0 ? "#products" : "#gift-products"}
                     onClick={() => { setOffersOnly(true); setSelectedCategory("All"); }}
                     style={{
                       ...goldButton,
@@ -2289,7 +2289,7 @@ const total = cartItems.reduce((sum, item) => {
         </div>
       </section>
 
-      <section id="gifts" style={{ ...sectionStyle, background: "#FFF8EA" }}>
+      <section id="gifts" style={{ ...sectionStyle, background: "#FFF8EA", display: offersOnly && giftProducts.length === 0 ? "none" : undefined }}>
         <div
           className="mm-gift-banner"
           style={{
