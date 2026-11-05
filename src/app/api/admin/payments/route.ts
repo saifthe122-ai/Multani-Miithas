@@ -431,11 +431,14 @@ if (
 }
 
 const accountTitleProvided = typeof data.accountTitle === "string";
-const accountTitle = accountTitleProvided ? data.accountTitle.trim() : null;
+const accountTitle =
+  typeof data.accountTitle === "string" ? data.accountTitle.trim() : null;
 const accountNumberProvided = typeof data.accountNumber === "string";
-const accountNumber = accountNumberProvided ? data.accountNumber.trim() : null;
+const accountNumber =
+  typeof data.accountNumber === "string" ? data.accountNumber.trim() : null;
 const ibanProvided = typeof data.iban === "string";
-const iban = ibanProvided ? data.iban.trim() : null;
+const iban =
+  typeof data.iban === "string" ? data.iban.trim() : null;
 
 if (accountTitleProvided && (!accountTitle || accountTitle.length > 150)) {
   return jsonError("Account title required hai aur 150 characters se kam hona chahiye.");
