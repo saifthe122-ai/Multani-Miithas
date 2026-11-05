@@ -117,6 +117,7 @@ const [editingWalletOwnerType, setEditingWalletOwnerType] = useState("personal")
 const [editingAccountTitle, setEditingAccountTitle] = useState("");
 const [editingAccountNumber, setEditingAccountNumber] = useState("");
 const [editingIban, setEditingIban] = useState("");
+const [editingShowOnCheckout, setEditingShowOnCheckout] = useState(false);
 const [currency, setCurrency] = useState("PKR");
   const [isPrimary, setIsPrimary] = useState(false);
   const [walletOwnerType, setWalletOwnerType] = useState("personal");
@@ -1024,6 +1025,10 @@ setNotice("Account settings database mein save ho gayi hain.");
     <label>Account Title<input value={editingAccountTitle} onChange={(e) => setEditingAccountTitle(e.target.value)} maxLength={150} style={inputStyle} required /></label>
     <label>Account Number<input value={editingAccountNumber} onChange={(e) => setEditingAccountNumber(e.target.value)} maxLength={50} style={inputStyle} /></label>
     <label>IBAN<input value={editingIban} onChange={(e) => setEditingIban(e.target.value)} maxLength={50} style={inputStyle} /></label>
+    <label style={{ display: "flex", alignItems: "center", gap: 9 }}>
+      <input type="checkbox" checked={editingShowOnCheckout} onChange={(e) => setEditingShowOnCheckout(e.target.checked)} />
+      Allow this account on customer checkout
+    </label>
     <label>
       Payment App / Bank App Link
       <input
@@ -1058,6 +1063,7 @@ setNotice("Account settings database mein save ho gayi hain.");
             accountTitle: editingAccountTitle.trim(),
             accountNumber: editingAccountNumber.trim(),
             iban: editingIban.trim(),
+            showOnCheckout: editingShowOnCheckout,
             appLink: editingAppLink.trim(),
             walletOwnerType: editingWalletOwnerType,
           })
@@ -1096,6 +1102,7 @@ setNotice("Account settings database mein save ho gayi hain.");
         setEditingAccountTitle(account.accountTitle);
         setEditingAccountNumber(account.accountNumber);
         setEditingIban(account.iban);
+        setEditingShowOnCheckout(account.showOnCheckout);
       }}
       style={{ ...buttonStyle, background: "#e0f2fe", color: "#075985" }}
     >
