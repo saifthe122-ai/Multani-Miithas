@@ -1162,7 +1162,7 @@ export async function DELETE(request: Request) {
       }
 
       const paymentStatus = String(target.payment_status ?? "").toLowerCase();
-      if (["paid", "partially_refunded"].includes(paymentStatus)) {
+      if (["paid", "refunded", "partially_refunded"].includes(paymentStatus)) {
         return NextResponse.json(
           { success: false, message: "Paid ya partially refunded order ko accounting record ki hifazat ke liye permanently delete nahi kar sakte." },
           { status: 409 }
