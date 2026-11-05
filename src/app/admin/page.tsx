@@ -44,6 +44,7 @@ const menuGroups = [
     title: "SYSTEM",
     items: [
       { icon: "🧾", label: "Checkout Settings", href: "/admin/checkout-settings" },
+      { icon: "⚙", label: "All Settings", href: "/admin/settings" },
     ],
   },
 ];
