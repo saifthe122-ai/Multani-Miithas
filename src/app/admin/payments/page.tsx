@@ -114,6 +114,9 @@ const [appLink, setAppLink] = useState("");
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
 const [editingAppLink, setEditingAppLink] = useState("");
 const [editingWalletOwnerType, setEditingWalletOwnerType] = useState("personal");
+const [editingAccountTitle, setEditingAccountTitle] = useState("");
+const [editingAccountNumber, setEditingAccountNumber] = useState("");
+const [editingIban, setEditingIban] = useState("");
 const [currency, setCurrency] = useState("PKR");
   const [isPrimary, setIsPrimary] = useState(false);
   const [walletOwnerType, setWalletOwnerType] = useState("personal");
@@ -498,6 +501,9 @@ async function updateAccount(
     isPrimary?: boolean;
     appLink?: string;
     walletOwnerType?: string;
+    accountTitle?: string;
+    accountNumber?: string;
+    iban?: string;
     showOnCheckout?: boolean;
   }
 ) {
@@ -1015,6 +1021,9 @@ setNotice("Account settings database mein save ho gayi hain.");
                   </p>
    {editingAccountId === account.id ? (
   <div style={{ margin: "12px 0", display: "grid", gap: 10 }}>
+    <label>Account Title<input value={editingAccountTitle} onChange={(e) => setEditingAccountTitle(e.target.value)} maxLength={150} style={inputStyle} required /></label>
+    <label>Account Number<input value={editingAccountNumber} onChange={(e) => setEditingAccountNumber(e.target.value)} maxLength={50} style={inputStyle} /></label>
+    <label>IBAN<input value={editingIban} onChange={(e) => setEditingIban(e.target.value)} maxLength={50} style={inputStyle} /></label>
     <label>
       Payment App / Bank App Link
       <input
@@ -1046,6 +1055,9 @@ setNotice("Account settings database mein save ho gayi hain.");
         type="button"
         onClick={() =>
           updateAccount(account, {
+            accountTitle: editingAccountTitle.trim(),
+            accountNumber: editingAccountNumber.trim(),
+            iban: editingIban.trim(),
             appLink: editingAppLink.trim(),
             walletOwnerType: editingWalletOwnerType,
           })
@@ -1081,6 +1093,9 @@ setNotice("Account settings database mein save ho gayi hain.");
         setEditingAccountId(account.id);
         setEditingAppLink(account.appLink);
         setEditingWalletOwnerType(account.walletOwnerType);
+        setEditingAccountTitle(account.accountTitle);
+        setEditingAccountNumber(account.accountNumber);
+        setEditingIban(account.iban);
       }}
       style={{ ...buttonStyle, background: "#e0f2fe", color: "#075985" }}
     >
