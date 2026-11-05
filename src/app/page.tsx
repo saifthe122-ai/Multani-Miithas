@@ -1302,10 +1302,14 @@ const total = cartItems.reduce((sum, item) => {
       const digits = value.replace(/\D/g, "");
       return digits.length >= 8 ? `https://wa.me/${digits}` : `https://${value.replace(/^\/+/, "")}`;
     }
+    const clean = value.replace(/^\/+/, "");
     if (platform === "YouTube") {
-      return `https://www.youtube.com/${value.replace(/^\/+/, "").replace(/^youtube\.com\//i, "")}`;
+      const path = clean.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//i, "");
+      return `https://www.youtube.com/${path}`;
     }
-    return `https://${value.replace(/^\/+/, "")}`;
+    const host = platform === "Facebook" ? "facebook.com/" : platform === "Instagram" ? "instagram.com/" : "www.tiktok.com/";
+    const hasPlatformDomain = /^(www\.)?(facebook|instagram|tiktok)\.com\//i.test(clean);
+    return `https://${hasPlatformDomain ? clean : host + clean.replace(/^@/, platform === "Facebook" ? "" : "@")}`;
   };
 
   const contactEmail = BUSINESS_EMAIL.trim();
