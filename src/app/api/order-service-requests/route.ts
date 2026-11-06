@@ -211,7 +211,7 @@ export async function PATCH(request: Request) {
               updated_at = NOW()
           FROM request_row rr, order_row o, prior_refunds previous
           WHERE r.id = rr.id
-            AND order_row.payment_status IN ('paid','partially_refunded')
+            AND o.payment_status IN ('paid','partially_refunded')
             AND ${amount} + previous.amount <= o.total
           RETURNING r.*
         ),
