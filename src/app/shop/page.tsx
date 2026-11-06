@@ -68,17 +68,27 @@ export default function ShopPage() {
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading collections…</p> : collectionCards.length === 0 && giftProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>Products are being updated. Please check back shortly.</p> : (
         <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 20 }}>
           {giftProducts.length > 0 && (
-            <Link href="/shop/gift-boxes" style={{ minHeight: 230, padding: 24, border: "2px solid #C69A4A", borderRadius: 12, background: giftCover?.image_url || giftCover?.image ? `linear-gradient(0deg,rgba(9,47,50,.94),rgba(9,47,50,.16)),url("${giftCover.image_url || giftCover.image}")` : "linear-gradient(145deg,#145154,#082F32)", color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "end", backgroundSize: "cover", backgroundPosition: "center" }}>
-              <span style={{ color: "#F6E9D0", fontSize: 12 }}>{giftProducts.length} {giftProducts.length === 1 ? "product" : "products"}</span>
-              <h2 style={{ color: "#FFF1D7", fontWeight: 400, margin: "6px 0" }}>🎁 Gift Boxes</h2>
-              <span style={{ color: "#E6BD6C" }}>Explore gift collection →</span>
+            <Link href="/shop/gift-boxes" style={{ minHeight: 310, border: "2px solid #C69A4A", borderRadius: 12, background: "#FFFCF5", color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ height: 235, padding: 14, display: "grid", placeItems: "center", background: "#F5EBDD" }}>
+                {giftCover?.image_url || giftCover?.image ? <img src={giftCover.image_url || giftCover.image} alt="Gift Boxes collection" loading="lazy" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }} /> : <span style={{ fontSize: 64 }}>🎁</span>}
+              </div>
+              <div style={{ padding: "15px 18px", background: "#092F32", color: "#F6E9D0", marginTop: "auto" }}>
+                <span style={{ fontSize: 12 }}>{giftProducts.length} {giftProducts.length === 1 ? "product" : "products"}</span>
+                <h2 style={{ fontWeight: 400, margin: "5px 0" }}>🎁 Gift Boxes</h2>
+                <span style={{ color: "#E6BD6C" }}>Explore gift collection →</span>
+              </div>
             </Link>
           )}
           {collectionCards.map((collection) => (
-            <Link key={collection.slug} href={`/shop/${collection.slug}`} style={{ minHeight: 230, padding: 24, border: "1px solid #D8C59F", borderRadius: 12, background: collection.cover?.image_url || collection.cover?.image ? `linear-gradient(0deg,rgba(9,47,50,.92),rgba(9,47,50,.08)),url("${collection.cover.image_url || collection.cover.image}")` : "linear-gradient(145deg,#EAD8B7,#FFF8EA)", color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "end", backgroundSize: "cover", backgroundPosition: "center" }}>
-              <span style={{ color: "#F6E9D0", fontSize: 12 }}>{collection.items.length} {collection.items.length === 1 ? "product" : "products"}</span>
-              <h2 style={{ color: "#FFF1D7", fontWeight: 400, margin: "6px 0" }}>{collection.title}</h2>
-              <span style={{ color: "#E6BD6C" }}>Explore collection →</span>
+            <Link key={collection.slug} href={`/shop/${collection.slug}`} style={{ minHeight: 310, border: "1px solid #D8C59F", borderRadius: 12, background: "#FFFCF5", color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ height: 235, padding: 14, display: "grid", placeItems: "center", background: "#F5EBDD" }}>
+                {collection.cover?.image_url || collection.cover?.image ? <img src={collection.cover.image_url || collection.cover.image} alt={collection.title} loading="lazy" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }} /> : <span style={{ fontSize: 54 }}>✦</span>}
+              </div>
+              <div style={{ padding: "15px 18px", background: "#092F32", color: "#F6E9D0", marginTop: "auto" }}>
+                <span style={{ fontSize: 12 }}>{collection.items.length} {collection.items.length === 1 ? "product" : "products"}</span>
+                <h2 style={{ fontWeight: 400, margin: "5px 0" }}>{collection.title}</h2>
+                <span style={{ color: "#E6BD6C" }}>Explore collection →</span>
+              </div>
             </Link>
           ))}
         </section>
