@@ -58,7 +58,8 @@ export async function GET() {
           a.app_link
         FROM business_payment_accounts AS a
         WHERE a.is_active = true
-          AND (a.wallet_owner_type = 'merchant' OR a.show_on_checkout = true)
+          AND a.wallet_owner_type = 'merchant'
+          AND a.show_on_checkout = true
           AND EXISTS (
             SELECT 1
             FROM payment_methods AS pm
