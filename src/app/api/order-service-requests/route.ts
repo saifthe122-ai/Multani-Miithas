@@ -183,6 +183,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, message: "Completed refund record ko dobara change nahi kiya ja sakta." }, { status: 409 });
     }
     if (row.request_type === "refund" && status === "refunded") {
+      if (!["approved", "processing"].includes(String(row.status ?? "").toLowerCase())) {
+        return NextResponse.json({ success: false, message: "Refund transfer record karne se pehle request ko Approved ya Processing mark karein." }, { status: 409 });
+      }
       const completed = await sql`
         WITH request_row AS MATERIALIZED (
           SELECT id, order_number FROM order_service_requests
@@ -211,6 +214,7 @@ export async function PATCH(request: Request) {
               updated_at = NOW()
           FROM request_row rr, order_row o, prior_refunds previous
           WHERE r.id = rr.id
+            AND r.status IN ('approved','processing')
             AND o.payment_status IN ('paid','partially_refunded')
             AND ${amount} + previous.amount <= o.total
           RETURNING r.*
