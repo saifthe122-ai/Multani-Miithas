@@ -37,6 +37,26 @@ async function ensureSchema(sql: ReturnType<typeof neon<false, false>>) {
   await sql`CREATE INDEX IF NOT EXISTS order_service_requests_created_idx ON order_service_requests (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS order_service_requests_order_idx ON order_service_requests (order_number)`;
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS refunded_amount numeric(12,2) NOT NULL DEFAULT 0`;
+  // One-time-compatible backfill for refunds recorded before the atomic balance column existed.
+  // Once a new refund is recorded, refunded_amount is authoritative and never reset.
+  await sql`
+    UPDATE orders o
+    SET refunded_amount = COALESCE((
+      SELECT SUM(r.approved_amount)
+      FROM order_service_requests r
+      WHERE r.order_number = o.order_number
+        AND r.request_type = 'refund'
+        AND r.status = 'refunded'
+    ), 0)
+    WHERE COALESCE(o.refunded_amount, 0) = 0
+      AND EXISTS (
+        SELECT 1 FROM order_service_requests r
+        WHERE r.order_number = o.order_number
+          AND r.request_type = 'refund'
+          AND r.status = 'refunded'
+      )
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS payment_status_events (
       id bigserial PRIMARY KEY,
@@ -188,20 +208,41 @@ export async function PATCH(request: Request) {
       }
       const completed = await sql`
         WITH request_row AS MATERIALIZED (
-          SELECT id, order_number FROM order_service_requests
-          WHERE request_reference = ${reference} AND request_type = 'refund'
+          SELECT id, order_number
+          FROM order_service_requests
+          WHERE request_reference = ${reference}
+            AND request_type = 'refund'
+            AND status IN ('approved','processing')
           FOR UPDATE
         ),
         order_row AS MATERIALIZED (
-          SELECT o.id, o.order_number, o.total, o.payment_status
-          FROM orders o JOIN request_row r ON r.order_number = o.order_number
+          SELECT o.id, o.order_number, o.total, o.payment_status, o.refunded_amount
+          FROM orders o
+          JOIN request_row r ON r.order_number = o.order_number
           FOR UPDATE OF o
         ),
         prior_refunds AS MATERIALIZED (
-          SELECT COALESCE(SUM(r.approved_amount), 0)::numeric AS amount
+          SELECT COALESCE(SUM(r.approved_amount), 0)::numeric AS legacy_amount
           FROM order_service_requests r
           JOIN request_row target ON target.order_number = r.order_number
-          WHERE r.request_type = 'refund' AND r.status = 'refunded' AND r.id <> target.id
+          WHERE r.request_type = 'refund'
+            AND r.status = 'refunded'
+            AND r.id <> target.id
+        ),
+        saved_order AS (
+          UPDATE orders o
+          SET refunded_amount = GREATEST(COALESCE(o.refunded_amount, 0), previous.legacy_amount) + ${amount},
+              payment_status = CASE
+                WHEN GREATEST(COALESCE(o.refunded_amount, 0), previous.legacy_amount) + ${amount} >= o.total
+                  THEN 'refunded'
+                ELSE 'partially_refunded'
+              END,
+              payment_reference = ${transferReference}
+          FROM order_row locked, prior_refunds previous
+          WHERE o.id = locked.id
+            AND locked.payment_status IN ('paid','partially_refunded')
+            AND GREATEST(COALESCE(o.refunded_amount, 0), previous.legacy_amount) + ${amount} <= o.total
+          RETURNING o.id, o.order_number, o.payment_status, o.refunded_amount
         ),
         saved_request AS (
           UPDATE order_service_requests r
@@ -212,39 +253,30 @@ export async function PATCH(request: Request) {
               refund_processed_at = NOW(),
               reviewed_by = 'admin',
               updated_at = NOW()
-          FROM request_row rr, order_row o, prior_refunds previous
+          FROM request_row rr
+          JOIN saved_order so ON so.order_number = rr.order_number
           WHERE r.id = rr.id
             AND r.status IN ('approved','processing')
-            AND o.payment_status IN ('paid','partially_refunded')
-            AND ${amount} + previous.amount <= o.total
           RETURNING r.*
-        ),
-        saved_order AS (
-          UPDATE orders o
-          SET payment_status = CASE
-            WHEN s.approved_amount + previous.amount >= o.total THEN 'refunded'
-            ELSE 'partially_refunded'
-          END,
-              payment_reference = ${transferReference}
-          FROM saved_request s, prior_refunds previous
-          WHERE o.order_number = s.order_number
-          RETURNING o.order_number, o.payment_status
         ),
         payment_audit AS (
           INSERT INTO payment_status_events (
             order_number, previous_status, new_status, payment_reference
           )
           SELECT
-            saved_order.order_number,
-            order_row.payment_status,
-            saved_order.payment_status,
+            so.order_number,
+            locked.payment_status,
+            so.payment_status,
             ${transferReference}
-          FROM saved_order
-          CROSS JOIN order_row
+          FROM saved_order so
+          JOIN order_row locked ON locked.id = so.id
+          JOIN saved_request sr ON sr.order_number = so.order_number
           RETURNING id
         )
-        SELECT s.*, saved_order.payment_status AS order_payment_status
-        FROM saved_request s CROSS JOIN saved_order
+        SELECT sr.*, so.payment_status AS order_payment_status,
+               so.refunded_amount AS order_refunded_amount
+        FROM saved_request sr
+        JOIN saved_order so ON so.order_number = sr.order_number
       `;
       if (!completed.length) {
         return NextResponse.json({ success: false, message: "Refund amount order ke remaining refundable balance se zyada hai, ya order record missing hai. Pehle existing refunds check karein." }, { status: 409 });
