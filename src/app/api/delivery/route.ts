@@ -86,7 +86,16 @@ export async function POST(request: Request) {
         updated_at=NOW()
       RETURNING *`;
     if (!result.length) return NextResponse.json({ success: false, message: "Order number not found" }, { status: 404 });
-    const orderStatus = status === "delivered" ? "delivered" : status === "failed" || status === "returned" ? "processing" : status === "dispatched" || status === "in_transit" ? "shipped" : "processing";
+    // Keep delivery progress aligned with the order API's supported statuses.
+    // "completed" is required for the COD cash-received verification workflow.
+    const orderStatus =
+      status === "delivered"
+        ? "completed"
+        : status === "failed" || status === "returned"
+          ? "processing"
+          : status === "dispatched" || status === "in_transit"
+            ? "out_for_delivery"
+            : "processing";
     await sql`UPDATE orders SET status=${orderStatus} WHERE order_number=${orderNumber}`;
     return NextResponse.json({ success: true, saved: true, delivery: result[0] });
   } catch (error) {
