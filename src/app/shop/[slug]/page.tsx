@@ -40,6 +40,8 @@ export default function CategoryPage() {
     barfi: "Barfi",
     "sohan-halwa": "Sohan Halwa",
     "desi-ghee": "Desi Ghee",
+    "pure-honey": "Pure Honey",
+    "dry-fruits": "Dry Fruits",
     "honey-dry-fruits": "Honey & Dry Fruits",
     "gift-boxes": "Gift Boxes",
   };
@@ -49,9 +51,11 @@ export default function CategoryPage() {
     if (slug === "barfi") return /barfi/.test(category);
     if (slug === "sohan-halwa") return /sohan/.test(category);
     if (slug === "desi-ghee") return /\bghee\b/.test(category);
-    if (slug === "honey-dry-fruits") return /honey|dry\s*fruit|kheer|gajar|carrot\s*halwa/.test(category);
+    if (slug === "pure-honey") return /honey|shahad/.test(category);
+    if (slug === "dry-fruits") return /dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(category);
+    if (slug === "honey-dry-fruits") return /honey|shahad|dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(category);
     if (slug === "mithai") {
-      const excluded = /sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(category);
+      const excluded = /sohan|\bghee\b|honey|shahad|dry\s*fruit|gift\s*box/.test(category);
       return !excluded && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut/.test(category) || /traditional/.test(product.category.toLowerCase()));
     }
     return slugify(product.category) === slug;
