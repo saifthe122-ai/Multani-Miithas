@@ -151,13 +151,23 @@ function validateProduct(data: ProductInput) {
       if (typeof item.salesTaxBase !== "undefined" && !["product", "all_charges"].includes(String(item.salesTaxBase))) {
         return "Sales tax base must be product or all_charges";
       }
-      const weight = item.weight.trim().toLowerCase();
+      const weight = item.weight.trim().toLowerCase().replace(/\\s+/g, "");
+      const weightMatch = weight.match(/^(\\d+(?:\\.\\d+)?)(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)$/);
+      if (!weightMatch || Number(weightMatch[1]) <= 0) {
+        return "Weight must use a valid unit, for example 250g, 500gm or 1kg";
+      }
+      const amount = Number(weightMatch[1]);
+      const unit = weightMatch[2];
+      const kilograms = ["kg", "kgs", "kilogram", "kilograms"].includes(unit)
+        ? amount
+        : amount / 1000;
+      const canonicalWeight = kilograms.toFixed(6);
 
-      if (seenWeights.has(weight)) {
-        return "Duplicate weight options are not allowed";
+      if (seenWeights.has(canonicalWeight)) {
+        return "Duplicate weight options are not allowed, including equivalent gram and kilogram values";
       }
 
-      seenWeights.add(weight);
+      seenWeights.add(canonicalWeight);
     }
   }
 
