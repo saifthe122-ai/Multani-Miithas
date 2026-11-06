@@ -667,6 +667,18 @@ export async function POST(request: Request) {
         RETURNING order_id
       )
 
+      integrity_guard AS MATERIALIZED (
+        SELECT
+          1 / CASE
+            WHEN NOT EXISTS (SELECT 1 FROM new_order)
+              OR (SELECT COUNT(*) FROM reserved_products) = (
+                SELECT COUNT(DISTINCT product_id) FROM valid_products
+              )
+            THEN 1
+            ELSE 0
+          END AS reservation_ok
+      )
+
       SELECT
         o.id AS order_id,
         o.order_number,
@@ -682,6 +694,7 @@ export async function POST(request: Request) {
 
       FROM calculated t
       LEFT JOIN new_order o ON true
+      CROSS JOIN integrity_guard
     `;
 
     const saved = result[0] as
@@ -901,7 +914,7 @@ export async function PATCH(request: Request) {
 
     if (hasPaymentStatus && normalizedPaymentStatus === "paid") {
       const [currentPaymentOrder] = await sql`
-        SELECT payment_method, status
+        SELECT payment_method, status, payment_status
         FROM orders
         WHERE order_number = ${orderNumber}
         LIMIT 1
@@ -915,6 +928,17 @@ export async function PATCH(request: Request) {
       }
 
       const isCodOrder = /cash on delivery|\bcod\b/i.test(String(currentPaymentOrder.payment_method ?? ""));
+      const currentPaymentStatus = String(currentPaymentOrder.payment_status ?? "").toLowerCase();
+      if (
+        ["paid", "partially_refunded", "refunded"].includes(currentPaymentStatus) &&
+        currentPaymentStatus !== normalizedPaymentStatus
+      ) {
+        return NextResponse.json(
+          { success: false, message: "Verified payment ko Pending/Failed/Cancelled mein downgrade nahi kar sakte. Refund ya correction ke liye audited payment workflow use karein." },
+          { status: 409 }
+        );
+      }
+
       if (isCodOrder && String(currentPaymentOrder.status ?? "").toLowerCase() !== "completed") {
         return NextResponse.json(
           { success: false, message: "COD payment sirf delivery complete hone aur cash receive karne ke baad Paid mark karein." },
@@ -985,6 +1009,11 @@ export async function PATCH(request: Request) {
           END
         FROM prior_order previous
         WHERE current_order.id = previous.id
+          AND (
+            NOT ${hasPaymentStatus}
+            OR previous.payment_status NOT IN ('paid', 'partially_refunded', 'refunded')
+            OR ${normalizedPaymentStatus} = previous.payment_status
+          )
           AND (
             NOT ${hasPaymentStatus}
             OR ${normalizedPaymentStatus} <> 'paid'
