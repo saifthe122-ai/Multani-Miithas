@@ -151,8 +151,8 @@ function validateProduct(data: ProductInput) {
       if (typeof item.salesTaxBase !== "undefined" && !["product", "all_charges"].includes(String(item.salesTaxBase))) {
         return "Sales tax base must be product or all_charges";
       }
-      const weight = item.weight.trim().toLowerCase().replace(/\\s+/g, "");
-      const weightMatch = weight.match(/^(\\d+(?:\\.\\d+)?)(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)$/);
+      const weight = item.weight.trim().toLowerCase().replace(/\s+/g, "");
+      const weightMatch = weight.match(/^(\d+(?:\\.\\d+)?)(kg|kgs|kilogram|kilograms|g|gm|gms|gram|grams)$/);
       if (!weightMatch || Number(weightMatch[1]) <= 0) {
         return "Weight must use a valid unit, for example 250g, 500gm or 1kg";
       }
