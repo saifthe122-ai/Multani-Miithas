@@ -889,6 +889,16 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (
+      hasPaymentStatus &&
+      ["refunded", "partially_refunded"].includes(normalizedPaymentStatus)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Refund status sirf Admin Refund Requests workflow se update karein, jahan approved amount aur actual transfer reference audit hota hai." },
+        { status: 409 }
+      );
+    }
+
     if (hasPaymentStatus && normalizedPaymentStatus === "paid") {
       const [currentPaymentOrder] = await sql`
         SELECT payment_method, status
