@@ -805,19 +805,17 @@ setNotice("Account settings database mein save ho gayi hain.");
               </select>
             </label>
 
-            {(provider === "JazzCash" || provider === "Easypaisa") && (
-              <label>
-                Wallet Account Ownership *
-                <select
-                  value={walletOwnerType}
-                  onChange={(e) => setWalletOwnerType(e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="personal">Personal Account</option>
-                  <option value="merchant">Merchant / Business Account</option>
-                </select>
-              </label>
-            )}
+            <label>
+              Account Ownership *
+              <select
+                value={walletOwnerType}
+                onChange={(e) => setWalletOwnerType(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="personal">Personal / Individual Account</option>
+                <option value="merchant">Merchant / Business Account</option>
+              </select>
+            </label>
 
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
@@ -1041,20 +1039,17 @@ setNotice("Account settings database mein save ho gayi hain.");
       />
     </label>
 
-    {(account.provider.toLowerCase() === "jazzcash" ||
-      account.provider.toLowerCase() === "easypaisa") && (
-      <label>
-        Wallet Ownership
-        <select
-          value={editingWalletOwnerType}
-          onChange={(e) => setEditingWalletOwnerType(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="personal">Personal Account</option>
-          <option value="merchant">Merchant / Business Account</option>
-        </select>
-      </label>
-    )}
+    <label>
+      Account Ownership
+      <select
+        value={editingWalletOwnerType}
+        onChange={(e) => setEditingWalletOwnerType(e.target.value)}
+        style={inputStyle}
+      >
+        <option value="personal">Personal / Individual Account</option>
+        <option value="merchant">Merchant / Business Account</option>
+      </select>
+    </label>
 
     <div style={{ display: "flex", gap: 8 }}>
       <button
