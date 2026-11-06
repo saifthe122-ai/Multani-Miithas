@@ -100,7 +100,7 @@ export default function CategoryPage() {
         <p><Link href="/shop" style={{ color: "#8B642B" }}>← All categories</Link></p>
       </section>
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : visibleProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
-        <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 22 }}>
+        <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%, 320px),1fr))", gap: 26 }}>
           {visibleProducts.map((product) => {
             const optionPrices = (product.weight_options ?? [])
               .map((option) => Number(option.price))
@@ -113,7 +113,7 @@ export default function CategoryPage() {
             const finalPrice = basePrice * (1 - Math.max(0, Math.min(100, Number(product.discount || 0))) / 100);
             const image = product.image_url || "";
             return <article key={product.id} style={{ background: "#FFFCF5", border: "1px solid #D8C59F", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {image ? <button type="button" onClick={() => setExpandedImage({ src: image, alt: product.name })} aria-label={`View full-size image of ${product.name}`} style={{ display: "block", width: "100%", height: 300, padding: 8, border: 0, cursor: "zoom-in", background: "#F5EBDD" }}><img src={image} alt={product.name} loading="lazy" decoding="async" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }} /></button> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
+              {image ? <button type="button" onClick={() => setExpandedImage({ src: image, alt: product.name })} aria-label={`View full-size image of ${product.name}`} style={{ display: "block", width: "100%", height: 360, padding: 12, border: 0, cursor: "zoom-in", background: "#F5EBDD" }}><img src={image} alt={product.name} loading="lazy" decoding="async" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }} /></button> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
               <div style={{ padding: 18, display: "flex", flexDirection: "column", flex: 1 }}>
                 <span style={{ color: "#A16B16", fontSize: 12 }}>{product.category}</span>
                 <h2 style={{ fontWeight: 400, fontSize: 21, margin: "6px 0" }}>{product.name}</h2>
