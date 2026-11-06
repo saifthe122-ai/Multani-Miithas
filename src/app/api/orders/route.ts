@@ -400,7 +400,7 @@ export async function POST(request: Request) {
           p.weight_options,
           r.weight,
           r.quantity,
-          COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, 0) AS unit_delivery_fee,
+          COALESCE(NULLIF(selected_weight_option.option->>'deliveryFee', '')::numeric, checkout_rules.delivery_fee, 0) AS unit_delivery_fee,
           COALESCE(NULLIF(selected_weight_option.option->>'packagingFee', '')::numeric, checkout_rules.packaging_fee, 0) AS unit_packaging_fee,
           COALESCE(
             NULLIF(selected_weight_option.option->>'salesTaxRate', '')::numeric,
@@ -490,8 +490,7 @@ export async function POST(request: Request) {
             WHEN checkout_rules.free_delivery_minimum > 0
               AND totals.subtotal >= checkout_rules.free_delivery_minimum
             THEN 0
-            WHEN totals.delivery_fee > 0 THEN totals.delivery_fee
-            ELSE checkout_rules.delivery_fee
+            ELSE totals.delivery_fee
           END AS final_delivery_fee,
           totals.packaging_fee AS final_packaging_fee
         FROM totals
