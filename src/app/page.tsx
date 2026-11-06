@@ -1320,14 +1320,13 @@ const total = cartItems.reduce((sum, item) => {
 
   const contactEmail = BUSINESS_EMAIL.trim();
 
-  // Customer-facing collections: only the main collection names appear in navigation.
-  // Exactly five clear customer-facing collection buttons. Detailed product
-  // categories remain inside each collection page; Gift Boxes is a dedicated button.
+  // Keep mithai, ghee, honey, dry fruits and gift boxes as distinct collections.
   const mainCollections = [
     { title: "Sweets & Mithai", slug: "mithai", symbol: "🍬" },
     { title: "Sohan Halwa", slug: "sohan-halwa", symbol: "✦" },
     { title: "Desi Ghee", slug: "desi-ghee", symbol: "🫙" },
-    { title: "Honey, Dry Fruits & Desserts", slug: "honey-dry-fruits", symbol: "🍯" },
+    { title: "Pure Honey", slug: "pure-honey", symbol: "🍯" },
+    { title: "Dry Fruits", slug: "dry-fruits", symbol: "🥜" },
     { title: "Gift Boxes", slug: "gift-boxes", symbol: "🎁" },
   ];
   const packagingChoices = products
