@@ -12,7 +12,7 @@ type OrderStatus =
   | "Delivered"
   | "Cancelled";
 
-type PaymentStatus = "Paid" | "Pending" | "Failed" | "COD";
+type PaymentStatus = "Paid" | "Pending" | "Failed" | "COD" | "Partially Refunded" | "Refunded";
 
 type Order = {
   id: string;
@@ -75,9 +75,11 @@ function mapOrder(row: Record<string, unknown>): Order {
   const paymentStatus: PaymentStatus =
     rawPaymentStatus === "paid"
       ? "Paid"
-      : ["failed", "cancelled", "canceled", "refunded"].includes(
-          rawPaymentStatus
-        )
+      : rawPaymentStatus === "partially_refunded" || rawPaymentStatus === "partially refunded"
+      ? "Partially Refunded"
+      : rawPaymentStatus === "refunded"
+      ? "Refunded"
+      : ["failed", "cancelled", "canceled"].includes(rawPaymentStatus)
       ? "Failed"
       : /cash on delivery|\bcod\b/i.test(method)
       ? "COD"
@@ -308,7 +310,7 @@ export default function OrdersDashboard() {
     id: string,
     paymentStatus: PaymentStatus
   ) {
-    if (paymentStatus === "COD") return;
+    if (paymentStatus === "COD" || paymentStatus === "Partially Refunded" || paymentStatus === "Refunded") return;
 
     try {
       const order = orders.find((item) => item.id === id);
@@ -706,6 +708,8 @@ export default function OrdersDashboard() {
               <option value="Paid">Paid</option>
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
+              <option value="Partially Refunded">Partially Refunded</option>
+              <option value="Refunded">Refunded</option>
               <option value="COD">COD</option>
             </select>
           </div>
@@ -1020,6 +1024,8 @@ export default function OrdersDashboard() {
                   Paid — payment received
                 </option>
                 <option value="Failed">Failed / Cancelled</option>
+                <option value="Partially Refunded" disabled>Partially Refunded — use Refund Requests</option>
+                <option value="Refunded" disabled>Refunded — audited record</option>
                 <option value="COD">
                   COD — cash on delivery (not received yet)
                 </option>
