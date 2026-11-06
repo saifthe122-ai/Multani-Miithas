@@ -7,13 +7,13 @@
 - Use GitHub Actions for lint and production-build verification. These checks do not require a customer-facing Preview deployment.
 - Do not call the business live until a production host, database, admin login, payment flow, and customer order journey have been verified.
 
-## Free development workflow
+## Development and release workflow
 
-1. Make changes on a feature branch.
-2. Open a pull request to `main`.
-3. Wait for the GitHub Actions workflow named **Final launch checks** to pass.
-4. Merge only after code review and checks pass.
-5. Deploy to the chosen production host when ready.
+- The GitHub `main` branch is the source of truth.
+- Apply approved implementation changes directly to `main`; do not create preview branches or pull requests unless the owner explicitly asks for them.
+- GitHub Actions runs lint and production-build checks on every push to `main`.
+- A green code check does not replace live database, payment, or customer-journey verification.
+- Keep the existing Vercel deployment available for review while the business owner decides when to purchase and connect the final domain/hosting.
 
 A free Vercel build limit does not prevent GitHub Actions from checking the code. It does prevent relying on Vercel for a fresh deployment until its quota/limit is available again.
 
@@ -57,7 +57,7 @@ This project is a Next.js application with server-side API routes, PostgreSQL ac
 Hostinger's current support documentation lists **Business Web Hosting** and **Cloud Startup / Cloud Professional / Cloud Enterprise / Cloud Enterprise Plus** as plans that support Node.js web applications. The project uses Next.js server-side API routes, so do not buy a plan that only supports static/PHP websites.
 
 Before purchasing, confirm the exact plan supports:
-- Node.js 20, 22 or another currently supported version compatible with the app.
+- Node.js 22.x or a newer version explicitly supported by the app's `package.json` engine requirement.
 - Next.js server-side rendering and API routes (not just static export).
 - Build/start commands and server-side environment variables.
 - Persistent home-directory storage for local media uploads, plus backups.
@@ -75,7 +75,7 @@ A VPS is another option but requires more server administration. Confirm current
 
 The admin media uploader supports two modes. The default `vercel_blob` mode keeps the current Vercel Blob behavior. On a self-hosted Node.js host, set `MEDIA_STORAGE_DRIVER=local`; new uploads, listing and deletion use `~/.multani-mithas/uploads` by default, outside the versioned application release. The public `/api/media/...` route serves those files without exposing the filesystem path. If the host requires a different location, set `MEDIA_STORAGE_DIRECTORY` to an absolute persistent directory. Back up that directory. Existing Vercel Blob image URLs continue to load and are not bulk rewritten. Do not use local mode on an ephemeral filesystem.
 
-For the planned Hostinger move, use `MEDIA_STORAGE_DRIVER=local` only after confirming the chosen Node.js plan has persistent writable disk and that the `public/uploads/multani-mithas` directory is included in backups. If the plan uses an ephemeral filesystem, do not enable local mode; keep a supported remote object-storage provider instead. Existing Vercel Blob image URLs are not migrated or rewritten by this setting.
+For the planned Hostinger move, use `MEDIA_STORAGE_DRIVER=local` only after confirming the chosen Node.js plan has persistent writable disk. Back up the actual configured `MEDIA_STORAGE_DIRECTORY`, or the default `~/.multani-mithas/uploads` directory. If the plan uses an ephemeral filesystem, do not enable local mode; keep a supported remote object-storage provider instead. Existing Vercel Blob image URLs are not migrated or rewritten by this setting.
 
 ## Payments and launch gates
 
