@@ -701,7 +701,8 @@ export async function POST(request: Request) {
 
     if (saved?.order_id == null) {
       const existing = await sql`
-        SELECT order_number, subtotal, delivery_fee, tax_amount, packaging_fee, total
+        SELECT order_number, subtotal, delivery_fee, tax_amount, packaging_fee, total,
+               payment_status, payment_reference
         FROM orders
         WHERE idempotency_key = ${requestKey}
         LIMIT 1
@@ -715,7 +716,8 @@ export async function POST(request: Request) {
           taxAmount: Number(previous.tax_amount),
           packagingFee: Number(previous.packaging_fee),
           total: Number(previous.total),
-          paymentStatus: "pending",
+          paymentStatus: String(previous.payment_status ?? "pending"),
+          paymentReference: previous.payment_reference ? String(previous.payment_reference) : null,
         };
         return NextResponse.json({
           success: true,
