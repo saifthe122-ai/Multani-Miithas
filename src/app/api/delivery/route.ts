@@ -104,7 +104,9 @@ export async function POST(request: Request) {
             ELSE order_deliveries.delivered_at
           END,
           updated_at=NOW()
-        WHERE order_deliveries.status <> 'delivered'
+        WHERE order_deliveries.status = EXCLUDED.status
+          OR (
+          order_deliveries.status NOT IN ('delivered','returned')
           AND CASE order_deliveries.status
             WHEN 'pending' THEN 0
             WHEN 'assigned' THEN 1
@@ -123,6 +125,7 @@ export async function POST(request: Request) {
             WHEN 'delivered' THEN 6
             ELSE -1
           END
+          )
         RETURNING *
       ),
       advanced_order AS (
