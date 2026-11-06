@@ -425,10 +425,10 @@ export async function POST(request: Request) {
             SELECT regexp_replace(lower(trim(option_item.option->>'weight')), '\\s+', '', 'g') AS normalized_weight
           ) normalized
           WHERE CASE
-            WHEN normalized.normalized_weight ~ '^[0-9]+(\.[0-9]+)?$' THEN normalized.normalized_weight::numeric
-            WHEN normalized.normalized_weight ~ '^[0-9]+(\.[0-9]+)?(kg|kgs|kilogram|kilograms)$'
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?$' THEN normalized.normalized_weight::numeric
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?(kg|kgs|kilogram|kilograms)$'
               THEN regexp_replace(normalized.normalized_weight, '(kilograms|kilogram|kgs|kg)$', '')::numeric
-            WHEN normalized.normalized_weight ~ '^[0-9]+(\.[0-9]+)?(g|gm|gms|gram|grams)$'
+            WHEN normalized.normalized_weight ~ '^[0-9]+(\\.[0-9]+)?(g|gm|gms|gram|grams)$'
               THEN regexp_replace(normalized.normalized_weight, '(grams|gram|gms|gm|g)$', '')::numeric / 1000
             ELSE NULL
           END = r.weight
