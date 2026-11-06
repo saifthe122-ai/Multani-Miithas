@@ -78,6 +78,7 @@ export default function CategoryPage() {
   };
   const subcategories = Array.from(new Set(categoryProducts.map(getSubcategory))).sort((a, b) => a.localeCompare(b));
   const [selectedSubcategory, setSelectedSubcategory] = useState("All");
+  const [expandedImage, setExpandedImage] = useState<{ src: string; alt: string } | null>(null);
   const visibleProducts = selectedSubcategory === "All"
     ? categoryProducts
     : categoryProducts.filter((product) => getSubcategory(product) === selectedSubcategory);
@@ -99,7 +100,7 @@ export default function CategoryPage() {
         <p><Link href="/shop" style={{ color: "#8B642B" }}>← All categories</Link></p>
       </section>
       {loading ? <p style={{ textAlign: "center", padding: 40 }}>Loading products…</p> : visibleProducts.length === 0 ? <p style={{ textAlign: "center", padding: 40 }}>No active products in this collection yet.</p> : (
-        <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 22 }}>
+        <section style={{ padding: "20px 6% 70px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 22 }}>
           {visibleProducts.map((product) => {
             const optionPrices = (product.weight_options ?? [])
               .map((option) => Number(option.price))
@@ -112,7 +113,7 @@ export default function CategoryPage() {
             const finalPrice = basePrice * (1 - Math.max(0, Math.min(100, Number(product.discount || 0))) / 100);
             const image = product.image_url || "";
             return <article key={product.id} style={{ background: "#FFFCF5", border: "1px solid #D8C59F", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {image ? <img src={image} alt={product.name} loading="lazy" style={{ display: "block", boxSizing: "border-box", width: "100%", height: 240, padding: 12, objectFit: "contain", objectPosition: "center", background: "#F5EBDD" }} /> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
+              {image ? <button type="button" onClick={() => setExpandedImage({ src: image, alt: product.name })} aria-label={`View full-size image of ${product.name}`} style={{ display: "block", width: "100%", height: 300, padding: 8, border: 0, cursor: "zoom-in", background: "#F5EBDD" }}><img src={image} alt={product.name} loading="lazy" decoding="async" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }} /></button> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
               <div style={{ padding: 18, display: "flex", flexDirection: "column", flex: 1 }}>
                 <span style={{ color: "#A16B16", fontSize: 12 }}>{product.category}</span>
                 <h2 style={{ fontWeight: 400, fontSize: 21, margin: "6px 0" }}>{product.name}</h2>
@@ -129,6 +130,7 @@ export default function CategoryPage() {
           })}
         </section>
       )}
+      {expandedImage && <div role="dialog" aria-modal="true" aria-label={`Full-size product image: ${expandedImage.alt}`} onClick={() => setExpandedImage(null)} style={{ position: "fixed", inset: 0, zIndex: 1000, display: "grid", placeItems: "center", padding: 18, background: "rgba(4, 22, 23, .94)" }}><button type="button" onClick={() => setExpandedImage(null)} aria-label="Close full-size image" style={{ position: "absolute", top: 16, right: 18, zIndex: 1, width: 44, height: 44, borderRadius: "50%", border: "1px solid #E6BD6C", background: "#092F32", color: "#FFF8EA", fontSize: 28, cursor: "pointer" }}>×</button><img src={expandedImage.src} alt={expandedImage.alt} onClick={(event) => event.stopPropagation()} style={{ display: "block", maxWidth: "min(100%, 1100px)", maxHeight: "88dvh", width: "auto", height: "auto", objectFit: "contain", background: "#FFF8EA", borderRadius: 8 }} /></div>}
       <footer style={{ padding: 24, textAlign: "center", background: "#092F32", color: "#F6E9D0" }}>Multani Mithas · Multan ki Mithas, Dil Se</footer>
     </main>
   );
