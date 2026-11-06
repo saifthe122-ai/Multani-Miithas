@@ -70,67 +70,106 @@ export async function POST(request: Request) {
       notes text, dispatched_at timestamptz, delivered_at timestamptz,
       updated_at timestamptz NOT NULL DEFAULT NOW(), created_at timestamptz NOT NULL DEFAULT NOW()
     )`;
-    const result = await sql`INSERT INTO order_deliveries
-      (order_id, provider, assigned_to, assigned_phone, tracking_reference, notes, status, dispatched_at, delivered_at, updated_at)
-      SELECT o.id, ${provider}, NULLIF(${assignedTo},''), NULLIF(${assignedPhone},''),
-        NULLIF(${trackingReference},''), NULLIF(${notes},''), ${status},
-        CASE WHEN ${status} IN ('dispatched','in_transit','delivered') THEN NOW() ELSE NULL END,
-        CASE WHEN ${status}='delivered' THEN NOW() ELSE NULL END, NOW()
-      FROM orders o WHERE o.order_number=${orderNumber} AND o.archived_at IS NULL
-      ON CONFLICT (order_id) DO UPDATE SET
-        provider=EXCLUDED.provider, assigned_to=EXCLUDED.assigned_to,
-        assigned_phone=EXCLUDED.assigned_phone, tracking_reference=EXCLUDED.tracking_reference,
-        notes=EXCLUDED.notes, status=EXCLUDED.status,
-        dispatched_at=CASE WHEN EXCLUDED.status IN ('dispatched','in_transit','delivered') THEN COALESCE(order_deliveries.dispatched_at,NOW()) ELSE order_deliveries.dispatched_at END,
-        delivered_at=CASE WHEN EXCLUDED.status='delivered' THEN COALESCE(order_deliveries.delivered_at,NOW()) ELSE NULL END,
-        updated_at=NOW()
-      WHERE order_deliveries.status <> 'delivered'
-         OR EXCLUDED.status = 'delivered'
-      RETURNING *`;
-    if (!result.length) {
-      const existing = await sql`
-        SELECT d.status
-        FROM order_deliveries d
-        JOIN orders o ON o.id = d.order_id
-        WHERE o.order_number = ${orderNumber}
-        LIMIT 1
-      `;
-      if (existing.length && String(existing[0].status) === "delivered") {
-        return NextResponse.json({ success: false, message: "Delivered order ki delivery status ko peeche nahi le ja sakte." }, { status: 409 });
-      }
-      return NextResponse.json({ success: false, message: "Order number not found" }, { status: 404 });
-    }
-    // Keep delivery progress aligned with the order API's supported statuses.
-    // "completed" is required for the COD cash-received verification workflow.
-    const orderStatus =
-      status === "delivered"
-        ? "completed"
-        : status === "dispatched" || status === "in_transit"
-          ? "out_for_delivery"
-          : "processing";
-    if (status !== "pending" && status !== "failed" && status !== "returned") {
-      await sql`
-        UPDATE orders
-        SET status = ${orderStatus}
-        WHERE order_number = ${orderNumber}
-          AND CASE status
+    const result = await sql`
+      WITH target_order AS MATERIALIZED (
+        SELECT o.id, o.order_number, o.status AS order_status
+        FROM orders o
+        WHERE upper(o.order_number) = upper(${orderNumber})
+          AND o.archived_at IS NULL
+          AND lower(o.status) NOT IN ('cancelled','refunded')
+        FOR UPDATE
+      ),
+      saved_delivery AS (
+        INSERT INTO order_deliveries
+          (order_id, provider, assigned_to, assigned_phone, tracking_reference, notes, status, dispatched_at, delivered_at, updated_at)
+        SELECT t.id, ${provider}, NULLIF(${assignedTo},''), NULLIF(${assignedPhone},''),
+          NULLIF(${trackingReference},''), NULLIF(${notes},''), ${status},
+          CASE WHEN ${status} IN ('dispatched','in_transit','delivered') THEN NOW() ELSE NULL END,
+          CASE WHEN ${status}='delivered' THEN NOW() ELSE NULL END, NOW()
+        FROM target_order t
+        ON CONFLICT (order_id) DO UPDATE SET
+          provider=EXCLUDED.provider,
+          assigned_to=EXCLUDED.assigned_to,
+          assigned_phone=EXCLUDED.assigned_phone,
+          tracking_reference=EXCLUDED.tracking_reference,
+          notes=EXCLUDED.notes,
+          status=EXCLUDED.status,
+          dispatched_at=CASE
+            WHEN EXCLUDED.status IN ('dispatched','in_transit','delivered')
+              THEN COALESCE(order_deliveries.dispatched_at,NOW())
+            ELSE order_deliveries.dispatched_at
+          END,
+          delivered_at=CASE
+            WHEN EXCLUDED.status='delivered' THEN COALESCE(order_deliveries.delivered_at,NOW())
+            ELSE order_deliveries.delivered_at
+          END,
+          updated_at=NOW()
+        WHERE order_deliveries.status <> 'delivered'
+          AND CASE order_deliveries.status
             WHEN 'pending' THEN 0
-            WHEN 'confirmed' THEN 1
-            WHEN 'processing' THEN 2
-            WHEN 'out_for_delivery' THEN 3
-            WHEN 'completed' THEN 4
-            ELSE -1
-          END <= CASE ${orderStatus}
+            WHEN 'assigned' THEN 1
+            WHEN 'dispatched' THEN 2
+            WHEN 'in_transit' THEN 3
+            WHEN 'failed' THEN 4
+            WHEN 'returned' THEN 5
+            ELSE 6
+          END <= CASE EXCLUDED.status
             WHEN 'pending' THEN 0
-            WHEN 'confirmed' THEN 1
-            WHEN 'processing' THEN 2
-            WHEN 'out_for_delivery' THEN 3
-            WHEN 'completed' THEN 4
+            WHEN 'assigned' THEN 1
+            WHEN 'dispatched' THEN 2
+            WHEN 'in_transit' THEN 3
+            WHEN 'failed' THEN 4
+            WHEN 'returned' THEN 5
+            WHEN 'delivered' THEN 6
             ELSE -1
           END
+        RETURNING *
+      ),
+      advanced_order AS (
+        UPDATE orders o
+        SET status = CASE
+          WHEN ${status} = 'delivered' THEN 'completed'
+          WHEN ${status} IN ('dispatched','in_transit') THEN 'out_for_delivery'
+          ELSE 'processing'
+        END
+        FROM target_order t, saved_delivery d
+        WHERE o.id = t.id
+          AND ${status} NOT IN ('pending','failed','returned')
+          AND CASE o.status
+            WHEN 'pending' THEN 0
+            WHEN 'confirmed' THEN 1
+            WHEN 'processing' THEN 2
+            WHEN 'out_for_delivery' THEN 3
+            WHEN 'completed' THEN 4
+            ELSE -1
+          END <= CASE
+            WHEN ${status} = 'delivered' THEN 4
+            WHEN ${status} IN ('dispatched','in_transit') THEN 3
+            ELSE 2
+          END
+        RETURNING o.id
+      )
+      SELECT d.* FROM saved_delivery d
+    `;
+    if (!result.length) {
+      const existing = await sql`
+        SELECT d.status AS delivery_status, o.status AS order_status
+        FROM orders o
+        LEFT JOIN order_deliveries d ON d.order_id = o.id
+        WHERE upper(o.order_number) = upper(${orderNumber})
+        LIMIT 1
       `;
+      if (!existing.length) {
+        return NextResponse.json({ success: false, message: "Order number not found" }, { status: 404 });
+      }
+      if (["cancelled","refunded"].includes(String(existing[0].order_status ?? "").toLowerCase())) {
+        return NextResponse.json({ success: false, message: "Cancelled ya refunded order ke liye delivery register nahi ho sakti." }, { status: 409 });
+      }
+      return NextResponse.json({ success: false, message: "Delivery status peeche nahi le ja sakte ya delivered record locked hai." }, { status: 409 });
     }
+    // Pending registration only creates the delivery record; it never advances order status.
     return NextResponse.json({ success: true, saved: true, delivery: result[0] });
+
   } catch (error) {
     console.error("Delivery POST failed", error);
     return NextResponse.json({ success: false, message: "Delivery details could not be saved" }, { status: 500 });
