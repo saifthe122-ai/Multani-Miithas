@@ -10,9 +10,9 @@ const WINDOW_MINUTES = 15;
 const MAX_FAILED_ATTEMPTS = 5;
 
 function getClientAddress(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  return forwarded || realIp || "unknown";
+  // x-real-ip is set by the hosting proxy. Do not trust the first
+  // x-forwarded-for value: a client may be able to spoof that header.
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 function hashAddress(address: string) {
@@ -30,6 +30,8 @@ async function checkLoginLimit(request: Request) {
   )`;
   await sql`CREATE INDEX IF NOT EXISTS admin_login_attempts_address_time_idx
     ON admin_login_attempts (address_hash, attempted_at DESC)`;
+  // Prune stale rows even when an address never completes a successful login.
+  await sql`DELETE FROM admin_login_attempts WHERE attempted_at < NOW() - INTERVAL '1 day'`;
   const addressHash = hashAddress(getClientAddress(request));
   const rows = await sql`SELECT COUNT(*)::integer AS attempts
     FROM admin_login_attempts
