@@ -105,12 +105,31 @@ export async function POST(request: Request) {
     const orderStatus =
       status === "delivered"
         ? "completed"
-        : status === "failed" || status === "returned"
-          ? "processing"
-          : status === "dispatched" || status === "in_transit"
-            ? "out_for_delivery"
-            : "processing";
-    await sql`UPDATE orders SET status=${orderStatus} WHERE order_number=${orderNumber}`;
+        : status === "dispatched" || status === "in_transit"
+          ? "out_for_delivery"
+          : "processing";
+    if (status !== "failed" && status !== "returned") {
+      await sql`
+        UPDATE orders
+        SET status = ${orderStatus}
+        WHERE order_number = ${orderNumber}
+          AND CASE status
+            WHEN 'pending' THEN 0
+            WHEN 'confirmed' THEN 1
+            WHEN 'processing' THEN 2
+            WHEN 'out_for_delivery' THEN 3
+            WHEN 'completed' THEN 4
+            ELSE -1
+          END <= CASE ${orderStatus}
+            WHEN 'pending' THEN 0
+            WHEN 'confirmed' THEN 1
+            WHEN 'processing' THEN 2
+            WHEN 'out_for_delivery' THEN 3
+            WHEN 'completed' THEN 4
+            ELSE -1
+          END
+      `;
+    }
     return NextResponse.json({ success: true, saved: true, delivery: result[0] });
   } catch (error) {
     console.error("Delivery POST failed", error);
