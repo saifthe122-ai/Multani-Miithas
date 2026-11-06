@@ -237,7 +237,6 @@ export async function PATCH(request: Request) {
             ${transferReference}
           FROM saved_order
           CROSS JOIN order_row
-          WHERE order_row.payment_status IS DISTINCT FROM saved_order.payment_status
           RETURNING id
         )
         SELECT s.*, saved_order.payment_status AS order_payment_status
