@@ -666,9 +666,9 @@ export async function POST(request: Request) {
         )
 
         RETURNING order_id
-      )
+      ),
 
-      , integrity_guard AS MATERIALIZED (
+      integrity_guard AS MATERIALIZED (
         SELECT
           1 / CASE
             WHEN NOT EXISTS (SELECT 1 FROM new_order)
