@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, "final-launch-hardening-*"]
 
+concurrency:
+  group: launch-checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
