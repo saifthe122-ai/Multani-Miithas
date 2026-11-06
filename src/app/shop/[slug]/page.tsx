@@ -42,7 +42,6 @@ export default function CategoryPage() {
     "desi-ghee": "Desi Ghee",
     "pure-honey": "Pure Honey",
     "dry-fruits": "Dry Fruits",
-    "honey-dry-fruits": "Honey & Dry Fruits",
     "gift-boxes": "Gift Boxes",
   };
   const matchesCollection = (product: Product) => {
@@ -52,11 +51,12 @@ export default function CategoryPage() {
     if (slug === "sohan-halwa") return /sohan/.test(category);
     if (slug === "desi-ghee") return /\bghee\b/.test(category);
     if (slug === "pure-honey") return /honey|shahad/.test(category);
-    if (slug === "dry-fruits") return /dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(category);
-    if (slug === "honey-dry-fruits") return /honey|shahad|dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(category);
+    if (slug === "dry-fruits") return /dry\s*fruit/.test(product.category.toLowerCase());
+    if (slug === "pure-honey") return /honey|shahad/.test(product.category.toLowerCase()) || /^(pure\s+)?(honey|shahad)(\s+(jar|bottle))?$/i.test(product.name.trim());
+    if (slug === "desi-ghee") return /ghee/.test(product.category.toLowerCase()) || /^desi\s+ghee$/i.test(product.name.trim());
     if (slug === "mithai") {
-      const excluded = /sohan|\bghee\b|honey|shahad|dry\s*fruit|gift\s*box/.test(category);
-      return !excluded && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut/.test(category) || /traditional/.test(product.category.toLowerCase()));
+      const standaloneCollection = /sohan|\\bghee\\b|honey|shahad|dry\\s*fruit|gift\\s*box/.test(product.category.toLowerCase());
+      return !standaloneCollection && (/mithai|sweet|gulab\\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\\s*cham|patisa|petha|coconut|barfi/.test(category) || /traditional/.test(product.category.toLowerCase()));
     }
     return slugify(product.category) === slug;
   };
@@ -64,15 +64,16 @@ export default function CategoryPage() {
   const categoryName = collectionNames[slug] || categoryProducts[0]?.category || slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   const getSubcategory = (product: Product) => {
     const details = `${product.category} ${product.name}`.toLowerCase();
+    if (/sohan/.test(details)) return /akhrot|walnut/.test(details) ? "Akhroti Sohan Halwa" : "Simple Sohan Halwa";
     if (/mix\s*mithai/.test(details)) return "Mix Mithai";
     if (/special\s*mithai/.test(details)) return "Special Mithai";
     if (/barfi/.test(details)) return "Barfi";
+    if (/ladoo|laddu/.test(details)) return "Ladoo";
     if (/kheer/.test(details)) return "Kheer";
     if (/gajar|carrot/.test(details)) return "Gajar ka Halwa";
     if (/dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(details)) return "Dry Fruits";
     if (/honey|shahad/.test(details)) return "Honey";
     if (/ghee/.test(details)) return "Desi Ghee";
-    if (/sohan/.test(details)) return /akhrot|walnut/.test(details) ? "Akhroti Sohan Halwa" : "Simple Sohan Halwa";
     return product.category || "Other";
   };
   const subcategories = Array.from(new Set(categoryProducts.map(getSubcategory))).sort((a, b) => a.localeCompare(b));
