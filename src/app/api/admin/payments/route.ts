@@ -267,7 +267,7 @@ if (appLink) {
         return jsonError("Currency code valid nahi hai.");
       }
 
-      const showOnCheckout = data.showOnCheckout === true;
+      const showOnCheckout = walletOwnerType === "merchant" && data.showOnCheckout === true;
       const makePrimary = data.isPrimary === true;
 
       if (makePrimary) {
@@ -485,7 +485,11 @@ wallet_owner_type = CASE
   WHEN ${walletOwnerTypeProvided} THEN ${walletOwnerType}
   ELSE wallet_owner_type
 END,
-show_on_checkout = COALESCE(${showOnCheckout}, show_on_checkout),
+show_on_checkout = CASE
+  WHEN ${walletOwnerTypeProvided} AND ${walletOwnerType} = 'personal' THEN false
+  WHEN ${showOnCheckout} IS NOT NULL THEN ${showOnCheckout}
+  ELSE show_on_checkout
+END,
 updated_at = NOW()
   
         WHERE id = ${id}
