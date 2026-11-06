@@ -84,8 +84,22 @@ export async function POST(request: Request) {
         dispatched_at=CASE WHEN EXCLUDED.status IN ('dispatched','in_transit','delivered') THEN COALESCE(order_deliveries.dispatched_at,NOW()) ELSE order_deliveries.dispatched_at END,
         delivered_at=CASE WHEN EXCLUDED.status='delivered' THEN COALESCE(order_deliveries.delivered_at,NOW()) ELSE NULL END,
         updated_at=NOW()
+      WHERE order_deliveries.status <> 'delivered'
+         OR EXCLUDED.status = 'delivered'
       RETURNING *`;
-    if (!result.length) return NextResponse.json({ success: false, message: "Order number not found" }, { status: 404 });
+    if (!result.length) {
+      const existing = await sql`
+        SELECT d.status
+        FROM order_deliveries d
+        JOIN orders o ON o.id = d.order_id
+        WHERE o.order_number = ${orderNumber}
+        LIMIT 1
+      `;
+      if (existing.length && String(existing[0].status) === "delivered") {
+        return NextResponse.json({ success: false, message: "Delivered order ki delivery status ko peeche nahi le ja sakte." }, { status: 409 });
+      }
+      return NextResponse.json({ success: false, message: "Order number not found" }, { status: 404 });
+    }
     // Keep delivery progress aligned with the order API's supported statuses.
     // "completed" is required for the COD cash-received verification workflow.
     const orderStatus =
