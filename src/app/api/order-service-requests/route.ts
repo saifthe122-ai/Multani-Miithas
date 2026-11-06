@@ -36,6 +36,18 @@ async function ensureSchema(sql: ReturnType<typeof neon<false, false>>) {
   `;
   await sql`CREATE INDEX IF NOT EXISTS order_service_requests_created_idx ON order_service_requests (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS order_service_requests_order_idx ON order_service_requests (order_number)`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference text`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS payment_status_events (
+      id bigserial PRIMARY KEY,
+      order_number text NOT NULL,
+      previous_status text,
+      new_status text NOT NULL,
+      payment_reference text,
+      changed_by text NOT NULL DEFAULT 'admin',
+      created_at timestamptz NOT NULL DEFAULT NOW()
+    )
+  `;
 }
 
 export async function POST(request: Request) {
@@ -178,7 +190,7 @@ export async function PATCH(request: Request) {
           FOR UPDATE
         ),
         order_row AS MATERIALIZED (
-          SELECT o.id, o.total
+          SELECT o.id, o.order_number, o.total, o.payment_status
           FROM orders o JOIN request_row r ON r.order_number = o.order_number
           FOR UPDATE OF o
         ),
@@ -207,10 +219,25 @@ export async function PATCH(request: Request) {
           SET payment_status = CASE
             WHEN s.approved_amount + previous.amount >= o.total THEN 'refunded'
             ELSE 'partially_refunded'
-          END
+          END,
+              payment_reference = ${transferReference}
           FROM saved_request s, prior_refunds previous
           WHERE o.order_number = s.order_number
-          RETURNING o.payment_status
+          RETURNING o.order_number, o.payment_status
+        ),
+        payment_audit AS (
+          INSERT INTO payment_status_events (
+            order_number, previous_status, new_status, payment_reference
+          )
+          SELECT
+            saved_order.order_number,
+            order_row.payment_status,
+            saved_order.payment_status,
+            ${transferReference}
+          FROM saved_order
+          CROSS JOIN order_row
+          WHERE order_row.payment_status IS DISTINCT FROM saved_order.payment_status
+          RETURNING id
         )
         SELECT s.*, saved_order.payment_status AS order_payment_status
         FROM saved_request s CROSS JOIN saved_order
