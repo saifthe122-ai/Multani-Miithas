@@ -887,9 +887,42 @@ export async function PATCH(request: Request) {
         WHERE order_number = ${orderNumber}
         LIMIT 1
       `;
-      if (String(currentOrder[0]?.status ?? "").toLowerCase() === "cancelled") {
+      if (!currentOrder.length) {
+        return NextResponse.json({ success: false, message: "Order nahi mila." }, { status: 404 });
+      }
+      const currentStatus = String(currentOrder[0].status ?? "").toLowerCase();
+      const statusRank: Record<string, number> = {
+        pending: 0,
+        confirmed: 1,
+        processing: 2,
+        out_for_delivery: 3,
+        completed: 4,
+      };
+      if (currentStatus === "cancelled" && status !== "cancelled") {
         return NextResponse.json(
-          { success: false, message: "Cancelled order ko dobara active karne se pehle naya stock reservation process zaroori hai." },
+          { success: false, message: "Cancelled order ko dobara active karne ke liye naya stock reservation process zaroori hai." },
+          { status: 409 }
+        );
+      }
+      if (currentStatus === "completed" && status !== "completed") {
+        return NextResponse.json(
+          { success: false, message: "Delivered order ka status reverse ya cancel nahi kar sakte. Refund/support workflow use karein." },
+          { status: 409 }
+        );
+      }
+      if (status === "cancelled" && !["pending", "confirmed"].includes(currentStatus)) {
+        return NextResponse.json(
+          { success: false, message: "Preparation ya dispatch shuru hone ke baad direct cancellation allowed nahi. Support workflow use karein." },
+          { status: 409 }
+        );
+      }
+      if (
+        status !== "cancelled" &&
+        statusRank[currentStatus] !== undefined &&
+        statusRank[status] < statusRank[currentStatus]
+      ) {
+        return NextResponse.json(
+          { success: false, message: "Order status ko pichlay stage par wapas nahi le ja sakte." },
           { status: 409 }
         );
       }
