@@ -823,9 +823,10 @@ setNotice("Account settings database mein save ho gayi hain.");
               <input
                 type="checkbox"
                 checked={showOnCheckout}
+                disabled={walletOwnerType !== "merchant"}
                 onChange={(e) => setShowOnCheckout(e.target.checked)}
               />
-              Allow this account to appear in customer checkout
+              Allow this merchant account to appear in customer checkout
             </label>
 
             <label>
@@ -1026,8 +1027,8 @@ setNotice("Account settings database mein save ho gayi hain.");
     <label>Account Number<input value={editingAccountNumber} onChange={(e) => setEditingAccountNumber(e.target.value)} maxLength={50} style={inputStyle} /></label>
     <label>IBAN<input value={editingIban} onChange={(e) => setEditingIban(e.target.value)} maxLength={50} style={inputStyle} /></label>
     <label style={{ display: "flex", alignItems: "center", gap: 9 }}>
-      <input type="checkbox" checked={editingShowOnCheckout} onChange={(e) => setEditingShowOnCheckout(e.target.checked)} />
-      Allow this account on customer checkout
+      <input type="checkbox" checked={editingShowOnCheckout} disabled={editingWalletOwnerType !== "merchant"} onChange={(e) => setEditingShowOnCheckout(e.target.checked)} />
+      Allow this merchant account on customer checkout
     </label>
     <label>
       Payment App / Bank App Link
@@ -1157,16 +1158,20 @@ setNotice("Account settings database mein save ho gayi hain.");
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
+                      disabled={account.walletOwnerType !== "merchant"}
+                      title={account.walletOwnerType !== "merchant" ? "Only verified merchant-owned accounts can appear at checkout" : ""}
                       onClick={() =>
                         updateAccount(account, { showOnCheckout: !account.showOnCheckout })
                       }
                       style={{
                         ...buttonStyle,
-                        background: account.showOnCheckout ? "#dcfce7" : "#e0f2fe",
-                        color: account.showOnCheckout ? "#166534" : "#075985",
+                        opacity: account.walletOwnerType === "merchant" ? 1 : 0.55,
+                        cursor: account.walletOwnerType === "merchant" ? "pointer" : "not-allowed",
+                        background: account.showOnCheckout && account.walletOwnerType === "merchant" ? "#dcfce7" : "#e0f2fe",
+                        color: account.showOnCheckout && account.walletOwnerType === "merchant" ? "#166534" : "#075985",
                       }}
                     >
-                      {account.showOnCheckout ? "Hide from Customer Checkout" : "Show on Customer Checkout"}
+                      {account.walletOwnerType !== "merchant" ? "Merchant Account Required" : account.showOnCheckout ? "Hide from Customer Checkout" : "Show on Customer Checkout"}
                     </button>
                     <button
                       onClick={() =>
