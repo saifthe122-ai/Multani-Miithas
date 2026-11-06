@@ -77,6 +77,21 @@ export async function POST(request: Request) {
         WHERE upper(o.order_number) = upper(${orderNumber})
           AND o.archived_at IS NULL
           AND lower(o.status) NOT IN ('cancelled','refunded')
+          AND (
+            ${status} IN ('pending','failed','returned')
+            OR (
+              ${status} = 'assigned'
+              AND lower(o.status) IN ('pending','confirmed','processing')
+            )
+            OR (
+              ${status} IN ('dispatched','in_transit')
+              AND lower(o.status) IN ('pending','confirmed','processing','out_for_delivery')
+            )
+            OR (
+              ${status} = 'delivered'
+              AND lower(o.status) IN ('pending','confirmed','processing','out_for_delivery','completed')
+            )
+          )
         FOR UPDATE
       ),
       saved_delivery AS (
