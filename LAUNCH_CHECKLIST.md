@@ -83,8 +83,8 @@ This checklist is for a Production-first release. GitHub Actions and Vercel buil
 
 ## Expanded catalogue and future branch/payment requirements
 
-- [ ] Admin product form offers Sweets, Gift Boxes, Desi Ghee, Pure Honey, Dry Fruits, Bakery, Cakes, Namkeen and Seasonal & Special, and permits a new category name.
-- [ ] Add one test product in each collection on Preview; verify the category directory automatically lists each active collection and category pages show the correct products.
+- [x] Admin product form offers Sweets, Gift Boxes, Desi Ghee, Pure Honey, Dry Fruits, Bakery, Cakes, Namkeen and Seasonal & Special, and permits a new category name.
+- [ ] Verify every collection filter with isolated test data; never add synthetic products or stock to the live business database.
 - [ ] Verify products in existing categories retain their current category names and links.
 - [ ] Verify pack sizes, stock, discounts, packaging type/fee and delivery/tax breakdown separately for honey jars, ghee jars, dry-fruit packs, gift boxes and per-weight sweets.
 - [ ] Design and implement persistent payment-account management separately from payment methods, with account ownership, branch assignment, active/test status, primary selection and audit history.
@@ -101,7 +101,7 @@ This checklist is for a Production-first release. GitHub Actions and Vercel buil
 
 - [x] PR #6 merged: product admin accepts suggested and custom category names.
 - [x] PR #7 merged: public payment-options API filters out personal accounts and requires an active merchant-owned account matching an enabled manual payment method.
-- [ ] PR #8: server-side checkout applies the configured global sales-tax rate when a product weight option does not specify a rate, and applies the free-delivery threshold to the order delivery total. Merge only after GitHub Actions and Vercel checks succeed.
+- [x] Server-side checkout applies the configured global sales-tax rate when a product weight option does not specify a rate, and applies the free-delivery threshold to the order delivery total.
 - [ ] Confirm the official customer domain and Production deployment are Ready.
 - [ ] Confirm real business payment account ownership and merchant status before enabling manual wallet/bank collection.
 - [ ] Add real inventory, correct prices, weight options, product photos, packaging type and packaging fees before accepting paid orders.
@@ -149,3 +149,22 @@ This checklist is for a Production-first release. GitHub Actions and Vercel buil
 - [ ] Confirm backup and restore of the existing PostgreSQL database before pointing the domain at Hostinger.
 - [ ] Verify `/api/health`, admin login/logout, product editing, customer checkout, order creation, stock reservation, payment verification and delivery workflow on the actual Hostinger production domain.
 - [ ] Confirm privacy, delivery, refund and cancellation policy text and public business contact details.
+
+## Main-branch hardening — 2026-11-06
+
+### Implemented directly on main
+- [x] Checkout retries return the order's actual payment status and transaction reference instead of incorrectly resetting the response to Pending.
+- [x] Delivery dispatch/in-transit maps to the supported order status `out_for_delivery`; delivered maps to `completed`, so COD can be marked Paid only after delivery and cash collection.
+- [x] Pure Honey and Dry Fruits have separate storefront collection pages; honey and ghee are excluded from the Mithai collection.
+- [x] Customer payment options and order creation require active, merchant-owned accounts explicitly enabled for checkout; personal accounts cannot be exposed by toggling the checkout flag.
+- [x] Admin Payments lets the owner set ownership for bank and wallet accounts and only enables checkout visibility for merchant accounts.
+- [x] Package engine and GitHub Actions verification target Node.js 22.
+- [x] Hostinger guide matches the direct-main workflow and documents the actual persistent media directory.
+
+### Still requires real business/production verification
+- [ ] Latest main-commit Node.js 22 lint and production build must complete successfully.
+- [ ] Verify real PostgreSQL connection, backup/restore, and database schema on the selected host.
+- [ ] Enter and independently verify merchant account ownership/details before enabling manual payments.
+- [ ] Load approved product names, prices, weights, stock, product photos, packaging types and per-weight packaging charges.
+- [ ] Confirm business contact details, delivery coverage/charges, and legally reviewed customer policies.
+- [ ] Verify admin login, customer checkout, delivery, payment reconciliation, and media persistence on the actual Hostinger production host before launch.
