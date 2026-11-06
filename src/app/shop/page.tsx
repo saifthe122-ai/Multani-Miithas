@@ -32,14 +32,17 @@ export default function ShopPage() {
     { title: "Barfi", slug: "barfi" },
     { title: "Sohan Halwa", slug: "sohan-halwa" },
     { title: "Desi Ghee", slug: "desi-ghee" },
-    { title: "Honey & Dry Fruits", slug: "honey-dry-fruits" },
+    { title: "Pure Honey", slug: "pure-honey" },
+    { title: "Dry Fruits", slug: "dry-fruits" },
   ];
   const matchesCollection = (product: Product, slug: string) => {
     const value = `${product.category} ${product.name}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
     if (slug === "barfi") return /barfi/.test(value);
     if (slug === "sohan-halwa") return /sohan/.test(value);
     if (slug === "desi-ghee") return /\bghee\b/.test(value);
-    if (slug === "honey-dry-fruits") return /honey|dry\s*fruit|kheer|gajar|carrot\s*halwa/.test(value);
+    if (slug === "pure-honey") return /honey|shahad/.test(value);
+    if (slug === "dry-fruits") return /dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(value);
+    if (slug === "honey-dry-fruits") return /honey|shahad|dry\s*fruit|almond|badam|pista|cashew|kaju|akhrot|walnut/.test(value);
     if (slug === "mithai") return !/barfi|sohan|\bghee\b|honey|dry\s*fruit|kheer|gajar|carrot\s*halwa|gift\s*box/.test(value) && (/mithai|sweet|gulab\s*jamun|rasgulla|rasgula|ladoo|laddu|motichoor|cham\s*cham|patisa|petha|coconut|traditional/.test(value));
     return false;
   };
