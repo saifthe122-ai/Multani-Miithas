@@ -112,7 +112,7 @@ export default function CategoryPage() {
             const finalPrice = basePrice * (1 - Math.max(0, Math.min(100, Number(product.discount || 0))) / 100);
             const image = product.image_url || "";
             return <article key={product.id} style={{ background: "#FFFCF5", border: "1px solid #D8C59F", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {image ? <img src={image} alt={product.name} loading="lazy" style={{ width: "100%", height: 220, objectFit: "cover" }} /> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
+              {image ? <img src={image} alt={product.name} loading="lazy" style={{ display: "block", boxSizing: "border-box", width: "100%", height: 240, padding: 12, objectFit: "contain", objectPosition: "center", background: "#F5EBDD" }} /> : <div style={{ height: 220, display: "grid", placeItems: "center", background: "#EAD8B7", fontSize: 42 }}>{product.image || "✦"}</div>}
               <div style={{ padding: 18, display: "flex", flexDirection: "column", flex: 1 }}>
                 <span style={{ color: "#A16B16", fontSize: 12 }}>{product.category}</span>
                 <h2 style={{ fontWeight: 400, fontSize: 21, margin: "6px 0" }}>{product.name}</h2>
