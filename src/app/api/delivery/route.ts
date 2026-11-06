@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         : status === "dispatched" || status === "in_transit"
           ? "out_for_delivery"
           : "processing";
-    if (status !== "failed" && status !== "returned") {
+    if (status !== "pending" && status !== "failed" && status !== "returned") {
       await sql`
         UPDATE orders
         SET status = ${orderStatus}
